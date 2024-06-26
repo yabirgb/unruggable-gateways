@@ -1,0 +1,20 @@
+import {ethers} from 'ethers';
+import {expect, test} from 'bun:test';
+
+export function runSlotDataTests(reader: ethers.Contract) {
+	test('latest = 49', async () => {
+		expect(await reader.readLatest({enableCcipRead: true})).toBe(49n);
+	});
+	test('name = "Satoshi"', async () => {
+		expect(await reader.readName({enableCcipRead: true})).toBe('Satoshi');
+	});
+	test('highscores[0] = 1', async () => {
+		expect(await reader.readHighscore(0, {enableCcipRead: true})).toBe(1n);
+	});
+	test('highscores[latest] = 12345', async () => {
+		expect(await reader.readLatestHighscore({enableCcipRead: true})).toBe(12345n);
+	});
+	test('highscorers[latest] = name', async () => {
+		expect(await reader.readLatestHighscorer({enableCcipRead: true})).toBe('Satoshi');
+	});
+}

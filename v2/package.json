@@ -1,0 +1,21 @@
+{
+  "type": "module",
+  "scripts": {
+    "build": "forge build --force",
+    "test-components": "bun test test/components/*",
+    "test-gateways": "bun test test/gateway/*" 
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "@adraffy/blocksmith": "^0.0.22",
+    "@resolverworks/ezccip": "^0.0.12",
+    "ethers": "^6.13.1"
+  },
+  "name": "v2",
+  "module": "index.ts",
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
