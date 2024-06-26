@@ -4,6 +4,7 @@ import {NitroGateway} from "./gateway/NitroGateway.js";
 import {ScrollGateway} from "./gateway/ScrollGateway.js";
 import {CHAIN_ARB1, CHAIN_BASE, CHAIN_OP, CHAIN_SCROLL, createProviderPair} from './providers.js';
 import {serve} from "@resolverworks/ezccip";
+import type { Provider } from "./types.js";
 
 let [name] = process.argv.slice(2);
 let gateway;
@@ -27,4 +28,14 @@ switch (name) {
 	default: throw new Error(`unknown gateway: ${name}`);
 }
 
-await serve(gateway, {protocol: 'raw'});
+function networkName(p: Provider) {
+	return `${p._network.name} / ${p._network.chainId}`;
+}
+
+console.log({
+	impl: gateway.constructor.name,
+	chain1: networkName(gateway.provider1),
+	chain2: networkName(gateway.provider2),
+});
+
+await serve(gateway, {protocol: 'raw', port: 8000});

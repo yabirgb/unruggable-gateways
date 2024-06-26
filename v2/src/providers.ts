@@ -6,14 +6,14 @@ export const CHAIN_BASE = 8453;
 export const CHAIN_ARB1 = 42161;
 export const CHAIN_SCROLL = 534352;
 
-// function register(chain: number, name: string) {
-// 	try {
-// 		Network.register(chain, () => new Network(name, chain));
-// 	} catch (err) {
-// 	}
-// 	return Network.from(chain);
-// }
-// register(CHAIN_SCROLL, 'scroll');
+function register(chain: number, name: string) {
+	try {
+		Network.register(chain, () => new Network(name, chain));
+	} catch (err) {
+	}
+	return Network.from(chain);
+}
+register(CHAIN_SCROLL, 'scroll');
 
 export function chainName(chain: number) {
 	switch (chain) {

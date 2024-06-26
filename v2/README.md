@@ -22,3 +22,6 @@ forge install offchainlabs/nitro-contracts
 * `bun run test-components`
 * `bun run test-gateways`
 
+## Serve
+
+* `bun run serve [base|op|arb1|scroll]`

@@ -17,4 +17,10 @@ export function runSlotDataTests(reader: ethers.Contract) {
 	test('highscorers[latest] = name', async () => {
 		expect(await reader.readLatestHighscorer({enableCcipRead: true})).toBe('Satoshi');
 	});
+	test('realnames["Money Skeleton"] = "Vitalik Buterin"', async () => {
+		expect(await reader.readRealName('Money Skeleton', {enableCcipRead: true})).toBe('Vitalik Buterin');
+	});
+	test('realnames[highscorers[latest]] = "Hal Finney"', async () => {
+		expect(await reader.readLatestHighscorerRealName({enableCcipRead: true})).toBe('Hal Finney');
+	});
 }

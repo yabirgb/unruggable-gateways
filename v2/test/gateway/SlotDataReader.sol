@@ -17,8 +17,7 @@ contract SlotDataReader is EVMFetchTarget {
 	}
 
 	function readLatest() external view returns (uint256) {
-		EVMRequest memory r = EVMFetcher.newRequest(1);
-		r.push(_target).target(); 
+		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
 		r.read().setOutput(0);
 		fetch(_verifier, r, this.readLatestCallback.selector, '');
 	}
@@ -27,9 +26,8 @@ contract SlotDataReader is EVMFetchTarget {
 	}
 
 	function readName() external view returns (string memory) {
-		EVMRequest memory r = EVMFetcher.newRequest(1);
-		r.push(_target).target(); 
-		r.offset(1).readBytes().setOutput(0);
+		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
+		r.setSlot(1).readBytes().setOutput(0);
 		fetch(_verifier, r, this.readNameCallback.selector, '');
 	}
 	function readNameCallback(bytes[] memory m, uint8, bytes memory) external pure returns (string memory) {
@@ -37,9 +35,8 @@ contract SlotDataReader is EVMFetchTarget {
 	}
 
 	function readHighscore(uint256 key) external view returns (uint256) {
-		EVMRequest memory r = EVMFetcher.newRequest(1);
-		r.push(_target).target(); 
-		r.offset(2).push(key).follow().read().setOutput(0);
+		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
+		r.setSlot(2).push(key).follow().read().setOutput(0);
 		fetch(_verifier, r, this.readHighscoreCallback.selector, '');
 	}
 	function readHighscoreCallback(bytes[] memory m, uint8, bytes memory) external pure returns (uint256) {
@@ -47,9 +44,8 @@ contract SlotDataReader is EVMFetchTarget {
 	}
 
 	function readLatestHighscore() external view returns (uint256) {
-		EVMRequest memory r = EVMFetcher.newRequest(1);
-		r.push(_target).target(); 
-		r.read().offset(2).follow().read().setOutput(0);
+		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
+		r.read().setSlot(2).follow().read().setOutput(0);
 		fetch(_verifier, r, this.readLatestHighscoreCallback.selector, '');
 	}
 	function readLatestHighscoreCallback(bytes[] memory m, uint8, bytes memory) external pure returns (uint256) {
@@ -57,12 +53,29 @@ contract SlotDataReader is EVMFetchTarget {
 	}
 
 	function readLatestHighscorer() external view returns (string memory) {
-		EVMRequest memory r = EVMFetcher.newRequest(1);
-		r.push(_target).target(); 
-		r.read().offset(3).follow().readBytes().setOutput(0);
+		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
+		r.read().setSlot(3).follow().readBytes().setOutput(0);
 		fetch(_verifier, r, this.readLatestHighscorerCallback.selector, '');
 	}
 	function readLatestHighscorerCallback(bytes[] memory m, uint8, bytes memory) external pure returns (string memory) {
+		return string(m[0]);
+	}
+
+	function readRealName(string memory key) external view returns (string memory) {
+		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
+		r.setSlot(4).push(key).follow().readBytes().setOutput(0);
+		fetch(_verifier, r, this.readRealNameCallback.selector, '');
+	}
+	function readRealNameCallback(bytes[] memory m, uint8, bytes memory) external pure returns (string memory) {
+		return string(m[0]);
+	}
+
+	function readLatestHighscorerRealName() external view returns (string memory) {
+		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
+		r.read().setSlot(3).follow().readBytes().setSlot(4).follow().readBytes().setOutput(0);
+		fetch(_verifier, r, this.readLatestHighscorerRealNameCallback.selector, '');
+	}
+	function readLatestHighscorerRealNameCallback(bytes[] memory m, uint8, bytes memory) external pure returns (string memory) {
 		return string(m[0]);
 	}
 

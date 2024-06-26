@@ -64,7 +64,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 					commit = await this.getCommit(index);
 				}
 				let prover = new EVMProver(this.provider2, commit.block, commit.slotCache);
-				//prover.log = console.log;
+				prover.log = console.log;
 				let result = await prover.evalDecoded(ops, inputs);
 				//console.log(result);
 				let {proofs, order} = await prover.prove(result.needs);

@@ -81,8 +81,6 @@ library EVMFetcher {
 	function zeroSlot(EVMRequest memory r) internal pure returns (EVMRequest memory) { return r.addByte(OP_SLOT_ZERO); }	
 	function follow(EVMRequest memory r) internal pure returns (EVMRequest memory) { return r.addByte(OP_SLOT_FOLLOW); }
 
-	function offset(EVMRequest memory r, uint256 x) internal pure returns (EVMRequest memory) { return r.push(x).addSlot(); }
-
 	// function follow(EVMRequest memory r, uint256 x) internal pure returns (EVMRequest memory) { return r.push(x).follow(); }
 	// function follow(EVMRequest memory r, bytes32 x) internal pure returns (EVMRequest memory) { return r.push(x).follow(); }
 	// function follow(EVMRequest memory r, address x) internal pure returns (EVMRequest memory) { return r.push(x).follow(); }
@@ -103,5 +101,10 @@ library EVMFetcher {
 	function eval(EVMRequest memory r, uint8 flags, uint8 back) internal pure returns (EVMRequest memory) {
 		return r.addByte(OP_EVAL).addByte(back).addByte(flags);
 	}
+
+	// shorthand
+	function offset(EVMRequest memory r, uint256 x) internal pure returns (EVMRequest memory) { return r.push(x).addSlot(); }
+	function setSlot(EVMRequest memory r, uint256 x) internal pure returns (EVMRequest memory) { return r.zeroSlot().offset(x); }
+	function setTarget(EVMRequest memory r, address a) internal pure returns (EVMRequest memory) { return r.push(a).target(); }
 
 }
