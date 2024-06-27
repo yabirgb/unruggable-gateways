@@ -33,11 +33,13 @@ export function providerURL(chain: number): string {
 		} catch (err) {
 		}
 	}
-	key = process.env[`ALCHEMY_KEY_${chain}`];
+	key = process.env[`ALCHEMY_KEY`];
 	if (key) {
 		try {
 			return AlchemyProvider.getRequest(Network.from(chain), key).url;
 		} catch (err) {
+			//Unsupported chain errors will be caught e.g. 27/07/24 Alchemy does not support Scroll
+			//Will fall through to public RPC
 		}
 	}
 	switch (chain) {
