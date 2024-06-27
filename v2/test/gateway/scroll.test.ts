@@ -9,18 +9,16 @@ describe('scroll', async () => {
 	let foundry = await Foundry.launch({
 		fork: providerURL(1)
 	});
+	afterAll(() => foundry.shutdown());
 	let gateway = ScrollGateway.mainnet({
 		provider1: foundry.provider,
 		provider2: createProvider(CHAIN_SCROLL),
-		commitDelay: 0n
+		//commitDelay: 0n // use default since ScrollAPI indexer
 	});	
 	let ccip = await serve(gateway, {protocol: 'raw', port: 0});	
+	afterAll(() => ccip.http.close());
 	let verifier = await foundry.deploy({file: 'ScrollVerifier', args: [[ccip.endpoint], gateway.ScrollChainCommitmentVerifier, gateway.commitDelay, gateway.commitStep]});
 	// https://scrollscan.com/address/0x09D2233D3d109683ea95Da4546e7E9Fc17a6dfAF#code
 	let reader = await foundry.deploy({file: 'SlotDataReader', args: [verifier, '0x09D2233D3d109683ea95Da4546e7E9Fc17a6dfAF']});
-	runSlotDataTests(reader);	
-	afterAll(() => {
-		foundry.shutdown();
-		ccip.http.close();
-	});
+	runSlotDataTests(reader);
 });

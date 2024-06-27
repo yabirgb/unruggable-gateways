@@ -13,15 +13,18 @@ import {NOT_A_CONTRACT} from "./ProofUtils.sol";
 error InvalidProof();
 
 //import "forge-std/console2.sol";
+interface IPoseidon {
+	function poseidon(uint256[2] memory, uint256) external view returns (bytes32);
+}
 
-library ZkTrieHelper {
+library ScrollTrieHelper {
 	
 	// 20240622
 	// we no longer care (verify or require) about the magic bytes, as it doesn't do anything
 	// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_proof.go#L13
 	// bytes32 constant MAGIC = keccak256("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI");
 
-	function proveAccountState(address hasher, bytes32 stateRoot, address account, bytes[] memory proof) internal view returns (bytes32 storageRoot) {
+	function proveAccountState(IPoseidon hasher, bytes32 stateRoot, address account, bytes[] memory proof) internal view returns (bytes32 storageRoot) {
 		//bytes32 raw = bytes32(bytes20(account)); 
 		bytes32 key = poseidonHash1(hasher, bytes32(bytes20(account))); // left aligned
 		(bytes32 leafHash, bytes memory leaf) = walkTree(hasher, key, proof, stateRoot);
@@ -45,7 +48,7 @@ library ZkTrieHelper {
 		if (codeHash == keccak256('')) storageRoot = NOT_A_CONTRACT;
 	}
 
-	function proveStorageValue(address hasher, bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal view returns (bytes32 value) {
+	function proveStorageValue(IPoseidon hasher, bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal view returns (bytes32 value) {
 		bytes32 key = poseidonHash1(hasher, bytes32(slot));
 		(bytes32 leafHash, bytes memory leaf) = walkTree(hasher, key, proof, storageRoot);
 		uint256 nodeType = uint8(leaf[0]);
@@ -73,7 +76,7 @@ library ZkTrieHelper {
 		return temp == raw; // InvalidKeyPreimage
 	}
 
-	function walkTree(address hasher, bytes32 key, bytes[] memory proof, bytes32 rootHash) internal view returns (bytes32 expectedHash, bytes memory v) {
+	function walkTree(IPoseidon hasher, bytes32 key, bytes[] memory proof, bytes32 rootHash) internal view returns (bytes32 expectedHash, bytes memory v) {
 		expectedHash = rootHash;
 		bool done;
 		//console2.log("[WALK PROOF] %s", proof.length);
@@ -107,13 +110,12 @@ library ZkTrieHelper {
 		}
 	}
 
-	function poseidonHash1(address hasher, bytes32 x) internal view returns (bytes32) {
+	function poseidonHash1(IPoseidon hasher, bytes32 x) internal view returns (bytes32) {
 		return poseidonHash2(hasher, x >> 128, (x << 128) >> 128, 512);
 	}
-	function poseidonHash2(address hasher, bytes32 v0, bytes32 v1, uint256 domain) internal view returns (bytes32 r) {
-		// interface IPoseidon {
-		// 	function poseidon(uint256[2], uint256) external view returns (bytes32);
-		// }
+	function poseidonHash2(IPoseidon hasher, bytes32 v0, bytes32 v1, uint256 domain) internal view returns (bytes32 r) {
+		return hasher.poseidon([uint256(v0), uint256(v1)], domain);
+		/*
 		// try POSEIDON.poseidon([uint256(v0), uint256(v1)], domain) returns (bytes32 h) {
 		// 	return h;
 		// } catch {
@@ -131,6 +133,7 @@ library ZkTrieHelper {
 			r := mload(0x20)
 		}
 		if (!success) revert InvalidProof();
+		*/
 	}
 
 }

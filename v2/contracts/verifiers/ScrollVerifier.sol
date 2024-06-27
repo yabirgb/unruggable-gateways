@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import "../EVMProtocol.sol";
 import {IEVMVerifier} from "../IEVMVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
-import {ZkTrieHelper} from "../ZkTrieHelper.sol";
+import {ScrollTrieHelper, IPoseidon} from "../ScrollTrieHelper.sol";
 
 interface IScrollChain {
 	function lastFinalizedBatchIndex() external view returns (uint256);
@@ -13,7 +13,7 @@ interface IScrollChain {
 
 interface IScrollChainCommitmentVerifier {
 	function rollup() external view returns (IScrollChain);
-	function poseidon() external view returns (address);
+	function poseidon() external view returns (IPoseidon);
 }
 
 contract ScrollVerifier is IEVMVerifier {
@@ -47,11 +47,11 @@ contract ScrollVerifier is IEVMVerifier {
 	}
 
 	function proveStorageValue(bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal view returns (uint256) {
-		return uint256(ZkTrieHelper.proveStorageValue(_oracle.poseidon(), storageRoot, slot, proof));
+		return uint256(ScrollTrieHelper.proveStorageValue(_oracle.poseidon(), storageRoot, slot, proof));
 	}
 
 	function proveAccountState(bytes32 stateRoot, address target, bytes[] memory proof) internal view returns (bytes32) {
-		return ZkTrieHelper.proveAccountState(_oracle.poseidon(), stateRoot, target, proof);
+		return ScrollTrieHelper.proveAccountState(_oracle.poseidon(), stateRoot, target, proof);
 	}
 
 }

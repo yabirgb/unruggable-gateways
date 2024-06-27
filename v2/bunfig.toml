@@ -1,0 +1,4 @@
+# https://bun.sh/docs/runtime/bunfig
+
+[test]
+root = "test/" # restrict to just our tests

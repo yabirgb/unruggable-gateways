@@ -4,7 +4,7 @@ import {OPGateway} from '../../../src/gateway/OPGateway.js';
 import {ethers} from 'ethers';
 import {providerURL, CHAIN_BASE, createProvider} from '../../../src/providers.js';
 import {afterAll, describe, test, expect} from 'bun:test';
-import {EVMRequest} from '../../../src/vm.js';
+import {solidityFollowSlot} from '../../../src/vm.js';
 
 describe('TeamNick', async () => {
 	
@@ -25,12 +25,13 @@ describe('TeamNick', async () => {
 
 	const ENS = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 	const NODE = ethers.namehash('teamnick.eth');
-	const [SLOT] = await new EVMRequest(1).setTarget(ENS).push(NODE).follow().offset(1).pushSlot().setOutput(0).resolveWith();
+	const SLOT = solidityFollowSlot(0, NODE) + 1n;
+	//const [SLOT] = await new EVMRequest(1).setTarget(ENS).push(NODE).follow().offset(1).pushSlot().setOutput(0).resolveWith();
 	
 	let teamnick = await foundry.deploy({file: 'TeamNick', args: [ENS, verifier]});
 	
 	// replace real teamnick resolver with fake
-	await foundry.provider.send('anvil_setStorageAt', [ENS, SLOT, ethers.zeroPadValue(teamnick.target, 32)]);
+	await foundry.provider.send('anvil_setStorageAt', [ENS, ethers.toBeHex(SLOT, 32), ethers.toBeHex(teamnick.target, 32)]);
 		
 	test('resolver was hijacked', async () => {
 		let ens = new ethers.Contract(ENS, [

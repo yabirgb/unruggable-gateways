@@ -197,7 +197,7 @@ library EVMProver {
 			} else if (op == OP_SLOT_FOLLOW) {
 				vm.slot = uint256(keccak256(abi.encodePacked(vm.pop(), vm.slot)));
 			} else if (op == OP_STACK_SLICE) {
-				vm.push(Bytes.slice(vm.pop(), vm.readByte(), vm.readByte()));
+				vm.push(Bytes.slice(vm.pop(), vm.readShort(), vm.readShort()));
 			} else if (op == OP_STACK_KECCAK) {
 				vm.push(abi.encodePacked(keccak256(vm.pop())));
 			} else if (op == OP_STACK_CONCAT) {

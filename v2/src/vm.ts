@@ -60,10 +60,13 @@ function bigintRange(start: bigint, length: number) {
 function solidityArraySlots(slot: BigNumberish, length: number) {
 	return length ? bigintRange(BigInt(ethers.solidityPackedKeccak256(['uint256'], [slot])), length) : [];
 }
+export function solidityFollowSlot(slot: BigNumberish, key: BytesLike) {
+	return BigInt(ethers.keccak256(ethers.concat([key, ethers.toBeHex(slot, 32)])));
+}
 
 export class CommandReader {
 	static fromCommand(cmd: EVMCommand) {
-		return new this(Uint8Array.from(cmd.ops), [...cmd.inputs]);
+		return new this(Uint8Array.from(cmd.ops), cmd.inputs.slice());
 	}
 	static fromEncoded(hex: HexString) {
 		let [ops, inputs] = ABI_CODER.decode(['bytes', 'bytes[]'], hex);
@@ -109,22 +112,19 @@ export class EVMCommand {
 	clone() {
 		return new EVMCommand(this.parent, this.ops.slice(), this.inputs.slice());
 	}
-	toJSON() {
-		return {ops: this.ops, inputs: this.inputs};
-	}
-	addByte(x: number) {
+	protected addByte(x: number) {
 		if ((x & 0xFF) !== x) throw new Error(`expected byte: ${x}`);
 		this.ops.push(x);
 		return this;
 	}
-	addShort(x: number) {
+	protected addShort(x: number) {
 		//return this.addByte(x >> 8).addByte(x & 0xFF);
 		if ((x & 0xFFFF) !== x) throw new Error(`expected short: ${x}`);
 		this.ops.push(x >> 8, x & 0xFF);
 		return this;
 	}
-	addInputStr(s: string) { return this.addInputBytes(ethers.toUtf8Bytes(s)); }
-	addInputBytes(v: BytesLike) {
+	protected addInputStr(s: string) { return this.addInputBytes(ethers.toUtf8Bytes(s)); }
+	protected addInputBytes(v: BytesLike) {
 		let hex = ethers.hexlify(v);
 		let i = this.inputs.length;
 		this.inputs.push(hex);
@@ -228,18 +228,18 @@ export class MachineState {
 		readonly needs: Need[]
 	) {}
 	pop() {
-		if (!this.stack.length) throw new Error('stack: underflow');
+		if (!this.stack.length) throw new Error('stack underflow');
 		return this.stack.pop()!;
 	}
 	popSlice(back: number) {
 		return back > 0 ? this.stack.splice(-back) : [];
 	}
 	peek(back: number) {
-		if (back >= this.stack.length) throw new Error('stack: overflow');
+		if (back >= this.stack.length) throw new Error('stack overflow');
 		return this.stack[this.stack.length-1-back]; // from end
 	}
 	checkOutputIndex(i: number) {
-		if (i >= this.outputs.length) throw new Error(`invalid output: ${i}`);
+		if (i >= this.outputs.length) throw new Error(`invalid output index: ${i}`);
 		return i;
 	}
 	async resolveOutputs() {
@@ -501,7 +501,7 @@ export class EVMProver {
 					continue;
 				}
 				case OP_SLOT_FOLLOW: {
-					vm.slot = BigInt(ethers.keccak256(ethers.concat([await unwrap(vm.pop()), ethers.toBeHex(vm.slot, 32)])));
+					vm.slot = solidityFollowSlot(vm.slot, await unwrap(vm.pop()));
 					continue;
 				}
 				case OP_KECCAK: {
@@ -516,7 +516,9 @@ export class EVMProver {
 				case OP_SLICE: {
 					let x = reader.readShort();
 					let n = reader.readShort();
-					vm.stack.push(ethers.dataSlice(await unwrap(vm.pop()), x, x + n));
+					let v = await unwrap(vm.pop());
+					if (x + n > (v.length-2)>>1) throw new Error('slice overflow');
+					vm.stack.push(ethers.dataSlice(v, x, x + n));
 					continue;
 				}
 				default: throw new Error(`unknown op: ${op}`);

@@ -24,7 +24,7 @@ test('getStatic(3).getStatic(4).ref(0)', () => {
 	let r2 = new EVMRequest().setTarget(A)
 		.setSlot(3).read().addOutput()
 		.setSlot(4).pushOutput(0).follow().read().addOutput();
-	assert.deepEqual(r1.v2().toJSON(), r2.toJSON());
+	assert.deepEqual(r1.v2(), r2);
 });
 
 test('getDynamic(3).element(4).element(5).getStatic(6).element(bytes("raffy"))', () => {
