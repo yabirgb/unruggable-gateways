@@ -2,21 +2,19 @@
   "type": "module",
   "scripts": {
     "build": "forge build --force",
-	"serve": "bun src/serve.ts",
+    "serve": "bun src/serve.ts",
     "test-components": "bun test test/components/* --timeout 0",
-    "test-gateways": "bun test test/gateway/* --timeout 0" 
+    "test-gateways": "bun test test/gateway/* --timeout 0"
   },
   "devDependencies": {
+    "@adraffy/blocksmith": "^0.0.22",
     "@types/bun": "latest"
   },
   "dependencies": {
-    "@adraffy/blocksmith": "^0.0.22",
     "@resolverworks/ezccip": "^0.0.12",
     "ethers": "^6.13.1"
   },
-  "name": "v2",
-  "module": "index.ts",
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.5.2"
   }
 }

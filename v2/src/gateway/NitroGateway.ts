@@ -1,5 +1,5 @@
 import {ethers} from 'ethers';
-import type {HexString, Proof, RPCEthGetBlock} from '../types.js';
+import type {HexString, Proof} from '../types.js';
 import {AbstractCommit, AbstractGateway, ABI_CODER, type GatewayConstructor, encodeProofV1} from './AbstractGateway.js';
 
 type NitroGatewayConstructor = {

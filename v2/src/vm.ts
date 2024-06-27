@@ -206,6 +206,10 @@ export class EVMRequest extends EVMCommand {
 		this.ops[0] = i + 1;
 		return this.setOutput(i);
 	}
+	async resolveWith(prover = new EVMProver(undefined as unknown as Provider, '0x')) {
+		let state = await prover.evalRequest(this);
+		return state.resolveOutputs();
+	}
 }
 
 export type Need = [target: HexString, slot: bigint];
@@ -318,12 +322,11 @@ export class EVMProver {
 		let order = needs.map(([target, slot]) => {
 			let bucket = targets.get(target);
 			if (slot >= 0) {
-				if (!bucket) throw new Error('unreachable');
-				let ref = bucket.map.get(slot);
+				let ref = bucket?.map.get(slot);
 				if (!ref) {
 					ref = {id: refs.length};
 					refs.push(ref);
-					bucket.map.set(slot, ref);
+					bucket?.map.set(slot, ref);
 				}
 				return ref.id;
 			} else {
@@ -519,7 +522,6 @@ export class EVMProver {
 				default: throw new Error(`unknown op: ${op}`);
 			}
 		}
-		return vm;
 	}
 
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "../../contracts/EVMFetchTarget.sol";
-import "../../contracts/EVMFetcher.sol";
+import {EVMFetchTarget, IEVMVerifier} from "@ensdomains/evmgateway/contracts/EVMFetchTarget.sol";
+import {EVMFetcher, EVMRequest} from "@ensdomains/evmgateway/contracts/EVMFetcher.sol";
 
 contract SlotDataReader is EVMFetchTarget {
 	using EVMFetcher for EVMRequest;
