@@ -177,7 +177,7 @@ library EVMProver {
 			} else if (op == OP_READ_BYTES) {
 				vm.push(vm.proveBytes());
 			} else if (op == OP_READ_ARRAY) {
-				vm.push(vm.proveArray(vm.readByte()));
+				vm.push(vm.proveArray(vm.readShort()));
 			} else if (op == OP_PUSH_INPUT) {
 				vm.push(abi.encodePacked(vm.inputs[vm.readByte()]));
 			} else if (op == OP_PUSH_OUTPUT) {

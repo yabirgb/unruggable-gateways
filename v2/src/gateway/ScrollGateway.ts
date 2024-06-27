@@ -25,6 +25,7 @@ export class ScrollGateway extends AbstractGateway<ScrollCommit> {
 		return new this({
 			ScrollChainCommitmentVerifier: '0xC4362457a91B2E55934bDCb7DaaF6b1aB3dDf203',
 			ScrollAPIURL: 'https://mainnet-api-re.scroll.io/api/',
+			commitFreq: 60000, // every minute
 			commitStep: 30n,
 			...a,
 		});

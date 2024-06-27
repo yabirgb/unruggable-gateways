@@ -1,8 +1,10 @@
 {
   "type": "module",
   "scripts": {
+	"check": "bunx tsc --noEmit",
     "build": "forge build --force",
     "serve": "bun src/serve.ts",
+	"test": "bun test --timeout 0",
     "test-components": "bun test test/components/* --timeout 0",
     "test-gateways": "bun test test/gateway/* --timeout 0"
   },

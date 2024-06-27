@@ -11,7 +11,7 @@ export function encodeProofV1(proof: Proof) {
 }
 
 export class AbstractCommit {
-	readonly slotCache: CachedMap<string, HexString> = new CachedMap();
+	readonly cache: CachedMap<string, any> = new CachedMap();
 	constructor(readonly index: bigint, readonly block: HexString) {}
 }
 
@@ -36,10 +36,10 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 	constructor({
 		provider1,
 		provider2,
-		commitFreq = 60*60000,
-		commitDepth = 10,
-		commitStep = 1n,
-		commitDelay = 1n,
+		commitFreq = 60*60000, // how frequently the rollup commits (typically 1hr)
+		commitDepth = 3, // how far back from head we cache and support
+		commitDelay = 1n, // offset from head for "latest" commit
+		commitStep = 1n, // rollup index rounding
 	}: GatewayConstructor) {
 		super();
 		this.provider1 = provider1;
@@ -47,7 +47,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 		this.commitFreq = commitFreq;
 		this.commitStep = commitStep;
 		this.commitDelay = commitDelay;
-		this.latestCache = new CachedValue(async () => this.fetchLatestCommitIndex(), this.commitFreq/60, 1000);
+		this.latestCache = new CachedValue(async () => this.fetchLatestCommitIndex(), 60000, 1000); // cached
 		this.callCache = new CachedMap({max_cached: 1000});
 		this.commitCache = new CachedMap({ms: this.commitFreq, max_cached: commitDepth});
 		this.register(`function proveRequest(bytes context, tuple(bytes ops, bytes[] inputs)) returns (bytes)`, async ([ctx, {ops, inputs}], context, history) => {
@@ -63,8 +63,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 					if (lag > this.commitDepth) throw new Error(`too old: ${index} is +${lag} from ${latest}`)
 					commit = await this.getCommit(index);
 				}
-				let prover = new EVMProver(this.provider2, commit.block, commit.slotCache);
-				prover.log = console.log;
+				let prover = new EVMProver(this.provider2, commit.block, commit.cache);
 				let result = await prover.evalDecoded(ops, inputs);
 				//console.log(result);
 				let {proofs, order} = await prover.prove(result.needs);
@@ -81,7 +80,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 			history.show = [hash];
 			return this.callCache.get(hash, async _ => {
 				let commit = await this.getCommit(index);
-				let prover = new EVMProver(this.provider2, commit.block, commit.slotCache);
+				let prover = new EVMProver(this.provider2, commit.block, commit.cache);
 				let req = new EVMRequestV1(target, commands, constants).v2();
 				let state = await prover.evalRequest(req);
 				let {proofs, order} = await prover.prove(state.needs);
@@ -113,7 +112,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 	}
 	async createLatestProvider() {
 		let commit = await this.getLatestCommit();
-		return new EVMProver(this.provider2, commit.block, commit.slotCache);
+		return new EVMProver(this.provider2, commit.block, commit.cache);
 	}
 }
 

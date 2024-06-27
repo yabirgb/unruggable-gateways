@@ -14,16 +14,16 @@ async function setup() {
 		foundry,
 		async prover() {
 			let prover = await EVMProver.latest(foundry.provider);
-			let stateRoot = await prover.getStateRoot();
+			let stateRoot = await prover.fetchStateRoot();
 			return {
 				async assertDoesNotExist(target: HexString) {
-					let {accountProof} = await prover.getProofs(target);
+					let {accountProof} = await prover.fetchProofs(target);
 					let accountState = proveAccountState(target, accountProof, stateRoot);
 					assert.equal(accountState, undefined);
 				},
 				async assertValue(target: HexString, slot: BigNumberish, expect: BigNumberish) {
 					slot = ethers.getUint(slot);
-					let {accountProof, storageHash, storageProof: [{value, proof}]} =  await prover.getProofs(target, [slot]);
+					let {accountProof, storageHash, storageProof: [{value, proof}]} =  await prover.fetchProofs(target, [slot]);
 					let accountState = proveAccountState(target, accountProof, stateRoot);
 					assert.equal(accountState?.storageRoot, storageHash);
 					let slotValue = proveStorageValue(slot, proof, storageHash);

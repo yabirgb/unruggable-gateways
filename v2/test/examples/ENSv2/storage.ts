@@ -52,10 +52,10 @@ async function resolve(name: string) {
 	console.log();
 	let req = new EVMRequest(3);
 	req.setTarget(storage.target); // use storage contract
-	req.push(0).setOutput(0); // start at root (not actually needed)
+	req.push(0).setOutput(0); // start at root (NOOP)
 	name.split('.').forEach((_, i, v) => req.push(namehash(v.slice(i).join('.'))));
 	req.push(0); // add namehash for root
-	req.setSlot(0) // _nodes mapping
+	req.setSlot(0) // _nodes mapping (NOOP)
 	req.begin()
 		.pushOutput(0) // parent registry (exists)
 		.follow().follow() // map[registry][node]
@@ -68,7 +68,7 @@ async function resolve(name: string) {
 		.setOutput(0) // save it
 	.end().eval({failure: true}) // loop until we get a failure
 	req.pushOutput(1).requireNonzero().target() // set target to resolver
-		.setSlot(0) // _texts mapping
+		.setSlot(0) // _texts mapping (NOOP)
 		.push(namehash(name)).follow().pushStr('name').follow() // _texts[node][key]
 		.readBytes().setOutput(2); // read text(name) store into output	
 

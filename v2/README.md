@@ -19,8 +19,9 @@ forge install offchainlabs/nitro-contracts
 
 ## Test
 
-* `bun run test-components`
-* `bun run test-gateways`
+* `bun run test`
+	* `bun run test-components`
+	* `bun run test-gateways`
 
 ## Examples
 

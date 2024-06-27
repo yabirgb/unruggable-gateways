@@ -1,20 +1,23 @@
-import {ethers} from 'ethers';
 import type {HexString, BytesLike, BigNumberish, Provider, MaybeHex, RPCEthGetProof, RPCEthGetBlock} from './types.js';
+import {ethers} from 'ethers';
 import {unwrap, Wrapped} from './wrap.js';
 import {CachedMap} from './cached.js';
 
 const ABI_CODER = ethers.AbiCoder.defaultAbiCoder();
 
-const MAX_READ_SIZE = 1000;
-const MAX_TARGETS = 32;
+const MAX_READ_SIZE = 1024; // maximum number of bytes from single read()
+const MAX_TARGETS = 32; // maximum number of target switches
 
 const NULL_CODE_HASH = ethers.id('');
 
+const ACCOUNT_PROOF_PH = -1n;
+
+// OP_EVAL flags
 const STOP_ON_SUCCESS = 1;
 const STOP_ON_FAILURE = 2;
 const ACQUIRE_STATE = 4;
 
-const OP_DEBUG = 255;
+const OP_DEBUG = 255; // experimental
 const OP_TARGET = 1;
 const OP_SET_OUTPUT = 2;
 const OP_EVAL = 3;
@@ -42,10 +45,6 @@ const OP_KECCAK = 60;
 const OP_CONCAT = 61;
 const OP_SLICE = 62;
 
-// export const GATEWAY_ABI = new ethers.Interface([
-// 	`function proveRequest(bytes ops, bytes[] inputs) returns (bytes)`
-// ]);
-
 function uint256FromHex(hex: string) {
 	// the following should be equivalent to EVMProofHelper.toUint256()
 	return hex === '0x' ? 0n : BigInt(hex.slice(0, 66));
@@ -61,6 +60,7 @@ function solidityArraySlots(slot: BigNumberish, length: number) {
 	return length ? bigintRange(BigInt(ethers.solidityPackedKeccak256(['uint256'], [slot])), length) : [];
 }
 export function solidityFollowSlot(slot: BigNumberish, key: BytesLike) {
+	// https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
 	return BigInt(ethers.keccak256(ethers.concat([key, ethers.toBeHex(slot, 32)])));
 }
 
@@ -137,7 +137,7 @@ export class EVMCommand {
 
 	read(n = 1) { return this.addByte(OP_READ_SLOTS).addByte(n); }
 	readBytes() { return this.addByte(OP_READ_BYTES); }
-	readArray(step: number) { return this.addByte(OP_READ_ARRAY).addByte(step); }
+	readArray(step: number) { return this.addByte(OP_READ_ARRAY).addShort(step); }
 
 	target() { return this.addByte(OP_TARGET); }
 	setOutput(i: number) { return this.addByte(OP_SET_OUTPUT).addByte(i); }
@@ -247,7 +247,7 @@ export class MachineState {
 	}
 	traceTarget(target: HexString) {
 		//if (!this.needs.length || this.needs[this.needs.length-1][0] != target) {
-		this.needs.push([target, -1n]);
+		this.needs.push([target, ACCOUNT_PROOF_PH]);
 		this.targetSet.add(target);
 		if (this.targetSet.size > MAX_TARGETS) {
 			throw new Error('too many targets');
@@ -263,94 +263,105 @@ export class MachineState {
 	}
 }
 
-function isContractValue(is: boolean) {
-	return is ? 'Y' : 'N';
-}
 
 export class EVMProver {
 	static async latest(provider: Provider) {
 		let block = await provider.getBlockNumber(); 
 		return new this(provider, '0x' + block.toString(16));
 	}
-	log: ((...a: any[]) => void) | undefined;
 	constructor(
 		readonly provider: Provider, 
 		readonly block: HexString, 
-		readonly cache: CachedMap<string,HexString> = new CachedMap()
+		readonly cache: CachedMap<string,any> = new CachedMap()
 	) {}
 	checkSize(size: bigint) {
-		if (size > MAX_READ_SIZE) throw Object.assign(new Error('overflow: size'), {size, max: MAX_READ_SIZE});
+		if (size > MAX_READ_SIZE) throw new Error(`size overflow: ${size} > ${MAX_READ_SIZE}`);
 		return Number(size);
 	}
-	async getStateRoot() {
+	async fetchStateRoot() {
 		let block = await this.provider.send('eth_getBlockByNumber', [this.block, false]) as RPCEthGetBlock;
 		return block.stateRoot;
 	}
-	async getProofs(target: HexString, slots: bigint[] = []): Promise<RPCEthGetProof> {
+	async fetchProofs(target: HexString, slots: bigint[] = []): Promise<RPCEthGetProof> {
+		// 20240501: check geth slot limit => no limit, just response size
+		// https://github.com/ethereum/go-ethereum/blob/9f96e07c1cf87fdd4d044f95de9c1b5e0b85b47f/internal/ethapi/api.go#L707 
+		// TODO: there isn't a good way to cache these unless we do ordered chunks and diff against what's cached
 		return this.provider.send('eth_getProof', [target, slots.map(slot => ethers.toBeHex(slot, 32)), this.block]);
 	}
-	async getStorage(target: HexString, slot: bigint) {
+	async getStorage(target: HexString, slot: bigint): Promise<HexString> {
 		try {
-			if (await this.cache.cachedValue(target) === 'N') {
-				this.log?.(`getStorage(${target}) <skipped>`);
+			// check to see if we know this target isn't a contract
+			if (await this.cache.cachedValue(target) === false) {
 				return ethers.ZeroHash;
 			}
 		} catch (err) {
 		}
 		return this.cache.get(`${target}:${slot}`, async () => {
 			let value = await this.provider.getStorage(target, slot, this.block)
-			this.log?.(`getStorage(${target}, ${ethers.toBeHex(slot, 32)}) = ${value}`);
 			if (value !== ethers.ZeroHash) {
-				this.cache.set(target, 'Y');
+				this.cache.set(target, true); // storage exists so it must be a contract
 			}
 			return value;
 		});
 	}
-	async isContract(target: HexString) {
+	async isContract(target: HexString): Promise<boolean> {
+		// NOTE: if eth_getProof with no slots is as cheap as eth_getCode
+		// accountProof would be better than code
 		return this.cache.get(target, async target => {
 			let code = await this.provider.getCode(target, this.block);
-			let is = isContractValue(code.length > 2);
-			this.log?.(`isContract(${target}) = ${is}`);
-			return is;
+			return code.length > 2;
 		});
 	}
 	async prove(needs: Need[]) {
-		type Ref = {id: number, proof?: HexString[]};
+		// reduce an ordered list of needs into a deduplicated list of proofs
+		// minimize calls to eth_getProof
+		// provide empty proofs for non-contract slots
+		type Ref = {id: number, proof: HexString[]};
 		type RefMap = Ref & {map: Map<bigint, Ref>};
 		let targets = new Map<HexString, RefMap>();
 		let refs: Ref[] = [];
 		let order = needs.map(([target, slot]) => {
 			let bucket = targets.get(target);
-			if (slot >= 0) {
-				let ref = bucket?.map.get(slot);
-				if (!ref) {
-					ref = {id: refs.length};
-					refs.push(ref);
-					bucket?.map.set(slot, ref);
-				}
-				return ref.id;
-			} else {
+			if (slot == ACCOUNT_PROOF_PH) {
+				// accountProof
 				if (!bucket) {
-					bucket = {
-						map: new Map(),
-						id: refs.length
-					};
+					bucket = {id: refs.length, proof: [], map: new Map()};
 					refs.push(bucket);
 					targets.set(target, bucket);
 				}
 				return bucket.id;
+			} else {
+				// storageProof (for targeted account)
+				// bucket can be undefined if a slot is read without a target
+				// this is okay because the initial machine state is NOT_A_CONTRACT
+				let ref = bucket?.map.get(slot);
+				if (!ref) {
+					ref = {id: refs.length, proof: []};
+					refs.push(ref);
+					bucket?.map.set(slot, ref);
+				}
+				return ref.id;
 			}
 		});
 		await Promise.all(Array.from(targets, async ([target, bucket]) => {
 			let m = [...bucket.map];
-			let proof = await this.getProofs(target, m.map(([slot]) => slot));
+			try {
+				if (await this.cache.cachedValue(target) === false) {
+					m = []; // if we know target isn't a contract, we only need accountProof
+				}
+			} catch (err) {
+			}
+			let proof = await this.fetchProofs(target, m.map(([slot]) => slot));
 			bucket.proof = proof.accountProof;
-			let is_contract = !(proof.codeHash === NULL_CODE_HASH || proof.keccakCodeHash === NULL_CODE_HASH);
-			this.cache.set(target, isContractValue(is_contract));
-			m.forEach(([_, ref], i) => ref.proof = is_contract ? proof.storageProof[i].proof : []);
+			// remember if this target was a contract
+			let isContract = !(proof.codeHash === NULL_CODE_HASH || proof.keccakCodeHash === NULL_CODE_HASH);
+			this.cache.set(target, isContract);
+			if (isContract) {
+				m.forEach(([_, ref], i) => ref.proof = proof.storageProof[i].proof);
+			}
 		}));
 		return {
-			proofs: refs.map(x => x.proof!),
+			proofs: refs.map(x => x.proof),
 			order: Uint8Array.from(order)
 		};
 	}
@@ -369,7 +380,7 @@ export class EVMProver {
 		while (reader.remaining) {
 			let op = reader.readByte();
 			switch (op) {
-				case OP_DEBUG: {
+				case OP_DEBUG: { // args: [string(label)] / stack: 0
 					console.log('DEBUG', ethers.toUtf8String(reader.readInput()), {
 						target: vm.target,
 						slot: vm.slot,
@@ -380,58 +391,57 @@ export class EVMProver {
 					});
 					break;
 				}
-				case OP_TARGET: {
+				case OP_TARGET: { // args: [] / stack: -1
 					vm.target = addressFromHex(await unwrap(vm.pop()));
 					vm.slot = 0n;
-					vm.traceTarget(vm.target);
+					vm.traceTarget(vm.target); // accountProof
 					continue;
 				}
-				case OP_SLOT_ADD: {
+				case OP_SLOT_ADD: { // args: [] / stack: -1
 					vm.slot += uint256FromHex(await unwrap(vm.pop()));
 					continue;
 				}
-				case OP_SLOT_ZERO: {
+				case OP_SLOT_ZERO: { // args: [] / stack: 0
 					vm.slot = 0n;
 					continue;
 				}
-				case OP_SET_OUTPUT: {
+				case OP_SET_OUTPUT: { // args: [outputIndex] / stack: -1
 					vm.outputs[vm.checkOutputIndex(reader.readByte())] = vm.pop();
 					continue;
 				}
-				case OP_PUSH_INPUT: {
+				case OP_PUSH_INPUT: { // args: [inputIndex] / stack: 0
 					vm.stack.push(reader.readInput());
 					continue;
 				}
-				case OP_PUSH_OUTPUT: {
+				case OP_PUSH_OUTPUT: { // args: [outputIndex] / stack: +1
 					vm.stack.push(vm.outputs[vm.checkOutputIndex(reader.readByte())]);
 					continue;
 				}
-				case OP_PUSH_SLOT: {
-					vm.stack.push(ethers.toBeHex(vm.slot, 32));
+				case OP_PUSH_SLOT: { // args: [] / stack: +1
+					vm.stack.push(ethers.toBeHex(vm.slot, 32)); // current slot register
 					break;
 				}
-				case OP_PUSH_TARGET: {
-					vm.stack.push(vm.target);
+				case OP_PUSH_TARGET: { // args: [] / stack: +1
+					vm.stack.push(vm.target); // current target address
 					break;
 				}
-				case OP_DUP: {
+				case OP_DUP: { // args: [stack(rindex)] / stack: +1
 					vm.stack.push(vm.peek(reader.readByte()));
 					continue;
 				}	
-				case OP_POP: {
-					vm.pop();
+				case OP_POP: { // args: [] / stack: upto(-1)
+					vm.stack.pop(); 
 					continue;
 				}
-				case OP_READ_SLOTS: {
-					let length = reader.readByte();
-					if (!length) throw new Error(`empty read`);
+				case OP_READ_SLOTS: { // args: [count] / stack: +1
 					let {target, slot} = vm;
-					let slots = bigintRange(slot, length);
+					let slots = bigintRange(slot, reader.readByte());
 					vm.traceSlots(target, slots);
-					vm.stack.push(new Wrapped(async () => ethers.concat(await Promise.all(slots.map(x => this.getStorage(target, x))))));
+					vm.stack.push(slots.length ? new Wrapped(async () => ethers.concat(await Promise.all(slots.map(x => this.getStorage(target, x))))) : '0x');
 					continue;
 				}
-				case OP_READ_BYTES: {
+				case OP_READ_BYTES: { // args: [] / stack: +1
+					// https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
 					let {target, slot} = vm;
 					vm.traceSlot(target, slot);
 					let first = await this.getStorage(target, slot);
@@ -446,8 +456,8 @@ export class EVMProver {
 					}
 					continue;
 				}
-				case OP_READ_ARRAY: {
-					let step = reader.readByte();
+				case OP_READ_ARRAY: { // args: [] / stack: +1
+					let step = reader.readShort();
 					if (!step) throw new Error('invalid element size');
 					let {target, slot} = vm;
 					vm.traceSlot(target, slot);
@@ -458,8 +468,9 @@ export class EVMProver {
 					} else {
 						length = length * ((step + 31) >> 5);
 					}
-					let slots = [slot, ...solidityArraySlots(slot, length)];
+					let slots = solidityArraySlots(slot, length);
 					vm.traceSlots(target, slots);
+					slots.unshift(slot);
 					vm.stack.push(new Wrapped(async () => ethers.concat(await Promise.all(slots.map(x => this.getStorage(target, x))))));
 					continue;
 				}
@@ -509,6 +520,9 @@ export class EVMProver {
 					continue;
 				}
 				case OP_CONCAT: {
+					// stack = [..., a, b, c]
+					// concat(2) => [..., a ,b+c]
+					// concat(4) => [a+b+c]
 					let v = vm.popSlice(reader.readByte());
 					vm.stack.push(v.length ? new Wrapped(async () => ethers.concat(await Promise.all(v.map(unwrap)))) : '0x');
 					continue;
