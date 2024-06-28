@@ -40,5 +40,5 @@ let r2 = new EVMRequest().setTarget(A)
 	.setSlot(3).read().addOutput()
 	.setSlot(4).pushOutput(0).follow().read().addOutput();
 
-console.log(r1.v2().toJSON());
-console.log(r2.toJSON());
+console.log(r1.v2());
+console.log(r2);

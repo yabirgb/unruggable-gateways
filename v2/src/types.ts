@@ -1,11 +1,8 @@
 import type {JsonRpcApiProvider, WebSocketProvider, BigNumberish, BytesLike} from 'ethers';
-import type {Unwrappable} from './wrap.js';
 
 export type {BigNumberish, BytesLike};
 export type HexString = string;
-export type Resolvable<T> = T | Promise<T>;
 export type Proof = HexString[];
-export type MaybeHex = Unwrappable<HexString>;
 
 export type Provider = JsonRpcApiProvider | WebSocketProvider;
 export type ProviderPair = {

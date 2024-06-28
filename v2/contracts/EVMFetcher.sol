@@ -48,6 +48,10 @@ library EVMFetcher {
 	// 	return uint8(r.ops[0]);
 	// }
 
+	function debug(EVMRequest memory r, string memory label) internal pure returns (EVMRequest memory) {
+		return r.addByte(OP_DEBUG).addByte(r.addInput(bytes(label)));
+	}
+
 	function target(EVMRequest memory r) internal pure returns (EVMRequest memory) { return r.addByte(OP_TARGET); }
 	function requireContract(EVMRequest memory r) internal pure returns (EVMRequest memory) { return r.addByte(OP_REQ_CONTRACT); }
 

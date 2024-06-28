@@ -1,7 +1,9 @@
-import type {HexString, BytesLike, BigNumberish, Provider, MaybeHex, RPCEthGetProof, RPCEthGetBlock} from './types.js';
+import type {HexString, BytesLike, BigNumberish, Provider, RPCEthGetProof, RPCEthGetBlock} from './types.js';
 import {ethers} from 'ethers';
-import {unwrap, Wrapped} from './wrap.js';
+import {unwrap, Wrapped, type Unwrappable} from './wrap.js';
 import {CachedMap} from './cached.js';
+
+type HexFuture = Unwrappable<HexString>;
 
 const ABI_CODER = ethers.AbiCoder.defaultAbiCoder();
 
@@ -105,7 +107,7 @@ export class CommandReader {
 
 export class EVMCommand {	
 	constructor(
-		private parent: EVMCommand | undefined,
+		private parent: EVMCommand | undefined = undefined,
 		readonly ops: number[] = [],
 		readonly inputs: string[] = [],
 	) {}
@@ -169,6 +171,7 @@ export class EVMCommand {
 	push(x: BigNumberish) { return this.pushBytes(ethers.toBeHex(x, 32)); }
 	pushStr(s: string) { return this.addByte(OP_PUSH_INPUT).addByte(this.addInputStr(s)); }
 	pushBytes(v: BytesLike) { return this.addByte(OP_PUSH_INPUT).addByte(this.addInputBytes(v)); }
+	//pushCommand(cmd: EVMCommand) { return this.pushBytes(cmd.encode()); }
 	pushSlot() { return this.addByte(OP_PUSH_SLOT); }
 	pushTarget() { return this.addByte(OP_PUSH_TARGET); }
 	
@@ -191,6 +194,7 @@ export class EVMCommand {
 	setSlot(x: BigNumberish) { return this.zeroSlot().offset(x); }
 }
 
+// a request is just a command where the leading byte is the number of outputs
 export class EVMRequest extends EVMCommand {
 	context: HexString | undefined;
 	constructor(outputCount = 0) {
@@ -206,6 +210,7 @@ export class EVMRequest extends EVMCommand {
 		this.ops[0] = i + 1;
 		return this.setOutput(i);
 	}
+	// experimential
 	async resolveWith(prover = new EVMProver(undefined as unknown as Provider, '0x')) {
 		let state = await prover.evalRequest(this);
 		return state.resolveOutputs();
@@ -220,11 +225,11 @@ export class MachineState {
 	}
 	target = ethers.ZeroAddress;
 	slot = 0n;
-	stack: MaybeHex[] = [];
+	stack: HexFuture[] = [];
 	exitCode = 0;
 	private readonly targetSet = new Set();
 	constructor(
-		readonly outputs: MaybeHex[], 
+		readonly outputs: HexFuture[], 
 		readonly needs: Need[]
 	) {}
 	pop() {
@@ -474,14 +479,14 @@ export class EVMProver {
 					vm.stack.push(new Wrapped(async () => ethers.concat(await Promise.all(slots.map(x => this.getStorage(target, x))))));
 					continue;
 				}
-				case OP_REQ_CONTRACT: {
+				case OP_REQ_CONTRACT: { // args: [] / stack: 0
 					if (!await this.isContract(vm.target)) {
 						vm.exitCode = 1;
 						return;
 					}
 					continue;
 				}
-				case OP_REQ_NONZERO: {
+				case OP_REQ_NONZERO: { // args: [back] / stack: 0
 					let back = reader.readByte();
 					if (/^0x0*$/.test(await unwrap(vm.peek(back)))) {
 						vm.exitCode = 1;
@@ -489,7 +494,7 @@ export class EVMProver {
 					}
 					continue;
 				}
-				case OP_EVAL: {
+				case OP_EVAL: { // args: [back, flags] / stack: -1 (program) & -back (args)
 					let back = reader.readByte();
 					let flags = reader.readByte();
 					let cmd = CommandReader.fromEncoded(await unwrap(vm.pop()));
@@ -511,11 +516,11 @@ export class EVMProver {
 					}
 					continue;
 				}
-				case OP_SLOT_FOLLOW: {
+				case OP_SLOT_FOLLOW: { // args: [] / stack: -1
 					vm.slot = solidityFollowSlot(vm.slot, await unwrap(vm.pop()));
 					continue;
 				}
-				case OP_KECCAK: {
+				case OP_KECCAK: { // args: []  / stack: 0
 					vm.stack.push(ethers.keccak256(await unwrap(vm.pop())));
 					continue;
 				}
@@ -527,7 +532,7 @@ export class EVMProver {
 					vm.stack.push(v.length ? new Wrapped(async () => ethers.concat(await Promise.all(v.map(unwrap)))) : '0x');
 					continue;
 				}
-				case OP_SLICE: {
+				case OP_SLICE: { // args: [off, size] / stack: 0
 					let x = reader.readShort();
 					let n = reader.readShort();
 					let v = await unwrap(vm.pop());

@@ -11,19 +11,8 @@ function register(chain: number, name: string) {
 		Network.register(chain, () => new Network(name, chain));
 	} catch (err) {
 	}
-	return Network.from(chain);
 }
 register(CHAIN_SCROLL, 'scroll');
-
-export function chainName(chain: number) {
-	switch (chain) {
-		case CHAIN_OP: return 'op';
-		case CHAIN_ARB1: return 'arb1';
-		case CHAIN_BASE: return 'base';
-		case CHAIN_SCROLL: return 'scroll';
-		default: throw new Error(`unknown chain: ${chain}`);
-	}
-}
 
 export function providerURL(chain: number): string {
 	let key = process.env.INFURA_KEY;
@@ -33,7 +22,7 @@ export function providerURL(chain: number): string {
 		} catch (err) {
 		}
 	}
-	key = process.env[`ALCHEMY_KEY`];
+	key = process.env['ALCHEMY_KEY'];
 	if (key) {
 		try {
 			return AlchemyProvider.getRequest(Network.from(chain), key).url;

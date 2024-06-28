@@ -8,7 +8,7 @@ type NitroGatewayConstructor = {
 
 class NitroCommit extends AbstractCommit {
 	constructor(
-		index: bigint, 
+		index: number, 
 		block: HexString,
 		readonly blockHash: HexString,
 		readonly sendRoot: HexString,
@@ -59,13 +59,13 @@ export class NitroGateway extends AbstractGateway<NitroCommit> {
 			[[ethers.ZeroHash, commit.sendRoot, commit.index, commit.rlpEncodedBlock], encodeProofV1(accountProof), storageProofs.map(encodeProofV1)]
 		);
 	}
-	override async fetchLatestCommitIndex(): Promise<bigint> {
-		return this.L2Rollup.latestNodeCreated();
+	override async fetchLatestCommitIndex(): Promise<number> {
+		return Number(await this.L2Rollup.latestNodeCreated());
 	}
-	override async fetchCommit(index: bigint) {
+	override async fetchCommit(index: number) {
 		let [event] = await this.L2Rollup.queryFilter(this.L2Rollup.filters.NodeCreated(index));
 		if (!(event instanceof ethers.EventLog)) throw new Error(`unknown node index: ${index}`);
-		let [blockHash, sendRoot] = event.args[4][1][0][0]; //events[0].args.afterState.globalState.bytes32Vals;
+		let [blockHash, sendRoot] = event.args[4][1][0][0]; //event.args.toObject(true).afterState.globalState.bytes32Vals;
 		let json = await this.provider2.send('eth_getBlockByHash', [blockHash, false]);
 		let rlpEncodedBlock = ethers.encodeRlp([
 			json.parentHash,

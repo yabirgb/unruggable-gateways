@@ -1,4 +1,4 @@
-import type {BigNumberish, HexString} from '../../src/types.js';
+import type {BigNumberish} from '../../src/types.js';
 import {EVMRequest, EVMProver} from '../../src/vm.js';
 import {Foundry} from '@adraffy/blocksmith';
 import {ethers} from 'ethers';
@@ -220,6 +220,7 @@ describe('ops', async () => {
 		let req = new EVMRequest();
 		req.push(1).requireNonzero();
 		req.push('0x0001').requireNonzero();
+		req.pushStr('abc').requireNonzero();
 		let {exitCode} = await verify(req);
 		expect(exitCode).toBe(0);
 	});
@@ -236,6 +237,32 @@ describe('ops', async () => {
 		req.setTarget(ethers.ZeroAddress).requireContract();
 		let {exitCode} = await verify(req);
 		expect(exitCode).toBe(1);
+	});
+
+	test('eval requireContract', async () => {
+		let req = new EVMRequest();
+		req.push(1);
+		req.push(contract.target);
+		req.push('0x51050ec063d393217B436747617aD1C2285Aeeee');
+		req.push(uint256(0));
+		req.begin().target().requireContract().end();
+		req.eval({success: true, acquire: true});
+		let {target, stack} = await verify(req);
+		expect(target).toBe(contract.target.toLowerCase());
+		expect(stack).toHaveLength(0);
+	});
+
+	test('eval requireNonzero', async () => {
+		let req = new EVMRequest(1);
+		req.push(123);
+		req.push(1337);
+		req.push(0);
+		req.pushStr('');
+		req.begin().requireNonzero().setOutput(0).end();
+		req.eval({success: true});
+		let {values, stack} = await verify(req);
+		expect(values[0]).toBe(uint256(1337));
+		expect(stack).toHaveLength(0);
 	});
 
 });

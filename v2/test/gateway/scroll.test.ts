@@ -13,7 +13,7 @@ describe('scroll', async () => {
 	let gateway = ScrollGateway.mainnet({
 		provider1: foundry.provider,
 		provider2: createProvider(CHAIN_SCROLL),
-		//commitDelay: 0n // use default since ScrollAPI indexer
+		//commitDelay: 0 // use default since ScrollAPI indexer
 	});	
 	let ccip = await serve(gateway, {protocol: 'raw', port: 0});	
 	afterAll(() => ccip.http.close());

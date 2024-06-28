@@ -14,14 +14,14 @@ describe('TeamNick', async () => {
 	let gateway = OPGateway.baseMainnet({
 		provider1: foundry.provider, 
 		provider2: createProvider(CHAIN_BASE),
-		commitDelay: 0n,
+		commitDelay: 0,
 	});
 	afterAll(() => gateway.shutdown());
 
 	let ccip = await serve(gateway, {protocol: 'raw', port: 0});
 	afterAll(() => ccip.http.close());
 
-	let verifier = await foundry.deploy({file: 'OPVerifier', args: [[ccip.endpoint], gateway.outputOracle, gateway.commitDelay]});
+	let verifier = await foundry.deploy({file: 'OPVerifier', args: [[ccip.endpoint], gateway.L2OutputOracle, gateway.commitDelay]});
 
 	const ENS = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 	const NODE = ethers.namehash('teamnick.eth');

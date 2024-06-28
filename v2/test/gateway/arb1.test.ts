@@ -13,7 +13,7 @@ describe('arb1', async () => {
 	let gateway = NitroGateway.arb1Mainnet({
 		provider1: foundry.provider,
 		provider2: createProvider(CHAIN_ARB1),
-		commitDelay: 0n
+		commitDelay: 0
 	});	
 	let ccip = await serve(gateway, {protocol: 'raw', port: 0});	
 	afterAll(() => ccip.http.close());

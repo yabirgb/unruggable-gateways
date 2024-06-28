@@ -18,16 +18,22 @@ function clock() {
 }
 
 export class CachedValue<T> {
+	static once<T>(fn: () => Promise<T>, errorMs: number = 250) {
+		return new this(fn, Infinity, errorMs);
+	}
 	#exp: number = 0;
 	#value: Promise<T> | undefined;
-	constructor(readonly fn: () => Promise<T>, readonly cacheMs: number, readonly errorMs: number) {
-	}
+	constructor(
+		readonly fn: () => Promise<T>,
+		readonly cacheMs: number,
+		readonly errorMs: number
+	) {}
 	clear() {
 		this.#value = undefined;
 	}
 	set(value: T) {
 		this.#value = Promise.resolve(value);
-		this.#exp = clock();
+		this.#exp = clock() + this.cacheMs;
 	}
 	get value() {
 		return this.#value;
@@ -57,18 +63,24 @@ export class CachedMap<K = any, V = any> {
 	readonly slopMs;
 	readonly maxCached;
 	readonly maxPending;
-	constructor({ms = 60000, ms_error, ms_slop = 50, max_cached = 10000, max_pending = 100}: { // fix me
-		ms?: number;
-		ms_error?: number;
-		ms_slop?: number;
-		max_cached?: number;
-		max_pending?: number;
+	constructor({
+		cacheMs = 60000, // how long to cache a resolved promise
+		errorMs = 250, // how long to cache a rejected promise
+		slopMs = 50, // reschedule precision
+		maxCached = 10000, // overflow clears oldest items
+		maxPending = 100 // overflow causes rejections
+	}: { 
+		cacheMs?: number;
+		errorMs?: number;
+		slopMs?: number;
+		maxCached?: number;
+		maxPending?: number;
 	} = {}) {
-		this.cacheMs = ms;
-		this.errorMs = ms_error ?? Math.ceil(ms / 4);
-		this.slopMs = ms_slop;
-		this.maxCached = max_cached;
-		this.maxPending = max_pending;
+		this.cacheMs = cacheMs;
+		this.errorMs = errorMs;
+		this.slopMs = slopMs;
+		this.maxCached = maxCached;
+		this.maxPending = maxPending;
 	}
 	private schedule(exp: number) {
 		let now = clock();
@@ -76,6 +88,7 @@ export class CachedMap<K = any, V = any> {
 		if (this.timer_t < t) return; // scheduled and shorter
 		clearTimeout(this.timer); // kill old
 		this.timer_t = t; // remember fire time
+		if (t === Infinity) return;
 		this.timer = setTimeout(() => {
 			let now = clock();
 			let min = Infinity;
@@ -87,7 +100,7 @@ export class CachedMap<K = any, V = any> {
 				}
 			}
 			this.timer_t = Infinity;
-			if (this.cached.size) {
+			if (this.cached.size && min < Infinity) {
 				this.schedule(min); // schedule for next
 			} else {
 				clearTimeout(this.timer);
@@ -96,6 +109,7 @@ export class CachedMap<K = any, V = any> {
 	}
 	get pendingSize() { return this.pending.size; }
 	get cachedSize()  { return this.cached.size;  }
+	get nextExpirationMs() { return this.timer_t; }
 	clear() {
 		this.cached.clear();
 		this.pending.clear();
@@ -103,16 +117,20 @@ export class CachedMap<K = any, V = any> {
 		this.timer_t = Infinity;
 	}
 	set(key: K, value: V | Promise<V>, ms?: number) {
-		if (!ms) ms = this.cacheMs;
-		if (this.cached.size >= this.maxCached) { // we need room
-			// TODO: this needs a heap
-			for (let [key] of [...this.cached].sort((a, b) => a[1][0] - b[1][0]).slice(-Math.ceil(this.maxCached/16))) { // remove batch
-				this.cached.delete(key);
+		ms ??= this.cacheMs;
+		if (ms > 0) {
+			if (this.cached.size >= this.maxCached) { // we need room
+				// TODO: this needs a heap
+				for (let [key] of [...this.cached].sort((a, b) => a[1][0] - b[1][0]).slice(-Math.ceil(this.maxCached/16))) { // remove batch
+					this.cached.delete(key);
+				}
 			}
+			let exp = clock() + ms;
+			this.cached.set(key, [exp, Promise.resolve(value)]); // add cache entry
+			this.schedule(exp);
+		} else {
+			this.cached.delete(key);
 		}
-		let exp = clock() + ms;
-		this.cached.set(key, [exp, Promise.resolve(value)]); // add cache entry
-		this.schedule(exp);
 	}
 	cachedRemainingMs(key: K): number {
 		let c = this.cached.get(key);

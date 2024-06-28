@@ -12,57 +12,59 @@ export function encodeProofV1(proof: Proof) {
 
 export class AbstractCommit {
 	readonly cache: CachedMap<string, any> = new CachedMap();
-	constructor(readonly index: bigint, readonly block: HexString) {}
+	constructor(readonly index: number, readonly block: HexString) {}
 }
 
 export type GatewayConstructor = {
 	provider1: Provider; 
 	provider2: Provider;
-	commitFreq?: number;
+	errorRetryMs?: number;
+	checkCommitMs?: number;
+	writeCommitMs?: number;
 	commitDepth?: number;
-	commitStep?: bigint;
-	commitDelay?: bigint;
+	commitStep?: number;
+	commitDelay?: number;
+	callCacheSize?: number;
 };
 
 export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 	readonly provider1;
 	readonly provider2;
-	readonly commitFreq;
+	readonly writeCommitMs;
 	readonly commitStep;
 	readonly commitDelay;
 	readonly callCache: CachedMap<string, Uint8Array>;
-	readonly commitCache: CachedMap<bigint, C>;
-	readonly latestCache: CachedValue<bigint>;
+	readonly commitCache: CachedMap<number, C>;
+	readonly recentCommits: (C | undefined)[];
+	readonly latestCache: CachedValue<number>;
 	constructor({
 		provider1,
 		provider2,
-		commitFreq = 60*60000, // how frequently the rollup commits (typically 1hr)
+		errorRetryMs = 250, // ms we wait to retry actions that failed
+		checkCommitMs = 60000, // how frequently we check if rollup has commit
+		writeCommitMs = 60*60000, // how frequently the rollup actually commits
 		commitDepth = 3, // how far back from head we cache and support
-		commitDelay = 1n, // offset from head for "latest" commit
-		commitStep = 1n, // rollup index rounding
+		commitDelay = 1, // offset from head for "latest" commit
+		commitStep = 1, // index rounding
+		callCacheSize = 1000,
 	}: GatewayConstructor) {
 		super();
 		this.provider1 = provider1;
 		this.provider2 = provider2;
-		this.commitFreq = commitFreq;
+		this.writeCommitMs = writeCommitMs;
 		this.commitStep = commitStep;
 		this.commitDelay = commitDelay;
-		this.latestCache = new CachedValue(async () => this.fetchLatestCommitIndex(), 60000, 1000); // cached
-		this.callCache = new CachedMap({max_cached: 1000});
-		this.commitCache = new CachedMap({ms: this.commitFreq, max_cached: commitDepth});
+		this.latestCache = new CachedValue(async () => Number(await this.fetchLatestCommitIndex()), checkCommitMs, errorRetryMs); // cached
+		this.recentCommits = Array(commitDepth); // circular buffer
+		this.commitCache = new CachedMap({cacheMs: 0, errorMs: errorRetryMs, maxCached: 2*commitDepth}); // inflight commits
+		this.callCache = new CachedMap({cacheMs: Infinity, maxCached: callCacheSize});
 		this.register(`function proveRequest(bytes context, tuple(bytes ops, bytes[] inputs)) returns (bytes)`, async ([ctx, {ops, inputs}], context, history) => {
-			let index = parseGatewayContext(ctx);
+			let index = parseGatewayContext(ctx); // TODO: support (min, max)
+			if (index % this.commitStep) throw new Error(`commit index not aligned: ${index}`);
 			let hash = ethers.keccak256(context.calldata);
 			history.show = [ethers.hexlify(ops), hash]; // decide this
 			return this.callCache.get(hash, async _ => {
-				let commit = await this.commitCache.peek(index);
-				if (!commit) {
-					let latest = await this.getLatestCommitIndex();
-					let lag = Number((latest - index) / this.commitStep);
-					if (lag < -1) throw new Error(`too new: ${index} is ${lag} from ${latest}`);
-					if (lag > this.commitDepth) throw new Error(`too old: ${index} is +${lag} from ${latest}`)
-					commit = await this.getCommit(index);
-				}
+				let commit = await this.commitFromAligned(index);
 				let prover = new EVMProver(this.provider2, commit.block, commit.cache);
 				let result = await prover.evalDecoded(ops, inputs);
 				//console.log(result);
@@ -70,16 +72,12 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 				return ethers.getBytes(this.encodeWitness(commit, proofs, order));
 			});
 		});
-		this.register(`function getStorageSlots(
-			address target,
-			bytes32[] commands,
-			bytes[] constants
-		) returns (bytes)`, async ([target, commands, constants], context, history) => {
-			let index = await this.getLatestCommitIndex() - this.commitDelay;
+		this.register(`function getStorageSlots(address target, bytes32[] commands, bytes[] constants) returns (bytes)`, async ([target, commands, constants], context, history) => {
+			let index = this.alignCommitIndex(await this.latestCache.get() - this.commitDelay);
 			let hash = ethers.id(`${index}:${context.calldata}`);
 			history.show = [hash];
 			return this.callCache.get(hash, async _ => {
-				let commit = await this.getCommit(index);
+				let commit = await this.commitFromAligned(index);
 				let prover = new EVMProver(this.provider2, commit.block, commit.cache);
 				let req = new EVMRequestV1(target, commands, constants).v2();
 				let state = await prover.evalRequest(req);
@@ -90,33 +88,58 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 		});
 	}
 	get commitDepth() {
-		return this.commitCache.maxCached;
+		return this.recentCommits.length;
 	}
 	shutdown() {
 		this.provider1.destroy();
 		this.provider2.destroy();
 	}
-	abstract fetchLatestCommitIndex(): Promise<bigint>;
-	abstract fetchCommit(index: bigint): Promise<C>;
+	abstract fetchLatestCommitIndex(): Promise<number>;
+	abstract fetchCommit(index: number): Promise<C>;
 	abstract encodeWitnessV1(commit: C, accountProof: Proof, storageProofs: Proof[]): HexString;
 	abstract encodeWitness(commit: C, proofs: Proof[], order: Uint8Array): HexString;
+	// latest aligned commit index (cached)
 	async getLatestCommitIndex() {
-		let index = await this.latestCache.get();
+		return this.alignCommitIndex(await this.latestCache.get() - this.commitDelay);
+	}
+	// latest aligned commit (cached) 
+	async getLatestCommit() {
+		return this.commitFromAligned(await this.getLatestCommitIndex());
+	}
+	// align a commit index to cachable index
+	// (typically the same unless rollup commits frequently, eg. scroll)
+	private alignCommitIndex(index: number) {
 		return index - (index % this.commitStep);
 	}
-	async getCommit(index: bigint) {
-		return this.commitCache.get(index, async index => this.fetchCommit(index));
+	// translate an aligned commit index to cicular buffer index
+	// throws if the index is outside servable bounds
+	private async slotFromAligned(index: number) {
+		let latest = this.alignCommitIndex(await this.latestCache.get());
+		if (index > latest) throw new Error(`commit too new: ${index} > ${latest}`);
+		let oldest = latest - this.commitStep * this.recentCommits.length; 
+		if (index < oldest) throw new Error(`commit too old: ${index} < ${oldest}`);
+		return (index / this.commitStep) % this.recentCommits.length;
 	}
-	async getLatestCommit() {
-		return this.getCommit(await this.getLatestCommitIndex());
+	// manage circular buffer
+	private async commitFromAligned(index: number) {
+		let slot = await this.slotFromAligned(index); // compute circular index
+		let commit = this.recentCommits[slot];
+		if (commit?.index === index) return commit; // check if latest
+		return this.commitCache.get(index, async index => {
+			let commit = await this.fetchCommit(index); // get newer commit
+			let slot = await this.slotFromAligned(index); // check slot again
+			this.recentCommits[slot] = commit; // replace
+			return commit;
+		});
 	}
-	async createLatestProvider() {
+	// convenience: get a prover sharing the latest cached commit cache
+	async createLatestProver() {
 		let commit = await this.getLatestCommit();
 		return new EVMProver(this.provider2, commit.block, commit.cache);
 	}
 }
 
-export function parseGatewayContext(context: HexString): bigint {
+export function parseGatewayContext(context: HexString): number {
 	let [index] = ABI_CODER.decode(['uint256'], context);
-	return index;
+	return Number(index);
 }

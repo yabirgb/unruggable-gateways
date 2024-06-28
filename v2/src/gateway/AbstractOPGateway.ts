@@ -8,7 +8,7 @@ export type AbstractOPGatewayConstructor = GatewayConstructor & {L2ToL1MessagePa
 
 export class OPCommit extends AbstractCommit {
 	constructor(
-		index: bigint, 
+		index: number, 
 		block: HexString,
 		readonly blockHash: HexString,
 		readonly stateRoot: HexString,
@@ -40,8 +40,7 @@ export abstract class AbstractOPGateway extends AbstractGateway<OPCommit> {
 			[[commit.index, commit.rootProof()], [encodeProofV1(accountProof), storageProofs.map(encodeProofV1)]]
 		);
 	}
-	async createOPCommit(index: bigint, blockNumber: bigint) {
-		let block = '0x' + blockNumber.toString(16);
+	async createOPCommit(index: number, block: HexString) {
 		let [{storageHash: passerRoot}, {stateRoot, hash}] = await Promise.all([
 			this.provider2.send('eth_getProof', [this.L2ToL1MessagePasser, [], block]) as Promise<RPCEthGetProof>,
 			this.provider2.send('eth_getBlockByNumber', [block, false]) as Promise<RPCEthGetBlock>

@@ -13,11 +13,11 @@ describe('base', async () => {
 	let gateway = OPGateway.baseMainnet({
 		provider1: foundry.provider,
 		provider2: createProvider(CHAIN_BASE),
-		commitDelay: 0n
+		commitDelay: 0
 	});	
 	let ccip = await serve(gateway, {protocol: 'raw', port: 0});
 	afterAll(() => ccip.http.close());
-	let verifier = await foundry.deploy({file: 'OPVerifier', args: [[ccip.endpoint], gateway.outputOracle, gateway.commitDelay]});
+	let verifier = await foundry.deploy({file: 'OPVerifier', args: [[ccip.endpoint], gateway.L2OutputOracle, gateway.commitDelay]});
 	// https://basescan.org/address/0x0C49361E151BC79899A9DD31B8B0CCdE4F6fd2f6
 	let reader = await foundry.deploy({file: 'SlotDataReader', args: [verifier, '0x0C49361E151BC79899A9DD31B8B0CCdE4F6fd2f6']});
 	runSlotDataTests(reader);	

@@ -13,7 +13,7 @@ describe('op', async () => {
 	let gateway = OPFaultGateway.mainnet({
 		provider1: foundry.provider,
 		provider2: createProvider(CHAIN_OP),
-		commitDelay: 0n
+		commitDelay: 0
 	});	
 	let ccip = await serve(gateway, {protocol: 'raw', port: 0});	
 	afterAll(() => ccip.http.close());

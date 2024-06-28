@@ -15,21 +15,21 @@ export class OPFaultGateway extends AbstractOPGateway {
 			...a,
 		});
 	}
-	readonly optimismPortal: ethers.Contract;
+	readonly OptimismPortal: ethers.Contract;
 	readonly disputeGameFactory: CachedValue<{
 		factory: ethers.Contract;
 		respectedGameType: bigint;
 	}>;
 	constructor(args: AbstractOPGatewayConstructor & OPFaultGatewayConstructor) {
 		super(args);
-		this.optimismPortal = new ethers.Contract(args.OptimismPortal, [
+		this.OptimismPortal = new ethers.Contract(args.OptimismPortal, [
 			`function disputeGameFactory() external view returns (address)`,
 			`function respectedGameType() external view returns (uint32)`,
 		], this.provider1); 
-		this.disputeGameFactory = new CachedValue(async () => {
+		this.disputeGameFactory = CachedValue.once(async () => {
 			let [factoryAddress, respectedGameType] = await Promise.all([
-				this.optimismPortal.disputeGameFactory(),
-				this.optimismPortal.respectedGameType(),
+				this.OptimismPortal.disputeGameFactory(),
+				this.OptimismPortal.respectedGameType(),
 			]);
 			let factory = new ethers.Contract(factoryAddress, [
 				`function gameAtIndex(uint256 _index) external view returns (uint32 gameType, uint64 timestamp, address gameProxy)`,
@@ -37,15 +37,15 @@ export class OPFaultGateway extends AbstractOPGateway {
 				`function findLatestGames(uint32 gameType, uint256 _start, uint256 _n) external view returns (tuple(uint256 index, bytes32 metadata, uint64 timestamp, bytes32 rootClaim, bytes extraData)[] memory games_)`,
 			], this.provider1);
 			return {factory, respectedGameType};
-		}, Infinity, 1000);
+		});
 	}
-	override async fetchLatestCommitIndex(): Promise<bigint> {
+	override async fetchLatestCommitIndex(): Promise<number> {
 		let {factory} = await this.disputeGameFactory.get();
-		let count = await factory.gameCount();
+		let count = Number(await factory.gameCount());
 		if (!count) throw new Error('no games');
-		return count - 1n;
+		return count - 1;
 	}
-	override async fetchCommit(index: bigint): Promise<OPCommit> {
+	override async fetchCommit(index: number): Promise<OPCommit> {
 		let {factory, respectedGameType} = await this.disputeGameFactory.get();
 		let {gameType, gameProxy} = await factory.gameAtIndex(index);
 		if (gameType != respectedGameType) {
@@ -64,7 +64,7 @@ export class OPFaultGateway extends AbstractOPGateway {
 		if (status == CHALLENGER_WINS) {
 			throw new Error('disputed game');
 		}
-		return this.createOPCommit(index, blockNumber);
+		return this.createOPCommit(index, '0x' + blockNumber.toString(16));
 	}
 
 }
