@@ -16,16 +16,12 @@ const OP_ADD_CONST    = 2 << 5;
 const OP_END          = 0xFF;
 
 export class EVMRequestV1 {
-	target: HexString;
-	readonly commands: HexString[];
-	readonly constants: HexString[];
-	private readonly buf: number[];
-	constructor(target: HexString = ethers.ZeroAddress, commands: HexString[] = [], constants: HexString[] = [], buf: number[] = []) {
-		this.target = target;
-		this.commands = commands;
-		this.constants = constants;
-		this.buf = buf;
-	}
+	constructor(
+		public target: HexString = ethers.ZeroAddress,
+		readonly commands: HexString[] = [],
+		readonly constants: HexString[] = [],
+		private readonly buf: number[] = []
+	) {}
 	clone() {
 		return new EVMRequestV1(this.target, this.commands.slice(), this.constants.slice(), this.buf.slice());
 	}
@@ -71,8 +67,8 @@ export class EVMRequestV1 {
 	// }
 	v2() {
 		this.end();
-		let req = new EVMRequest(0);
-		req.push(this.target).target();
+		let req = new EVMRequest();
+		req.setTarget(this.target);
 		for (let cmd of this.commands) {
 			try {
 				let v = ethers.getBytes(cmd);

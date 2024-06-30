@@ -23,20 +23,23 @@ forge install offchainlabs/nitro-contracts
 
 * `bun run test`
 	* `bun run test-components`
+		* [Supported Operations](./test/components/ops.test.ts)
 	* `bun run test-gateways`
+		* [Contract](./test/gateway/SlotDataContract.sol) &rarr; [Reader](./test/gateway/SlotDataReader.sol) &rarr; [Tests](./test/gateway/tests.ts)
 		* ⚠️ Scroll fails [`readZero()`](./test/gateway/tests.ts#L26) test
 
 ## Examples
 
-* ENSv2
+* [ENSv2](./test/examples/ENSv2/)
 	* copy [`contracts/`](https://github.com/unruggable-labs/ENS-V2/tree/main/contracts)
 	* `bun test/examples/ENSv2/storage.ts`
-* TeamNick
+* [TeamNick](./test/examples/TeamNick/)
 	* `bun test/examples/TeamNick/fetch.ts`
-		* write requests in JS to quickly iterate
+		* write requests [in JS](./test/examples//TeamNick/fetch.ts) to quickly iterate
 	* `bun test test/examples/TeamNick/resolver.test.ts`
-		* once working, port to Solidity
+		* [port to Solidity](./test/examples/TeamNick/TeamNick.sol) and write tests [in JS](./test/examples/TeamNick/resolver.test.ts) to validate
 
 ## Serve
 
 * `bun run serve [base|op|arb1|scroll]`
+	* listens on `PORT` (default: 8000)

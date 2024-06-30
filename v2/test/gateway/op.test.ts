@@ -17,7 +17,7 @@ describe('op', async () => {
 	});	
 	let ccip = await serve(gateway, {protocol: 'raw', port: 0});	
 	afterAll(() => ccip.http.close());
-	let verifier = await foundry.deploy({file: 'OPFaultVerifier', args: [[ccip.endpoint], gateway.optimismPortal, gateway.commitDelay]});
+	let verifier = await foundry.deploy({file: 'OPFaultVerifier', args: [[ccip.endpoint], gateway.OptimismPortal, gateway.commitDelay]});
 	// https://optimistic.etherscan.io/address/0xf9d79d8c09d24e0C47E32778c830C545e78512CF
 	let reader = await foundry.deploy({file: 'SlotDataReader', args: [verifier, '0xf9d79d8c09d24e0C47E32778c830C545e78512CF']});
 	runSlotDataTests(reader);

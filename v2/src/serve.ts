@@ -1,10 +1,10 @@
+import type {Provider} from "./types.js";
 import {OPGateway} from "./gateway/OPGateway.js";
 import {OPFaultGateway} from "./gateway/OPFaultGateway.js";
 import {NitroGateway} from "./gateway/NitroGateway.js";
 import {ScrollGateway} from "./gateway/ScrollGateway.js";
 import {CHAIN_ARB1, CHAIN_BASE, CHAIN_OP, CHAIN_SCROLL, createProviderPair} from './providers.js';
 import {serve} from "@resolverworks/ezccip";
-import type { Provider } from "./types.js";
 
 let [name] = process.argv.slice(2);
 let gateway;
@@ -38,4 +38,7 @@ console.log({
 	chain2: networkName(gateway.provider2),
 });
 
-await serve(gateway, {protocol: 'raw', port: 8000});
+await serve(gateway, {
+	protocol: 'raw',
+	port: parseInt(process.env.PORT ?? '8000')
+});

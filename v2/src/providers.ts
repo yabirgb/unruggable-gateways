@@ -22,7 +22,7 @@ export function providerURL(chain: number): string {
 		} catch (err) {
 		}
 	}
-	key = process.env['ALCHEMY_KEY'];
+	key = process.env.ALCHEMY_KEY;
 	if (key) {
 		try {
 			return AlchemyProvider.getRequest(Network.from(chain), key).url;

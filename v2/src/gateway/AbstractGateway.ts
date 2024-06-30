@@ -11,8 +11,12 @@ export function encodeProofV1(proof: Proof) {
 }
 
 export class AbstractCommit {
-	readonly cache: CachedMap<string, any> = new CachedMap();
-	constructor(readonly index: number, readonly block: HexString) {}
+	cache: CachedMap<string,any> | undefined;
+	constructor(
+		readonly index: number,
+		readonly block: HexString,
+		readonly blockHash: HexString,
+	) {}
 }
 
 export type GatewayConstructor = {
@@ -25,6 +29,7 @@ export type GatewayConstructor = {
 	commitStep?: number;
 	commitDelay?: number;
 	callCacheSize?: number;
+	commitCacheSize?: number;
 };
 
 export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
@@ -37,23 +42,30 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 	readonly commitCache: CachedMap<number, C>;
 	readonly recentCommits: (C | undefined)[];
 	readonly latestCache: CachedValue<number>;
+	readonly commitCacheParams;
 	constructor({
 		provider1,
 		provider2,
-		errorRetryMs = 250, // ms we wait to retry actions that failed
-		checkCommitMs = 60000, // how frequently we check if rollup has commit
-		writeCommitMs = 60*60000, // how frequently the rollup actually commits
-		commitDepth = 3, // how far back from head we cache and support
-		commitDelay = 1, // offset from head for "latest" commit
-		commitStep = 1, // index rounding
-		callCacheSize = 1000,
+		   errorRetryMs = 250, // ms to wait to retry actions that failed
+		  checkCommitMs = 60000, // how frequently to check if rollup has commit
+		  writeCommitMs = 60*60000, // how frequently the rollup actually commits
+		    commitDepth = 3, // how far back from head to support
+		    commitDelay = 1, // offset from head for "latest" commit
+		     commitStep = 1, // index rounding
+		  callCacheSize = 1000, // typically 5-10KB per call
+		commitCacheSize = 100000, // slots (bytes32), isContract (bool), proof? (bytes32x10?)
 	}: GatewayConstructor) {
 		super();
 		this.provider1 = provider1;
 		this.provider2 = provider2;
-		this.writeCommitMs = writeCommitMs;
+		this.writeCommitMs = writeCommitMs; // unused
 		this.commitStep = commitStep;
-		this.commitDelay = commitDelay;
+		this.commitDelay = commitDelay * commitStep;
+		this.commitCacheParams = {
+			cacheMs: Infinity,
+			errorMs: errorRetryMs,
+			maxCached: commitCacheSize
+		};
 		this.latestCache = new CachedValue(async () => Number(await this.fetchLatestCommitIndex()), checkCommitMs, errorRetryMs); // cached
 		this.recentCommits = Array(commitDepth); // circular buffer
 		this.commitCache = new CachedMap({cacheMs: 0, errorMs: errorRetryMs, maxCached: 2*commitDepth}); // inflight commits
@@ -62,12 +74,11 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 			let index = parseGatewayContext(ctx); // TODO: support (min, max)
 			if (index % this.commitStep) throw new Error(`commit index not aligned: ${index}`);
 			let hash = ethers.keccak256(context.calldata);
-			history.show = [ethers.hexlify(ops), hash]; // decide this
+			history.show = [ethers.hexlify(ops), hash];
 			return this.callCache.get(hash, async _ => {
 				let commit = await this.commitFromAligned(index);
 				let prover = new EVMProver(this.provider2, commit.block, commit.cache);
 				let result = await prover.evalDecoded(ops, inputs);
-				//console.log(result);
 				let {proofs, order} = await prover.prove(result.needs);
 				return ethers.getBytes(this.encodeWitness(commit, proofs, order));
 			});
@@ -79,7 +90,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 			return this.callCache.get(hash, async _ => {
 				let commit = await this.commitFromAligned(index);
 				let prover = new EVMProver(this.provider2, commit.block, commit.cache);
-				let req = new EVMRequestV1(target, commands, constants).v2();
+				let req = new EVMRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
 				let state = await prover.evalRequest(req);
 				let {proofs, order} = await prover.prove(state.needs);
 				let witness = this.encodeWitnessV1(commit, proofs[order[0]], Array.from(order.subarray(1), i => proofs[i]));
@@ -128,14 +139,10 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 		return this.commitCache.get(index, async index => {
 			let commit = await this.fetchCommit(index); // get newer commit
 			let slot = await this.slotFromAligned(index); // check slot again
+			commit.cache = new CachedMap(this.commitCacheParams);
 			this.recentCommits[slot] = commit; // replace
 			return commit;
 		});
-	}
-	// convenience: get a prover sharing the latest cached commit cache
-	async createLatestProver() {
-		let commit = await this.getLatestCommit();
-		return new EVMProver(this.provider2, commit.block, commit.cache);
 	}
 }
 

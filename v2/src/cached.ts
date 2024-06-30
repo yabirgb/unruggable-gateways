@@ -108,7 +108,7 @@ export class CachedMap<K = any, V = any> {
 		}, t - now).unref(); // schedule
 	}
 	get pendingSize() { return this.pending.size; }
-	get cachedSize()  { return this.cached.size;  }
+	get cachedSize() { return this.cached.size; }
 	get nextExpirationMs() { return this.timer_t; }
 	clear() {
 		this.cached.clear();

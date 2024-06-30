@@ -12,10 +12,10 @@ class ScrollCommit extends AbstractCommit {
 	constructor(
 		index: number, 
 		block: HexString,
-		readonly blockHash: HexString,
+		blockHash: HexString,
 		readonly stateRoot: HexString,
 	) {
-		super(index, block);
+		super(index, block, blockHash);
 	}
 }
 

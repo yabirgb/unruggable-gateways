@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.0;
 
 import {EVMFetchTarget, IEVMVerifier} from "@ensdomains/evmgateway/contracts/EVMFetchTarget.sol";
 import {EVMFetcher, EVMRequest} from "@ensdomains/evmgateway/contracts/EVMFetcher.sol";
@@ -24,7 +24,7 @@ contract SlotDataReader is EVMFetchTarget {
 
 	function readLatest() external view returns (uint256) {
 		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
-		r.read().setOutput(0);
+		r.setSlot(0).read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}
 
@@ -42,13 +42,13 @@ contract SlotDataReader is EVMFetchTarget {
 
 	function readLatestHighscore() external view returns (uint256) {
 		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
-		r.read().setSlot(2).follow().read().setOutput(0);
+		r.setSlot(0).read().setSlot(2).follow().read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}
 
 	function readLatestHighscorer() external view returns (string memory) {
 		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
-		r.read().setSlot(3).follow().readBytes().setOutput(0);
+		r.setSlot(0).read().setSlot(3).follow().readBytes().setOutput(0);
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
 
@@ -60,7 +60,7 @@ contract SlotDataReader is EVMFetchTarget {
 
 	function readLatestHighscorerRealName() external view returns (string memory) {
 		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
-		r.read().setSlot(3).follow().readBytes().setSlot(4).follow().readBytes().setOutput(0);
+		r.setSlot(0).read().setSlot(3).follow().readBytes().setSlot(4).follow().readBytes().setOutput(0);
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
 

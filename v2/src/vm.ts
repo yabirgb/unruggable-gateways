@@ -520,14 +520,15 @@ export class EVMProver {
 					vm.slot = solidityFollowSlot(vm.slot, await unwrap(vm.pop()));
 					continue;
 				}
-				case OP_KECCAK: { // args: []  / stack: 0
+				case OP_KECCAK: { // args: [] / stack: 0
 					vm.stack.push(ethers.keccak256(await unwrap(vm.pop())));
 					continue;
 				}
-				case OP_CONCAT: {
-					// stack = [..., a, b, c]
-					// concat(2) => [..., a ,b+c]
-					// concat(4) => [a+b+c]
+				case OP_CONCAT: { // args: [back]
+					// stack = [a, b, c]
+					// => concat(2) = [a, b+c]
+					// => concat(4) = [a+b+c]
+					// => concat(0) = [a, b, c, 0x]
 					let v = vm.popSlice(reader.readByte());
 					vm.stack.push(v.length ? new Wrapped(async () => ethers.concat(await Promise.all(v.map(unwrap)))) : '0x');
 					continue;

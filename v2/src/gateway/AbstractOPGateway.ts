@@ -10,11 +10,11 @@ export class OPCommit extends AbstractCommit {
 	constructor(
 		index: number, 
 		block: HexString,
-		readonly blockHash: HexString,
+		blockHash: HexString,
 		readonly stateRoot: HexString,
 		readonly passerRoot: HexString,
 	) {
-		super(index, block);
+		super(index, block, blockHash);
 	}
 	rootProof() {
 		return [ethers.ZeroHash, this.stateRoot, this.passerRoot, this.blockHash];

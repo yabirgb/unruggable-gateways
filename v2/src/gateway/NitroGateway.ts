@@ -10,11 +10,11 @@ class NitroCommit extends AbstractCommit {
 	constructor(
 		index: number, 
 		block: HexString,
-		readonly blockHash: HexString,
+		blockHash: HexString,
 		readonly sendRoot: HexString,
 		readonly rlpEncodedBlock: HexString,
 	) {
-		super(index, block);
+		super(index, block, blockHash);
 	}
 }
 
