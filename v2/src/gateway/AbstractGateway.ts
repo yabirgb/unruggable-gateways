@@ -84,7 +84,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 			});
 		});
 		this.register(`function getStorageSlots(address target, bytes32[] commands, bytes[] constants) returns (bytes)`, async ([target, commands, constants], context, history) => {
-			let index = this.alignCommitIndex(await this.latestCache.get() - this.commitDelay);
+			let index = await this.getLatestCommitIndex();
 			let hash = ethers.id(`${index}:${context.calldata}`);
 			history.show = [hash];
 			return this.callCache.get(hash, async _ => {
@@ -119,7 +119,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 	}
 	// align a commit index to cachable index
 	// (typically the same unless rollup commits frequently, eg. scroll)
-	private alignCommitIndex(index: number) {
+	protected alignCommitIndex(index: number) {
 		return index - (index % this.commitStep);
 	}
 	// translate an aligned commit index to cicular buffer index

@@ -185,7 +185,7 @@ library EVMProver {
 			} else if (op == OP_PUSH_SLOT) {
 				vm.push(abi.encode(vm.slot));
 			} else if (op == OP_PUSH_TARGET) {
-				vm.push(abi.encode(vm.target));
+				vm.push(abi.encodePacked(vm.target));
 			} else if (op == OP_DUP) {
 				vm.push(abi.encodePacked(vm.peek(vm.readByte())));
 			} else if (op == OP_POP) {
@@ -204,7 +204,7 @@ library EVMProver {
 				uint8 back = vm.readByte();
 				bytes memory v;
 				for (; back > 0 && vm.stackSize > 0; --back) {
-					v = bytes.concat(vm.pop(), v);
+					v = bytes.concat(vm.pop(), v); // TODO: optimize
 				}
 				vm.push(v);
 			} else if (op == OP_EVAL) {

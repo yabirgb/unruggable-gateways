@@ -3,9 +3,23 @@ import {CachedValue} from '../cached.js';
 import type {HexString} from '../types.js';
 import {AbstractOPGateway, OPCommit, type AbstractOPGatewayConstructor} from './AbstractOPGateway.js';
 
+// what actually happens when a game is disputed?
+// continually check the current game status?
+
 type OPFaultGatewayConstructor = {
 	OptimismPortal: HexString;
 };
+
+const GAME_ABI = new ethers.Interface([
+	'function l2BlockNumber() external view returns (uint256)',
+	'function status() external view returns (uint8)',
+	//'function rootClaim() external view returns (bytes32)',
+]);
+
+function isValidGameStatus(status: bigint) {
+	const CHALLENGER_WINS = 1n;
+	return status !== CHALLENGER_WINS;
+}
 
 export class OPFaultGateway extends AbstractOPGateway {
 	static mainnet(a: AbstractOPGatewayConstructor) {
@@ -15,6 +29,7 @@ export class OPFaultGateway extends AbstractOPGateway {
 			...a,
 		});
 	}
+	//readonly latestRespectedCache;
 	readonly OptimismPortal: ethers.Contract;
 	readonly disputeGameFactory: CachedValue<{
 		factory: ethers.Contract;
@@ -25,7 +40,11 @@ export class OPFaultGateway extends AbstractOPGateway {
 		this.OptimismPortal = new ethers.Contract(args.OptimismPortal, [
 			`function disputeGameFactory() external view returns (address)`,
 			`function respectedGameType() external view returns (uint32)`,
-		], this.provider1); 
+		], this.provider1);
+		// this.latestRespectedCache = new CachedValue(async () => {
+		// 	let {index} = await this.findLatestGame(this.commitDelay);
+		// 	return index;
+		// }, this.latestCache.cacheMs, this.latestCache.errorMs);
 		this.disputeGameFactory = CachedValue.once(async () => {
 			let [factoryAddress, respectedGameType] = await Promise.all([
 				this.OptimismPortal.disputeGameFactory(),
@@ -40,6 +59,7 @@ export class OPFaultGateway extends AbstractOPGateway {
 		});
 	}
 	override async fetchLatestCommitIndex(): Promise<number> {
+		// TODO: if we have an on-chain verifier, we can just call findLatestGame()
 		let {factory} = await this.disputeGameFactory.get();
 		let count = Number(await factory.gameCount());
 		if (!count) throw new Error('no games');
@@ -51,20 +71,34 @@ export class OPFaultGateway extends AbstractOPGateway {
 		if (gameType != respectedGameType) {
 			throw new Error(`unrespected game type: ${gameType}`);
 		}
-		let game = new ethers.Contract(gameProxy, [
-			'function l2BlockNumber() external view returns (uint256)',
-			'function rootClaim() external view returns (bytes32)',
-			'function status() external view returns (uint8)',
-		], this.provider1);
+		let game = new ethers.Contract(gameProxy, GAME_ABI, this.provider1);
 		let [blockNumber, status] = await Promise.all([
 			game.l2BlockNumber() as Promise<bigint>,
 			game.status() as Promise<bigint>
 		]);
-		const CHALLENGER_WINS = 1n;
-		if (status == CHALLENGER_WINS) {
+		if (!isValidGameStatus(status)) {
 			throw new Error('disputed game');
 		}
 		return this.createOPCommit(index, '0x' + blockNumber.toString(16));
 	}
-
+	// override async getLatestCommitIndex() {
+	// 	return this.alignCommitIndex(await this.latestRespectedCache.get());
+	// }
+	async findLatestGame(delay = 0) {
+		// mirror of OPFaultVerifier.sol:findLatestGame()
+		let {factory, respectedGameType} = await this.disputeGameFactory.get();
+		let count = Number(await factory.gameCount());
+		let left = count - delay;
+		while (left > 0) {
+			for (let g of await factory.findLatestGames(respectedGameType, left-1, 10)) {
+				--left;
+				let gameProxy = ethers.dataSlice(g.metadata, 12); // LibUDT.sol: [96, 256)
+				let game = new ethers.Contract(gameProxy, GAME_ABI, this.provider1);
+				if (isValidGameStatus(await game.status())) {
+					return {count, index: Number(g.index)};
+				}
+			}
+		}
+		throw new Error('no games');
+	}
 }

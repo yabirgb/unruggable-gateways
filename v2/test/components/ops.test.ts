@@ -106,7 +106,7 @@ describe('ops', async () => {
 		let {values} = await verify(req);
 		expect(values[0]).toBe('0x');
 	});
-
+	
 	test('dup last', async () => {
 		let req = new EVMRequest();
 		req.push(1).dup().addOutput().addOutput();
@@ -124,8 +124,9 @@ describe('ops', async () => {
 
 	test('dup nothing', async () => {
 		let req = new EVMRequest();
-		req.dup();
-		expect(verify(req)).rejects.toThrow('stack overflow');
+		req.dup().addOutput();
+		let {values} = await verify(req);
+		expect(values[0]).toBe('0x');
 	});
 
 	test('pop', async () => {
@@ -148,6 +149,20 @@ describe('ops', async () => {
 		req.setSlot(1337).pushSlot().addOutput();
 		let {values} = await verify(req);
 		expect(values[0]).toBe(uint256(1337));
+	});
+
+	test('pushTarget', async () => {
+		let req = new EVMRequest();
+		req.setTarget(contract.target).pushTarget().addOutput();
+		let {values} = await verify(req);
+		expect(values[0]).toBe(contract.target.toLowerCase());
+	});
+
+	test('pushOutput', async () => {
+		let req = new EVMRequest(2);
+		req.push(5).setOutput(0).pushOutput(0).setOutput(1);
+		let {values} = await verify(req);
+		expect(values[1]).toBe(uint256(5));
 	});
 
 	test('follow', async () => {

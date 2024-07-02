@@ -116,12 +116,16 @@ export class CachedMap<K = any, V = any> {
 		clearTimeout(this.timer);
 		this.timer_t = Infinity;
 	}
+	// async resolvePending() {
+	// 	await Promise.all(Array.from(this.pending.values()));
+	// }
 	set(key: K, value: V | Promise<V>, ms?: number) {
+		if (!this.maxCached) return; // don't cache anything
 		ms ??= this.cacheMs;
 		if (ms > 0) {
 			if (this.cached.size >= this.maxCached) { // we need room
 				// TODO: this needs a heap
-				for (let [key] of [...this.cached].sort((a, b) => a[1][0] - b[1][0]).slice(-Math.ceil(this.maxCached/16))) { // remove batch
+				for (let [key] of Array.from(this.cached).sort((a, b) => a[1][0] - b[1][0]).slice(-Math.ceil(this.maxCached/16))) { // remove batch
 					this.cached.delete(key);
 				}
 			}
@@ -148,6 +152,9 @@ export class CachedMap<K = any, V = any> {
 			this.cached.delete(key); // expired
 		}
 		return; // ree
+	}
+	cachedKeys(): IterableIterator<K> {
+		return this.cached.keys();
 	}
 	peek(key: K): Promise<V> | undefined {
 		return this.cachedValue(key) ?? this.pending.get(key);

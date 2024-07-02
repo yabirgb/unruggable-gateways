@@ -3,6 +3,6 @@ import { CHAIN_SCROLL, createProviderPair } from "../../src/providers";
 
 let g = ScrollGateway.mainnet(createProviderPair(CHAIN_SCROLL));
 
-console.log(await g.fetchLatestCommitIndex());
-console.log(await g.fetchLatestCommitIndexOnChain());
-console.log(await g.getLatestCommitIndex());
+console.log('       fetchLatestCommitIndex', await g.fetchLatestCommitIndex());
+console.log('fetchLatestCommitIndexOnChain', await g.fetchLatestCommitIndexOnChain());
+console.log('         getLatestCommitIndex', await g.getLatestCommitIndex());

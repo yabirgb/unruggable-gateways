@@ -2,9 +2,8 @@ import type {HexString, BigNumberish} from '../../src/types.js';
 import {EVMProver} from '../../src/vm.js';
 import {proveAccountState, proveStorageValue, NULL_TRIE_HASH} from '../../src/merkle.js';
 import {Foundry} from '@adraffy/blocksmith';
-import assert from 'node:assert/strict';
 import {ethers} from 'ethers';
-import {afterAll, test} from 'bun:test';
+import {afterAll, test, expect} from 'bun:test';
 
 async function setup() {
 	let foundry = await Foundry.launch({infoLog: false});
@@ -17,18 +16,18 @@ async function setup() {
 			let stateRoot = await prover.fetchStateRoot();
 			return {
 				async assertDoesNotExist(target: HexString) {
-					let {accountProof} = await prover.fetchProofs(target);
+					let {accountProof} = await prover.getProofs(target);
 					let accountState = proveAccountState(target, accountProof, stateRoot);
-					assert.equal(accountState, undefined);
+					expect(accountState).toBeUndefined();
 				},
-				async assertValue(target: HexString, slot: BigNumberish, expect: BigNumberish) {
+				async assertValue(target: HexString, slot: BigNumberish, expected: BigNumberish) {
 					slot = ethers.getUint(slot);
-					let {accountProof, storageHash, storageProof: [{value, proof}]} =  await prover.fetchProofs(target, [slot]);
+					let {accountProof, storageHash, storageProof: [{value, proof}]} =  await prover.getProofs(target, [slot]);
 					let accountState = proveAccountState(target, accountProof, stateRoot);
-					assert.equal(accountState?.storageRoot, storageHash);
+					expect(accountState?.storageRoot).toBe(storageHash);
 					let slotValue = proveStorageValue(slot, proof, storageHash);
-					assert.equal(slotValue, ethers.toBeHex(value, 32));
-					assert.equal(slotValue, ethers.toBeHex(expect, 32));
+					expect(slotValue).toBe(ethers.toBeHex(value, 32));
+					expect(slotValue).toBe(ethers.toBeHex(expected, 32));
 					let liveValue = await prover.provider.getStorage(target, slot);
 					return {
 						nullRoot: storageHash === NULL_TRIE_HASH, 
@@ -54,7 +53,7 @@ test('EOA with balance exists', async () => {
 	let T = await setup();
 	let P = await T.prover();
 	let V = await P.assertValue(T.foundry.wallets.admin.address, 0, 0);
-	assert(V.nullRoot, 'expected null root');
+	expect(V.nullRoot).toBeTrue();
 });
 
 test('empty contract', async () => {
@@ -100,9 +99,9 @@ test('slotted contract', async () => {
 	await T.foundry.confirm(C.set(0, 1)); // change slot 0
 	await T.foundry.confirm(C.set(2, 1)); // change slot 2
 
-	assert.equal(await P1.assertValue(C.target, 0, 0).then(x => x.same), false, 'expected slot(0) is diff');
-	assert.equal(await P1.assertValue(C.target, 1, 1).then(x => x.same), true,  'expected slot(1) is same');
-	assert.equal(await P1.assertValue(C.target, 2, 0).then(x => x.same), false, 'expected slot(2) is diff');
+	expect(P1.assertValue(C.target, 0, 0).then(x => x.same), 'expected slot(0) is diff').resolves.toBeFalse();
+	expect(P1.assertValue(C.target, 1, 1).then(x => x.same), 'expected slot(1) is same').resolves.toBeTrue();
+	expect(P1.assertValue(C.target, 2, 0).then(x => x.same), 'expected slot(2) is diff').resolves.toBeFalse();
 
 	let P2 = await T.prover();
 	await P2.assertValue(C.target, 0, 1); // new value
