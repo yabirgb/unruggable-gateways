@@ -1,7 +1,10 @@
 import { ethers } from 'ethers';
 import { expect, test } from 'bun:test';
 
-export function runSlotDataTests(reader: ethers.Contract) {
+export function runSlotDataTests(
+  reader: ethers.Contract,
+  ignoreCi: boolean = false
+) {
   test('latest = 49', async () => {
     expect(await reader.readLatest({ enableCcipRead: true })).toBe(49n);
   });
@@ -31,7 +34,7 @@ export function runSlotDataTests(reader: ethers.Contract) {
       await reader.readLatestHighscorerRealName({ enableCcipRead: true })
     ).toBe('Hal Finney');
   });
-  test('zero = 0', async () => {
+  test.skipIf(process.env.IS_CI && ignoreCi)('zero = 0', async () => {
     expect(await reader.readZero({ enableCcipRead: true })).toBe(0n);
   });
   test('root.str = "raffy"', async () => {

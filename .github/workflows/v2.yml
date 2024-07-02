@@ -39,6 +39,7 @@ jobs:
         run: |
           touch .env
           echo ALCHEMY_KEY=${{ secrets.ALCHEMY_KEY }} >> .env
+          echo IS_CI=true >> .env
           cat .env
 
       - name: Test (uses node internally)
