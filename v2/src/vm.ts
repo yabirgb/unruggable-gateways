@@ -3,6 +3,9 @@ import {ethers} from 'ethers';
 import {unwrap, Wrapped, type Unwrappable} from './wrap.js';
 import {CachedMap} from './cached.js';
 
+// all addresses are lowercase
+// all values are hex-strings
+
 type HexFuture = Unwrappable<HexString>;
 
 const ABI_CODER = ethers.AbiCoder.defaultAbiCoder();
@@ -91,10 +94,10 @@ export class CommandReader {
 		return new this(ethers.getBytes(ops), [...inputs]);
 	}
 	pos: number = 0;
-	constructor(readonly ops: Uint8Array, readonly inputs: HexString[]) {
-		this.ops = ops;
-		this.inputs = inputs;
-	}
+	constructor(
+		readonly ops: Uint8Array,
+		readonly inputs: HexString[]
+	) {}
 	get remaining() {
 		return this.ops.length - this.pos;
 	}
@@ -327,6 +330,7 @@ export class EVMProver {
 			}
 			if (key.length == 42) {
 				//bucket.push(isContract(value as AccountProof));
+				// non-contracts will be empty lists
 			} else {
 				bucket.push(BigInt((value as StorageProof).key));
 			}
@@ -351,10 +355,10 @@ export class EVMProver {
 	}
 	async getProofs(target: HexString, slots: bigint[] = []): Promise<RPCEthGetProof> {
 		target = target.toLowerCase();
-		let missing: number[] = [];
+		let missing: number[] = []; // indices of slots we dont have proofs for
 		let {promise, resolve} = Promise.withResolvers(); // create a blocker
 		try {
-			let accountProof: Promise<AccountProof> | AccountProof | undefined = this.cache.cachedValue(target);
+			let accountProof: AccountProof | undefined = await this.cache.cachedValue(target);
 			if (!accountProof) {
 				this.cache.set(target, promise.then(() => this.cache.cachedValue(target))); // block
 			}
@@ -367,15 +371,19 @@ export class EVMProver {
 				}
 				return p;
 			});
-			if (!accountProof || missing.length) {
+			if (!accountProof || missing.length) { // we need something
 				let {storageProof: v, ...a} = await this.fetchProofs(target, missing.map(i => slots[i]));
 				this.cache.set(target, accountProof = a);
-				missing.forEach((j, i) => {
-					this.cache.set(makeSlotKey(target, slots[j]), storageProofs[j] = v[i]);
-				});
+				missing.forEach((x, i) => storageProofs[x] = v[i]);
 			}
+			if (isContract(accountProof)) {
+				slots.forEach((slot, i) => this.cache.set(makeSlotKey(target, slot), storageProofs[i]));
+			} else {
+				slots.forEach(slot => this.cache.delete(makeSlotKey(target, slot)));
+			}
+			// reassemble eth_getProof
 			return {
-				...await accountProof as AccountProof, 
+				...accountProof,
 				storageProof: await Promise.all(storageProofs) as StorageProof[]
 			};
 		} finally {

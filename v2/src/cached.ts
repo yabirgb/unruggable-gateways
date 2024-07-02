@@ -136,6 +136,10 @@ export class CachedMap<K = any, V = any> {
 			this.cached.delete(key);
 		}
 	}
+	delete(key: K) {
+		this.cached.delete(key);
+		this.pending.delete(key);
+	}
 	cachedRemainingMs(key: K): number {
 		let c = this.cached.get(key);
 		if (c) {
