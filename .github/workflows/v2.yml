@@ -35,6 +35,12 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
+      - name: 'Create env file'
+        run: |
+          touch .env
+          echo ALCHEMY_KEY=${{ secrets.ALCHEMY_KEY }} >> .env
+          cat .env
+
       - name: Test (uses node internally)
         run: bun run test
   lint:
