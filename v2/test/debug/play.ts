@@ -1,14 +1,14 @@
-import {EVMRequestV1} from '../../src/v1.js';
-import {EVMProver, EVMRequest} from '../../src/vm.js';
+import { EVMRequestV1 } from '../../src/v1.js';
+import { EVMProver, EVMRequest } from '../../src/vm.js';
 //import {Foundry} from '@adraffy/blocksmith';
 //import {ethers} from 'ethers';
-import {createProvider} from '../../src/providers.js';
+import { createProvider } from '../../src/providers.js';
 
 // this is just a worksheet
 
 //let foundry = await Foundry.launch({infoLog: false});
 
-let prover = await EVMProver.latest(createProvider(1));
+const prover = await EVMProver.latest(createProvider(1));
 
 const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 
@@ -16,13 +16,12 @@ const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 // #1: mapping (address => mapping(address => bool)) operators;
 // #2: ENS _old
 
-
 {
-	let r = new EVMRequest(1);
-	r.push(ENS_REGISTRY).target();
-	r.push(0).follow().read().setOutput(0); // owner of root: 0xaB528d626EC275E3faD363fF1393A41F581c5897
-	let vm = await prover.evalRequest(r);
-	console.log(await vm.resolveOutputs());
+  const r = new EVMRequest(1);
+  r.push(ENS_REGISTRY).target();
+  r.push(0).follow().read().setOutput(0); // owner of root: 0xaB528d626EC275E3faD363fF1393A41F581c5897
+  const vm = await prover.evalRequest(r);
+  console.log(await vm.resolveOutputs());
 }
 
 //console.log(await prover.execute(new EVMRequest(0).setTarget(ENS_REGISTRY).element(0).getValue()));
@@ -32,13 +31,18 @@ const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 prover.provider.destroy();
 //await foundry.shutdown();
 
-let A = ENS_REGISTRY;
-let r1 = new EVMRequestV1(A)
-	.getStatic(3)
-	.getStatic(4).ref(0);
-let r2 = new EVMRequest().setTarget(A)
-	.setSlot(3).read().addOutput()
-	.setSlot(4).pushOutput(0).follow().read().addOutput();
+const A = ENS_REGISTRY;
+const r1 = new EVMRequestV1(A).getStatic(3).getStatic(4).ref(0);
+const r2 = new EVMRequest()
+  .setTarget(A)
+  .setSlot(3)
+  .read()
+  .addOutput()
+  .setSlot(4)
+  .pushOutput(0)
+  .follow()
+  .read()
+  .addOutput();
 
 console.log(r1.v2());
 console.log(r2);

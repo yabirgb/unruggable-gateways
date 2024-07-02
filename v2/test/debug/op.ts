@@ -1,7 +1,7 @@
-import {OPFaultGateway} from "../../src/gateway/OPFaultGateway";
-import {CHAIN_OP, createProviderPair} from "../../src/providers";
+import { OPFaultGateway } from '../../src/gateway/OPFaultGateway';
+import { CHAIN_OP, createProviderPair } from '../../src/providers';
 
-let g = OPFaultGateway.mainnet(createProviderPair(CHAIN_OP));
+const g = OPFaultGateway.mainnet(createProviderPair(CHAIN_OP));
 
 console.log('fetchLatestCommitIndex', await g.fetchLatestCommitIndex());
 console.log('  getLatestCommitIndex', await g.getLatestCommitIndex()); // -offset

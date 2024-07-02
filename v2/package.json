@@ -1,16 +1,22 @@
 {
   "type": "module",
   "scripts": {
-	"check": "bunx tsc --noEmit",
+    "check": "bunx tsc --noEmit",
     "build": "forge build --force",
     "serve": "bun src/serve.ts",
-	"test": "bun test --timeout 5000",
+    "test": "bun test --timeout 5000",
     "test-components": "bun test test/components/* --timeout 5000",
-    "test-gateways": "bun test test/gateway/* --timeout 0"
+    "test-gateways": "bun test test/gateway/* --timeout 0",
+    "lint": "eslint . --ext .ts"
   },
   "devDependencies": {
     "@adraffy/blocksmith": "^0.0.22",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@typescript-eslint/eslint-plugin": "^6.7.4",
+    "@typescript-eslint/parser": "^6.7.4",
+    "eslint": "^8.50.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0"
   },
   "dependencies": {
     "@resolverworks/ezccip": "^0.0.12",
@@ -18,5 +24,7 @@
   },
   "peerDependencies": {
     "typescript": "^5.5.2"
-  }
+  },
+  "name": "v2",
+  "module": "index.ts"
 }

@@ -1,10 +1,9 @@
-import {EVMProver} from '../../src/vm.js';
-import {createProvider} from '../../src/providers.js';
+import { EVMProver } from '../../src/vm.js';
+import { createProvider } from '../../src/providers.js';
 
-let prover = await EVMProver.latest(createProvider(1));
+const prover = await EVMProver.latest(createProvider(1));
 
-let A = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
-
+const A = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 
 //console.log(await prover.isContract(A));
 
@@ -14,9 +13,9 @@ await prover.getProofs(A, [1n, 2n]);
 
 //prover.provider.on('debug', e => console.log(e));
 
-let p1 = prover.getProofs(A, [2n, 3n]);
-let p2 = prover.getProofs(A, [3n, 4n]);
-let p3 = prover.getProofs(A, [1n, 4n]);
+const p1 = prover.getProofs(A, [2n, 3n]);
+const p2 = prover.getProofs(A, [3n, 4n]);
+const p3 = prover.getProofs(A, [1n, 4n]);
 await Promise.all([p1, p2, p3]);
 
 console.log(await prover.cachedMap());
