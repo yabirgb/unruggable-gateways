@@ -7,6 +7,7 @@ import {
 } from 'ethers';
 
 export const CHAIN_OP = 10;
+export const CHAIN_POLYGON = 137;
 export const CHAIN_BASE = 8453;
 export const CHAIN_ARB1 = 42161;
 export const CHAIN_SCROLL = 534352;
