@@ -87,12 +87,12 @@ test('slotless contract', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract C {
-			function set(uint256 slot, uint256 value) external {
-				assembly { sstore(slot, value) }
-			}
-		}
-	`,
+      contract C {
+        function set(uint256 slot, uint256 value) external {
+          assembly { sstore(slot, value) }
+        }
+      }
+    `,
   });
   const P1 = await T.prover();
   await P1.assertValue(C.target, 0, 0); // unset
@@ -106,14 +106,14 @@ test('slotted contract', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract C {
-			uint256 slot0 = 0;
-			uint256 slot1 = 1;
-			function set(uint256 slot, uint256 value) external {
-				assembly { sstore(slot, value) }
-			}
-		}
-	`,
+      contract C {
+        uint256 slot0 = 0;
+        uint256 slot1 = 1;
+        function set(uint256 slot, uint256 value) external {
+          assembly { sstore(slot, value) }
+        }
+      }
+    `,
   });
   const P1 = await T.prover();
   await P1.assertValue(C.target, 0, 0); // init

@@ -19,7 +19,7 @@ import { afterAll, describe, test, expect } from 'bun:test';
 
 export const ABI_CODER = AbiCoder.defaultAbiCoder();
 
-function dns(name) {
+function dns(name: string) {
   return dnsEncode(name, 255);
 }
 
@@ -72,7 +72,7 @@ describe('ENSv2', async () => {
   });
 
   const opResolver = await foundry.deploy({
-    file: 'contracts/OPResolver',
+    file: 'OPResolver',
     args: [verifier],
   });
 

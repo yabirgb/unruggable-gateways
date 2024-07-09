@@ -34,7 +34,7 @@ export function runSlotDataTests(
       await reader.readLatestHighscorerRealName({ enableCcipRead: true })
     ).toBe('Hal Finney');
   });
-  test.skipIf(process.env.IS_CI && ignoreCi)('zero = 0', async () => {
+  test.skipIf(!!process.env.IS_CI && ignoreCi)('zero = 0', async () => {
     expect(await reader.readZero({ enableCcipRead: true })).toBe(0n);
   });
   test('root.str = "raffy"', async () => {

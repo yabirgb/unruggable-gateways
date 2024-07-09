@@ -10,68 +10,42 @@ function random32(): HexString {
   return ethers.hexlify(ethers.randomBytes(32));
 }
 
-//Setup for initalizing Foundy, deploying our basic verifier contract (to test against), and creating a prover function to interface with the verifier
+//Setup for initalizing Foundry, deploying our basic verifier contract (to test against), and creating a prover function to interface with the verifier
 async function setup() {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({
-    sol: `
-    import {EVMProver, ProofSequence} from "@ensdomains/evmgateway/contracts/EVMProver.sol";
-    import {MerkleTrieHelper} from "@ensdomains/evmgateway/contracts/MerkleTrieHelper.sol";
-    import {EVMRequest} from "@ensdomains/evmgateway/contracts/EVMProtocol.sol";
-
-		contract Verifier {
-			function getStorageValues(
-        EVMRequest memory r,
-        bytes32 stateRoot,
-				bytes[][] memory proofs,
-	      bytes memory order
-
-			) external view returns (bytes[] memory, uint8 exitCode) {
-				
-        return EVMProver.evalRequest(
-          r,
-          ProofSequence(
-            0,
-            stateRoot,
-            proofs,
-            order,
-            MerkleTrieHelper.proveAccountState,
-            MerkleTrieHelper.proveStorageValue
-          )
-        );
-			}
-		}
-	`,
+    file: 'SelfVerifier',
+    args: [ethers.ZeroAddress], // only using merkle, not scroll
   });
   return {
     foundry,
     verifier,
     async prover() {
+      // create an snapshot to prove against
+      // can be invoked multiple times to observe changes
       const prover = await EVMProver.latest(this.foundry.provider);
       const stateRoot = await prover.fetchStateRoot();
-
       return {
         prover,
         stateRoot,
-        async prove(r: EVMRequest): Promise<HexString[]> {
-          const outputs = await r.resolveWith(prover);
-
-          console.log('Outputs: ', outputs);
-
-          const vm = await this.prover.evalRequest(r);
-
+        async prove(req: EVMRequest) { 
+          const vm = await this.prover.evalRequest(req);
           const { proofs, order } = await this.prover.prove(vm.needs);
-
-          console.log('ops', r.ops);
-          console.log('inputs', r.inputs);
-
-          return verifier.getStorageValues(
-            [Uint8Array.from(r.ops), r.inputs],
+          const values = await vm.resolveOutputs();
+          // console.log('ops', req.ops);
+          // console.log('inputs', req.inputs);
+          // console.log('outputs', values);
+          const res = await verifier.verifyMerkle(
+            [Uint8Array.from(req.ops), req.inputs],
             stateRoot,
             proofs,
             order
           );
+          // require js == solc
+          expect(res.outputs.toArray()).toEqual(values);
+          expect(res.exitCode).toBe(BigInt(vm.exitCode));
+          return { values, ...vm };
         },
       };
     },
@@ -83,29 +57,22 @@ test('get uint256', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-			uint256 slot0 = ${VALUE};
-		}
-	`,
+      contract C {
+        uint256 slot0 = ${VALUE};
+      }
+    `,
   });
-
-  const OUTPUT_COUNT = 1;
-
   const P = await T.prover();
   //Build a request using our Typescript API
-  const [values, exitCode] = await P.prove(
-    new EVMRequest(OUTPUT_COUNT)
+  const { values, exitCode } = await P.prove(
+    new EVMRequest(1)
       .setTarget(C.target)
       .setSlot(0)
       .read()
       .setOutput(0)
   );
-
-  console.log('Values: ', values);
-
-  expect(values).toHaveLength(1);
+  expect(exitCode).toStrictEqual(0);
   expect(values[0]).toStrictEqual(VALUE);
-  expect(exitCode).toStrictEqual(0n);
 });
 
 test('get random values from random slots', async () => {
@@ -116,26 +83,22 @@ test('get random values from random slots', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-			constructor() {
-				assembly {
-					${XY.map(([x, y]) => `sstore(${x}, ${y})`).join('\n')}
-				}
-			}
-		}
-	`,
+      contract C {
+        constructor() {
+          assembly {
+            ${XY.map(([x, y]) => `sstore(${x}, ${y})`).join('\n')}
+          }
+        }
+      }
+    `,
   });
   const P = await T.prover();
-  const r = new EVMRequest(LENGTH_TO_USE).setTarget(C.target);
-
-  XY.forEach(([x], i) => r.setSlot(x).read().setOutput(i));
-
-  const [values, exitCode] = await P.prove(r);
+  const req = new EVMRequest(LENGTH_TO_USE).setTarget(C.target);
+  XY.forEach(([x], i) => req.setSlot(x).read().setOutput(i));
+  const { values, exitCode } = await P.prove(req);
+  expect(exitCode).toStrictEqual(0);
   expect(values).toHaveLength(XY.length);
-
   XY.forEach(([, y], i) => expect(values[i]).toStrictEqual(y));
-
-  expect(exitCode).toStrictEqual(0n);
 });
 
 test('get small and long string', async () => {
@@ -144,29 +107,26 @@ test('get small and long string', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-			string small = "${SMALL}";
-			string large = "${LARGE}";
-		}
-	`,
+      contract C {
+        string small = "${SMALL}";
+        string large = "${LARGE}";
+      }
+    `,
   });
-
-  const OUTPUT_COUNT = 2;
-
   const P = await T.prover();
-  const [values, exitCode] = await P.prove(
-    new EVMRequest(OUTPUT_COUNT)
+  const { values, exitCode } = await P.prove(
+    new EVMRequest(2)
       .setTarget(C.target)
+      .setSlot(0)
       .readBytes()
       .setOutput(0)
       .setSlot(1)
       .readBytes()
       .setOutput(1)
   );
-  expect(values).toHaveLength(2);
+  expect(exitCode).toStrictEqual(0);
   expect(ethers.toUtf8String(values[0])).toStrictEqual(SMALL);
   expect(ethers.toUtf8String(values[1])).toStrictEqual(LARGE);
-  expect(exitCode).toStrictEqual(0n);
 });
 
 test('get small string from mapping', async () => {
@@ -175,21 +135,17 @@ test('get small string from mapping', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-				mapping(uint256=>string) exampleMapping;          
-
+      contract C {
+        mapping(uint256 => string) exampleMapping;
         constructor() {
           exampleMapping[${MAPPING_KEY}] = "${EXAMPLE_STRING}";
         }
-		}
-	`,
+      }
+    `,
   });
-
-  const OUTPUT_COUNT = 1;
-
   const P = await T.prover();
-  const [values, exitCode] = await P.prove(
-    new EVMRequest(OUTPUT_COUNT)
+  const { values, exitCode } = await P.prove(
+    new EVMRequest(1)
       .setTarget(C.target)
       .setSlot(0)
       .push(MAPPING_KEY)
@@ -197,9 +153,8 @@ test('get small string from mapping', async () => {
       .readBytes()
       .setOutput(0)
   );
-  expect(values).toHaveLength(1);
+  expect(exitCode).toStrictEqual(0);
   expect(ethers.toUtf8String(values[0])).toStrictEqual(EXAMPLE_STRING);
-  expect(exitCode).toStrictEqual(0n);
 });
 
 test('get long string from mapping', async () => {
@@ -209,21 +164,17 @@ test('get long string from mapping', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-				mapping(uint256=>string) exampleMapping;          
-
+      contract C {
+        mapping(uint256 => string) exampleMapping;
         constructor() {
           exampleMapping[${MAPPING_KEY}] = "${EXAMPLE_STRING}";
         }
-		}
-	`,
+      }
+    `,
   });
-
-  const OUTPUT_COUNT = 1;
-
   const P = await T.prover();
-  const [values, exitCode] = await P.prove(
-    new EVMRequest(OUTPUT_COUNT)
+  const { values, exitCode } = await P.prove(
+    new EVMRequest(1)
       .setTarget(C.target)
       .setSlot(0)
       .push(MAPPING_KEY)
@@ -231,9 +182,8 @@ test('get long string from mapping', async () => {
       .readBytes()
       .setOutput(0)
   );
-  expect(values).toHaveLength(1);
+  expect(exitCode).toStrictEqual(0);
   expect(ethers.toUtf8String(values[0])).toStrictEqual(EXAMPLE_STRING);
-  expect(exitCode).toStrictEqual(0n);
 });
 
 test('get struct data AND nested mapped struct', async () => {
@@ -243,30 +193,25 @@ test('get struct data AND nested mapped struct', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-				struct Item {
+      contract C {
+        struct Item {
           uint256 index;
           string name;
           mapping(bytes => Item) nested;
         }
-        Item root;   
-        
+        Item root;
         constructor() {
           root.index = 0;
           root.name = "${ROOT_STRING}";
-
           root.nested["${MAPPING_KEY}"].index = 1;
           root.nested["${MAPPING_KEY}"].name = "${NEST_STRING}";
         }
-		}
-	`,
+      }
+    `,
   });
-
-  const OUTPUT_COUNT = 2;
-
   const P = await T.prover();
-  const [values, exitCode] = await P.prove(
-    new EVMRequest(OUTPUT_COUNT)
+  const { values, exitCode } = await P.prove(
+    new EVMRequest(2)
       .setTarget(C.target)
       .setSlot(0)
       .push(1)
@@ -280,10 +225,9 @@ test('get struct data AND nested mapped struct', async () => {
       .read()
       .setOutput(1)
   );
-  expect(values).toHaveLength(OUTPUT_COUNT);
+  expect(exitCode).toStrictEqual(0);
   expect(ethers.toUtf8String(values[0])).toStrictEqual(ROOT_STRING);
   expect(Number(values[1])).toStrictEqual(1);
-  expect(exitCode).toStrictEqual(0n);
 });
 
 test('read multiple adjacent slot values', async () => {
@@ -292,25 +236,21 @@ test('read multiple adjacent slot values', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-			${VALUES.map((x, i) => `uint256 slot${i} = ${x};`).join('\n')}
-		}
-	`,
+      contract C {
+        ${VALUES.map((x, i) => `uint256 slot${i} = ${x};`).join('\n')}
+      }
+    `,
   });
-
-  const OUTPUT_COUNT = 1;
-
   const P = await T.prover();
-  const [values, exitCode] = await P.prove(
-    new EVMRequest(OUTPUT_COUNT)
+  const { values, exitCode } = await P.prove(
+    new EVMRequest(1)
       .setTarget(C.target)
       .read(LENGTH_TO_USE)
       .setOutput(0)
   );
-  expect(values).toHaveLength(OUTPUT_COUNT);
+  expect(exitCode).toStrictEqual(0);
   expect(values[0]).toStrictEqual(ethers.concat(VALUES));
   expect(values[0].length).toStrictEqual(2 + LENGTH_TO_USE * 64);
-  expect(exitCode).toStrictEqual(0n);
 });
 
 test('bool[]', async () => {
@@ -318,53 +258,48 @@ test('bool[]', async () => {
   const T = await setup();
   const C = await T.foundry.deploy({
     sol: `
-		contract X {
-			bool[] v = [${VALUES}];
-		}
-	`,
+      contract C {
+        bool[] v = [${VALUES}];
+      }
+    `,
   });
-  const OUTPUT_COUNT = 1;
-
   const P = await T.prover();
-  const [values, exitCode] = await P.prove(
-    new EVMRequest(OUTPUT_COUNT).setTarget(C.target).readArray(1).setOutput(0)
+  const { values, exitCode } = await P.prove(
+    new EVMRequest(1)
+      .setTarget(C.target)
+      .readArray(1)
+      .setOutput(0)
   );
-
-  expect(values).toHaveLength(OUTPUT_COUNT);
   expect(
     decodeStorageArray(1, values[0]).map((x) => !!parseInt(x))
   ).toStrictEqual(VALUES);
-  expect(exitCode).toStrictEqual(0n);
 });
 
 for (let N = 1; N <= 32; N++) {
-  //for (let N of [19, 20, 21]) {
   const W = N << 3;
   test(`uint${W}[]`, async () => {
     const VALUES = Array.from({ length: 17 }, (_, i) => ethers.toBeHex(i, N));
     const T = await setup();
     const C = await T.foundry.deploy({
       sol: `
-			contract X {
-				uint${W}[] v = [${VALUES.map((x) => `uint${W}(${N == 20 ? ethers.getAddress(x) : x})`)}]; // solc bug?
-			}
-		`,
+        contract C {
+          uint${W}[] v = [${VALUES.map((x) => `uint${W}(${N == 20 ? ethers.getAddress(x) : x})`)}]; // solc bug?
+        }
+      `,
     });
-
-    const OUTPUT_COUNT = 1;
-
     const P = await T.prover();
-    const [values, exitCode] = await P.prove(
-      new EVMRequest(OUTPUT_COUNT).setTarget(C.target).readArray(N).setOutput(0)
+    const { values, exitCode } = await P.prove(
+      new EVMRequest(1)
+        .setTarget(C.target)
+        .readArray(N)
+        .setOutput(0)
     );
-    expect(values).toHaveLength(OUTPUT_COUNT);
+    expect(exitCode).toStrictEqual(0);
     expect(decodeStorageArray(N, values[0])).toStrictEqual(VALUES);
-    expect(exitCode).toStrictEqual(0n);
   });
 }
 
 for (let N = 1; N <= 32; N++) {
-  //for (let N of [19, 20, 21]) {
   test(`bytes${N}[]`, async () => {
     const VALUES = Array.from({ length: Math.ceil(247 / N) }, (_, i) =>
       ethers.toBeHex(i, N)
@@ -372,20 +307,19 @@ for (let N = 1; N <= 32; N++) {
     const T = await setup();
     const C = await T.foundry.deploy({
       sol: `
-			contract X {
-				bytes${N}[] v = [${VALUES.map((x) => `bytes${N}(${N == 20 ? ethers.getAddress(x) : x})`)}]; // solc bug?
-			}
-		`,
+        contract C {
+          bytes${N}[] v = [${VALUES.map((x) => `bytes${N}(${N == 20 ? ethers.getAddress(x) : x})`)}]; // solc bug?
+        }
+      `,
     });
-
-    const OUTPUT_COUNT = 1;
-
     const P = await T.prover();
-    const [values, exitCode] = await P.prove(
-      new EVMRequest(OUTPUT_COUNT).setTarget(C.target).readArray(N).setOutput(0)
+    const { values, exitCode } = await P.prove(
+      new EVMRequest(1)
+        .setTarget(C.target)
+        .readArray(N)
+        .setOutput(0)
     );
-    expect(values).toHaveLength(OUTPUT_COUNT);
+    expect(exitCode).toStrictEqual(0);
     expect(decodeStorageArray(N, values[0])).toStrictEqual(VALUES);
-    expect(exitCode).toStrictEqual(0n);
   });
 }

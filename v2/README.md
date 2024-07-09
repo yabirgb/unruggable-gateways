@@ -24,6 +24,8 @@ forge install offchainlabs/nitro-contracts
 * `bun run test`
 	* `bun run test-components`
 		* [Supported Operations](./test/components/ops.test.ts)
+		* [Protocol Limits](./test/components/limits.test.ts)
+		* [Batched eth_getProof](./test/components/proofs.test.ts)
 	* `bun run test-gateways`
 		* [Contract](./test/gateway/SlotDataContract.sol) &rarr; [Reader](./test/gateway/SlotDataReader.sol) &rarr; [Tests](./test/gateway/tests.ts)
 		* ⚠️ Scroll fails [`readZero()`](./test/gateway/tests.ts#L26) test

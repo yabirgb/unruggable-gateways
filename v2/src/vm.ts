@@ -22,17 +22,6 @@ const ABI_CODER = ethers.AbiCoder.defaultAbiCoder();
 // the following should be equivalent to EVMProtocol.sol
 export const MAX_STACK = 64;
 
-// maximum number of bytes from single read()
-// this is also constrained by proof count (1 proof per 32 bytes)
-export const MAX_READ_BYTES = 32 * 32;
-
-// maximum number of targets
-export const MAX_UNIQUE_TARGETS = 32;
-
-// maximum number of proofs (M account + N storage, max 256)
-// if this number is too small, protocol can be changed to uint16
-export const MAX_UNIQUE_PROOFS = 128;
-
 // OP_EVAL flags
 // the following should be equivalent to EVMProtocol.sol
 const STOP_ON_SUCCESS = 1;
@@ -74,11 +63,11 @@ const NULL_CODE_HASH = ethers.id('');
 const ACCOUNT_PROOF_PH = -1n;
 
 function uint256FromHex(hex: string) {
-  // the following should be equivalent to EVMProofHelper.toUint256()
+  // the following should be equivalent to ProofUtils.uint256FromBytes(hex)
   return hex === '0x' ? 0n : BigInt(hex.slice(0, 66));
 }
 function addressFromHex(hex: string) {
-  // the following should be equivalent to: address(uint160(ProofUtils.uint256FromBytes(x)))
+  // the following should be equivalent to: address(uint160(ProofUtils.uint256FromBytes(hex)))
   return (
     '0x' +
     (hex.length >= 66
@@ -335,16 +324,16 @@ export type Need = [target: HexString, slot: bigint];
 // needs records sequence of necessary proofs
 export class MachineState {
   static create(outputCount: number) {
-    return new this(Array(outputCount).fill('0x'), []);
+    return new this(Array(outputCount).fill('0x'));
   }
   target = ethers.ZeroAddress;
   slot = 0n;
   stack: HexFuture[] = [];
   exitCode = 0;
-  private readonly targetSet = new Set();
   constructor(
     readonly outputs: HexFuture[],
-    readonly needs: Need[]
+    readonly needs: Need[] = [],
+    readonly targetSet = new Set<HexString>(),
   ) {}
   push(value: HexFuture) {
     if (this.stack.length == MAX_STACK) throw new Error('stack overflow');
@@ -369,10 +358,12 @@ export class MachineState {
   async resolveOutputs() {
     return Promise.all(this.outputs.map(unwrap));
   }
-  traceTarget(target: HexString) {
+  traceTarget(target: HexString, max: number) {
+    // IDEA: this could incremently build the needs map
+    // instead of doing it during prove()
     this.needs.push([target, ACCOUNT_PROOF_PH]); // special value indicate accountProof instead of slot
     this.targetSet.add(target);
-    if (this.targetSet.size > MAX_UNIQUE_TARGETS) {
+    if (this.targetSet.size > max) {
       throw new Error('too many targets');
     }
   }
@@ -403,13 +394,25 @@ export class EVMProver {
     const block = await provider.getBlockNumber();
     return new this(provider, '0x' + block.toString(16));
   }
+  // maximum number of proofs per eth_getProof
+  // 20240501: check geth slot limit => no limit, just response size
+  // https://github.com/ethereum/go-ethereum/blob/9f96e07c1cf87fdd4d044f95de9c1b5e0b85b47f/internal/ethapi/api.go#L707 
+  proofBatchSize = 64; // reasonable?
+  // maximum number of bytes from single read()
+  // this is also constrained by proof count (1 proof per 32 bytes)
+  maxReadBytes = 32 * 32; // unlimited
+  // maximum number of proofs (M account + N storage, max 256)
+  // if this number is too small, protocol can be changed to uint16
+  maxUniqueProofs = 128; // max(256)
+  // maximum number of targets (accountProofs)
+  maxUniqueTargets = 32; // unlimited
   constructor(
     readonly provider: Provider,
     readonly block: HexString,
     readonly cache: CachedMap<string, any> = new CachedMap()
   ) {}
   async cachedMap() {
-    const map = new Map<HexString, any[]>();
+    const map = new Map<HexString, bigint[]>();
     for (const key of this.cache.cachedKeys()) {
       const value = await this.cache.cachedValue(key);
       const target = key.slice(0, 42);
@@ -423,13 +426,14 @@ export class EVMProver {
         // non-contracts will be empty lists
       } else {
         bucket.push(BigInt((value as StorageProof).key));
+        //bucket.push(BigInt('0x' + key.slice(43)))
       }
     }
     return map;
   }
   checkSize(size: bigint | number) {
-    if (size > MAX_READ_BYTES)
-      throw new Error(`too many bytes: ${size} > ${MAX_READ_BYTES}`);
+    if (size > this.maxReadBytes)
+      throw new Error(`too many bytes: ${size} > ${this.maxReadBytes}`);
     return Number(size);
   }
   async fetchStateRoot() {
@@ -444,15 +448,20 @@ export class EVMProver {
     target: HexString,
     slots: bigint[] = []
   ): Promise<RPCEthGetProof> {
-    // 20240501: check geth slot limit => no limit, just response size
-    // https://github.com/ethereum/go-ethereum/blob/9f96e07c1cf87fdd4d044f95de9c1b5e0b85b47f/internal/ethapi/api.go#L707
-    //console.log('getProof', target, slots);
-    // TODO: chunk this by 32s or something
-    return this.provider.send('eth_getProof', [
-      target,
-      slots.map((slot) => ethers.toBeHex(slot, 32)),
-      this.block,
-    ]);
+    const ps: Promise<RPCEthGetProof>[] = [];
+    for (let i = 0; ; ) {
+      ps.push(this.provider.send('eth_getProof', [
+        target,
+        slots.slice(i, i += this.proofBatchSize).map((slot) => ethers.toBeHex(slot, 32)),
+        this.block,
+      ]));
+      if (i >= slots.length) break;
+    }
+    const vs = await Promise.all(ps);
+    for (let i = 1; i < vs.length; i++) {
+      vs[0].storageProof.push(...vs[i].storageProof);
+    }
+    return vs[0];
   }
   async getProofs(
     target: HexString,
@@ -462,13 +471,18 @@ export class EVMProver {
     const missing: number[] = []; // indices of slots we dont have proofs for
     const { promise, resolve } = Promise.withResolvers(); // create a blocker
     try {
-      let accountProof: AccountProof | undefined =
-        await this.cache.cachedValue(target);
+      // 20240708: must setup blocks before await
+      let accountProof: (
+        | Promise<AccountProof> 
+        | AccountProof 
+        | undefined
+      ) = this.cache.peek(target);
       if (!accountProof) {
+         // block this value until we resolve
         this.cache.set(
           target,
           promise.then(() => this.cache.cachedValue(target))
-        ); // block
+        );
       }
       const storageProofs: (
         | Promise<StorageProof>
@@ -476,12 +490,13 @@ export class EVMProver {
         | undefined
       )[] = slots.map((slot, i) => {
         const key = makeSlotKey(target, slot);
-        const p = this.cache.cachedValue(key);
+        const p = this.cache.peek(key);
         if (!p) {
+          // block this value until we resolve
           this.cache.set(
             key,
             promise.then(() => this.cache.cachedValue(key))
-          ); // block
+          );
           missing.push(i);
         }
         return p;
@@ -495,7 +510,10 @@ export class EVMProver {
         this.cache.set(target, (accountProof = a));
         missing.forEach((x, i) => (storageProofs[x] = v[i]));
       }
-      if (isContract(accountProof)) {
+      // resolve everything before updating cache
+      const a = await accountProof;
+      const v = await Promise.all(storageProofs) as StorageProof[];
+      if (isContract(a)) {
         slots.forEach((slot, i) =>
           this.cache.set(makeSlotKey(target, slot), storageProofs[i])
         );
@@ -503,10 +521,7 @@ export class EVMProver {
         slots.forEach((slot) => this.cache.delete(makeSlotKey(target, slot)));
       }
       // reassemble eth_getProof
-      return {
-        ...accountProof,
-        storageProof: (await Promise.all(storageProofs)) as StorageProof[],
-      };
+      return { storageProof: v, ...a };
     } finally {
       resolve(); // unblock
     }
@@ -515,7 +530,7 @@ export class EVMProver {
     try {
       // check to see if we know this target isn't a contract without invoking provider
       const accountProof: AccountProof | undefined =
-        await this.cache.cachedValue(target);
+        await this.cache.peek(target);
       if (accountProof && !isContract(accountProof)) {
         return ethers.ZeroHash;
       }
@@ -565,8 +580,8 @@ export class EVMProver {
         return ref.id;
       }
     });
-    if (refs.length > MAX_UNIQUE_PROOFS) {
-      throw new Error(`too many proofs: ${refs.length} > ${MAX_UNIQUE_PROOFS}`);
+    if (refs.length > this.maxUniqueProofs) {
+      throw new Error(`too many proofs: ${refs.length} > ${this.maxUniqueProofs}`);
     }
     await Promise.all(
       Array.from(targets, async ([target, bucket]) => {
@@ -626,7 +641,7 @@ export class EVMProver {
           // args: [] / stack: -1
           vm.target = addressFromHex(await unwrap(vm.pop()));
           vm.slot = 0n;
-          vm.traceTarget(vm.target); // accountProof
+          vm.traceTarget(vm.target, this.maxUniqueTargets); // accountProof
           continue;
         }
         case OP_SLOT_ADD: {
@@ -774,7 +789,7 @@ export class EVMProver {
           const flags = reader.readByte();
           const cmd = CommandReader.fromEncoded(await unwrap(vm.pop()));
           const args = vm.popSlice(back).toReversed();
-          const vm2 = new MachineState(vm.outputs, vm.needs);
+          const vm2 = new MachineState(vm.outputs, vm.needs, vm.targetSet);
           for (const arg of args) {
             vm2.target = vm.target;
             vm2.slot = vm.slot;

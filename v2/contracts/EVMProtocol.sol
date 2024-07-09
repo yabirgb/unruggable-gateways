@@ -21,21 +21,21 @@ uint8 constant OP_READ_SLOTS = 20;
 uint8 constant OP_READ_BYTES = 21;
 uint8 constant OP_READ_ARRAY = 22;
 
-uint8 constant OP_SLOT_ZERO		= 30;
-uint8 constant OP_SLOT_ADD		= 31;
-uint8 constant OP_SLOT_FOLLOW	= 32;
+uint8 constant OP_SLOT_ZERO = 30;
+uint8 constant OP_SLOT_ADD = 31;
+uint8 constant OP_SLOT_FOLLOW = 32;
 
-uint8 constant OP_PUSH_INPUT	= 40;
-uint8 constant OP_PUSH_OUTPUT	= 41;
-uint8 constant OP_PUSH_SLOT		= 42;
-uint8 constant OP_PUSH_TARGET   = 43;
+uint8 constant OP_PUSH_INPUT = 40;
+uint8 constant OP_PUSH_OUTPUT = 41;
+uint8 constant OP_PUSH_SLOT = 42;
+uint8 constant OP_PUSH_TARGET = 43;
 
 uint8 constant OP_DUP = 50;
 uint8 constant OP_POP = 51;
 
-uint8 constant OP_STACK_KECCAK	= 60;
-uint8 constant OP_STACK_CONCAT	= 61;
-uint8 constant OP_STACK_SLICE	= 62;
+uint8 constant OP_KECCAK = 60;
+uint8 constant OP_CONCAT = 61;
+uint8 constant OP_SLICE	= 62;
 
 struct EVMRequest {
 	bytes ops;

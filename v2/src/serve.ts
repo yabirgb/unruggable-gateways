@@ -45,4 +45,4 @@ console.log({
   chain2: networkName(gateway.provider2),
 });
 
-await serve(gateway, { protocol: 'raw', port: port ?? 8000 });
+await serve(gateway, { protocol: 'raw', port: parseInt(port) || 8000 });

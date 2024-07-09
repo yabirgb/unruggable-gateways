@@ -196,11 +196,11 @@ library EVMProver {
 				vm.slot += ProofUtils.uint256FromBytes(vm.pop());
 			} else if (op == OP_SLOT_FOLLOW) {
 				vm.slot = uint256(keccak256(abi.encodePacked(vm.pop(), vm.slot)));
-			} else if (op == OP_STACK_SLICE) {
+			} else if (op == OP_SLICE) {
 				vm.push(Bytes.slice(vm.pop(), vm.readShort(), vm.readShort()));
-			} else if (op == OP_STACK_KECCAK) {
+			} else if (op == OP_KECCAK) {
 				vm.push(abi.encodePacked(keccak256(vm.pop())));
-			} else if (op == OP_STACK_CONCAT) {
+			} else if (op == OP_CONCAT) {
 				uint8 back = vm.readByte();
 				bytes memory v;
 				for (; back > 0 && vm.stackSize > 0; --back) {

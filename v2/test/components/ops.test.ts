@@ -1,5 +1,5 @@
 import type { BigNumberish } from '../../src/types.js';
-import { EVMRequest, EVMProver } from '../../src/vm.js';
+import { EVMRequest, EVMProver, solidityFollowSlot } from '../../src/vm.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { test, afterAll, expect, describe } from 'bun:test';
@@ -20,14 +20,14 @@ describe('ops', async () => {
   });
   const contract = await foundry.deploy({
     sol: `
-		contract X {
-			uint256 value1 = 1;
-			uint256 value2 = 2;
-			string small = "abc";
-			string big = "${'abc'.repeat(20)}";
-			uint96[] array = [1, 2, 3];
-		}
-	`,
+      contract X {
+        uint256 value1 = 1;
+        uint256 value2 = 2;
+        string small = "abc";
+        string big = "${'abc'.repeat(20)}";
+        uint96[] array = [1, 2, 3];
+      }
+    `,
   });
 
   async function verify(req: EVMRequest) {
@@ -184,9 +184,7 @@ describe('ops', async () => {
     const req = new EVMRequest();
     req.setSlot(1337).pushStr('raffy').follow().pushSlot().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toBe(
-      ethers.keccak256(ethers.concat([hexStr('raffy'), uint256(1337)]))
-    );
+    expect(values[0]).toBe(uint256(solidityFollowSlot(1337, hexStr('raffy'))));
   });
 
   test('read', async () => {
@@ -307,4 +305,5 @@ describe('ops', async () => {
     expect(values[0]).toBe(uint256(1337));
     expect(stack).toHaveLength(0);
   });
+
 });
