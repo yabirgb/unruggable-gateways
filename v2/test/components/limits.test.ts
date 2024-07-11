@@ -1,8 +1,4 @@
-import {
-  EVMProver,
-  EVMRequest,
-  MAX_STACK,
-} from '../../src/vm.js';
+import { EVMProver, EVMRequest, MAX_STACK } from '../../src/vm.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { afterAll, test, expect, describe } from 'bun:test';
@@ -56,7 +52,8 @@ describe('limits', async () => {
   test('max proofs', async () => {
     const req = new EVMRequest();
     req.setTarget(contract.target);
-    for (let i = 1; i < prover.maxUniqueProofs; i++) { // one less
+    for (let i = 1; i < prover.maxUniqueProofs; i++) {
+      // one less
       req.setSlot(i).read().pop();
     }
     expect(exec(req)).resolves.toBeDefined();

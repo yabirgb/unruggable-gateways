@@ -21,7 +21,7 @@ describe('proofs', async () => {
     fetchedCalls = 0;
     fetchedSlots = 0;
   }
-  foundry.provider.on('debug', e => {
+  foundry.provider.on('debug', (e) => {
     if (e.action === 'sendRpcPayload' && e.payload.method === 'eth_getProof') {
       fetchedCalls++;
       fetchedSlots += e.payload.params[1].length;
@@ -55,8 +55,7 @@ describe('proofs', async () => {
     const prover = await EVMProver.latest(foundry.provider);
     const slots = [0n, 1n];
     const p0 = await prover.fetchProofs(contract.target, slots);
-    prover.proofBatchSize = 1;
-    const p1 = await prover.fetchProofs(contract.target, slots);
+    const p1 = await prover.fetchProofs(contract.target, slots, 1);
     expect(p0).toEqual(p1);
   });
 
@@ -64,18 +63,16 @@ describe('proofs', async () => {
     const prover = await EVMProver.latest(foundry.provider);
     const slots = [0n, 1n];
     const p0 = await prover.getProofs(contract.target, slots);
-    prover.proofBatchSize = 1;
     resetStats();
-    const p1 = await prover.getProofs(contract.target, slots);
+    const p1 = await prover.getProofs(contract.target, slots, 1);
     expect(fetchedCalls).toBe(0);
     expect(p0).toEqual(p1);
   });
 
   test('fetchProofs() batch = 1', async () => {
     const prover = await EVMProver.latest(foundry.provider);
-    prover.proofBatchSize = 1;
     resetStats();
-    await prover.fetchProofs(contract.target, [0n, 1n]);
+    await prover.fetchProofs(contract.target, [0n, 1n], 1);
     expect(fetchedCalls).toBe(2);
   });
 
@@ -105,7 +102,7 @@ describe('proofs', async () => {
     const [p0, p1, p2] = await Promise.all([
       prover.getProofs(contract.target, [0n, 1n]),
       prover.getProofs(contract.target, [1n, 2n]),
-      prover.getProofs(contract.target, [2n, 0n])
+      prover.getProofs(contract.target, [2n, 0n]),
     ]);
     expect(fetchedCalls).toBe(2);
     expect(fetchedSlots).toBe(3);
@@ -126,5 +123,4 @@ describe('proofs', async () => {
     expect(fetchedSlots).toBe(6);
     expect(p0.storageProof).toEqual(p1.storageProof.concat(p2.storageProof));
   });
-
 });

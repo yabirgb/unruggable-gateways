@@ -305,5 +305,4 @@ describe('ops', async () => {
     expect(values[0]).toBe(uint256(1337));
     expect(stack).toHaveLength(0);
   });
-
 });

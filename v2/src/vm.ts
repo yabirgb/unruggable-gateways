@@ -333,7 +333,7 @@ export class MachineState {
   constructor(
     readonly outputs: HexFuture[],
     readonly needs: Need[] = [],
-    readonly targetSet = new Set<HexString>(),
+    readonly targetSet = new Set<HexString>()
   ) {}
   push(value: HexFuture) {
     if (this.stack.length == MAX_STACK) throw new Error('stack overflow');
@@ -394,10 +394,6 @@ export class EVMProver {
     const block = await provider.getBlockNumber();
     return new this(provider, '0x' + block.toString(16));
   }
-  // maximum number of proofs per eth_getProof
-  // 20240501: check geth slot limit => no limit, just response size
-  // https://github.com/ethereum/go-ethereum/blob/9f96e07c1cf87fdd4d044f95de9c1b5e0b85b47f/internal/ethapi/api.go#L707 
-  proofBatchSize = 64; // reasonable?
   // maximum number of bytes from single read()
   // this is also constrained by proof count (1 proof per 32 bytes)
   maxReadBytes = 32 * 32; // unlimited
@@ -446,15 +442,23 @@ export class EVMProver {
   }
   async fetchProofs(
     target: HexString,
-    slots: bigint[] = []
+    slots: bigint[] = [],
+    // maximum number of proofs per eth_getProof
+    // 20240501: check geth slot limit => no limit, just response size
+    // https://github.com/ethereum/go-ethereum/blob/9f96e07c1cf87fdd4d044f95de9c1b5e0b85b47f/internal/ethapi/api.go#L707
+    batchSize = 64 // reasonable?
   ): Promise<RPCEthGetProof> {
     const ps: Promise<RPCEthGetProof>[] = [];
     for (let i = 0; ; ) {
-      ps.push(this.provider.send('eth_getProof', [
-        target,
-        slots.slice(i, i += this.proofBatchSize).map((slot) => ethers.toBeHex(slot, 32)),
-        this.block,
-      ]));
+      ps.push(
+        this.provider.send('eth_getProof', [
+          target,
+          slots
+            .slice(i, (i += batchSize))
+            .map((slot) => ethers.toBeHex(slot, 32)),
+          this.block,
+        ])
+      );
       if (i >= slots.length) break;
     }
     const vs = await Promise.all(ps);
@@ -465,70 +469,61 @@ export class EVMProver {
   }
   async getProofs(
     target: HexString,
-    slots: bigint[] = []
+    slots: bigint[] = [],
+    batchSize?: number
   ): Promise<RPCEthGetProof> {
     target = target.toLowerCase();
     const missing: number[] = []; // indices of slots we dont have proofs for
-    const { promise, resolve } = Promise.withResolvers(); // create a blocker
-    try {
-      // 20240708: must setup blocks before await
-      let accountProof: (
-        | Promise<AccountProof> 
-        | AccountProof 
-        | undefined
-      ) = this.cache.peek(target);
-      if (!accountProof) {
-         // block this value until we resolve
-        this.cache.set(
-          target,
-          promise.then(() => this.cache.cachedValue(target))
-        );
-      }
-      const storageProofs: (
-        | Promise<StorageProof>
-        | StorageProof
-        | undefined
-      )[] = slots.map((slot, i) => {
+    const { promise, resolve, reject } = Promise.withResolvers(); // create a blocker
+    // 20240708: must setup blocks before await
+    let accountProof: Promise<AccountProof> | AccountProof | undefined =
+      this.cache.peek(target);
+    if (!accountProof) {
+      this.cache.set(
+        target,
+        promise.then(() => accountProof) // block
+      );
+    }
+    const storageProofs: (Promise<StorageProof> | StorageProof | undefined)[] =
+      slots.map((slot, i) => {
         const key = makeSlotKey(target, slot);
         const p = this.cache.peek(key);
         if (!p) {
-          // block this value until we resolve
           this.cache.set(
             key,
-            promise.then(() => this.cache.cachedValue(key))
+            promise.then(() => storageProofs[i]) // block
           );
           missing.push(i);
         }
         return p;
       });
-      if (!accountProof || missing.length) {
-        // we need something
+    if (!accountProof || missing.length) {
+      // we need something
+      try {
         const { storageProof: v, ...a } = await this.fetchProofs(
           target,
-          missing.map((i) => slots[i])
+          missing.map((x) => slots[x]),
+          batchSize
         );
-        this.cache.set(target, (accountProof = a));
+        // update cache
+        accountProof = a;
         missing.forEach((x, i) => (storageProofs[x] = v[i]));
+        resolve(); // unblock
+      } catch (err) {
+        reject(err);
       }
-      // resolve everything before updating cache
-      const a = await accountProof;
-      const v = await Promise.all(storageProofs) as StorageProof[];
-      if (isContract(a)) {
-        slots.forEach((slot, i) =>
-          this.cache.set(makeSlotKey(target, slot), storageProofs[i])
-        );
-      } else {
-        slots.forEach((slot) => this.cache.delete(makeSlotKey(target, slot)));
-      }
-      // reassemble eth_getProof
-      return { storageProof: v, ...a };
-    } finally {
-      resolve(); // unblock
     }
+    // reassemble eth_getProof
+    const [a, v] = await Promise.all([
+      accountProof as Promise<AccountProof>,
+      Promise.all(storageProofs) as Promise<StorageProof[]>,
+    ]);
+    return { storageProof: v, ...a };
   }
   async getStorage(target: HexString, slot: bigint): Promise<HexString> {
     try {
       // check to see if we know this target isn't a contract without invoking provider
+      // this is almost equivalent to: await isContract(target) 
       const accountProof: AccountProof | undefined =
         await this.cache.peek(target);
       if (accountProof && !isContract(accountProof)) {
@@ -581,7 +576,9 @@ export class EVMProver {
       }
     });
     if (refs.length > this.maxUniqueProofs) {
-      throw new Error(`too many proofs: ${refs.length} > ${this.maxUniqueProofs}`);
+      throw new Error(
+        `too many proofs: ${refs.length} > ${this.maxUniqueProofs}`
+      );
     }
     await Promise.all(
       Array.from(targets, async ([target, bucket]) => {

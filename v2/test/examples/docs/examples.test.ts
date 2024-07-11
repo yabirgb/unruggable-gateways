@@ -29,7 +29,7 @@ async function setup() {
       return {
         prover,
         stateRoot,
-        async prove(req: EVMRequest) { 
+        async prove(req: EVMRequest) {
           const vm = await this.prover.evalRequest(req);
           const { proofs, order } = await this.prover.prove(vm.needs);
           const values = await vm.resolveOutputs();
@@ -65,11 +65,7 @@ test('get uint256', async () => {
   const P = await T.prover();
   //Build a request using our Typescript API
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1)
-      .setTarget(C.target)
-      .setSlot(0)
-      .read()
-      .setOutput(0)
+    new EVMRequest(1).setTarget(C.target).setSlot(0).read().setOutput(0)
   );
   expect(exitCode).toStrictEqual(0);
   expect(values[0]).toStrictEqual(VALUE);
@@ -243,10 +239,7 @@ test('read multiple adjacent slot values', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1)
-      .setTarget(C.target)
-      .read(LENGTH_TO_USE)
-      .setOutput(0)
+    new EVMRequest(1).setTarget(C.target).read(LENGTH_TO_USE).setOutput(0)
   );
   expect(exitCode).toStrictEqual(0);
   expect(values[0]).toStrictEqual(ethers.concat(VALUES));
@@ -265,11 +258,9 @@ test('bool[]', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1)
-      .setTarget(C.target)
-      .readArray(1)
-      .setOutput(0)
+    new EVMRequest(1).setTarget(C.target).readArray(1).setOutput(0)
   );
+  expect(exitCode).toStrictEqual(0);
   expect(
     decodeStorageArray(1, values[0]).map((x) => !!parseInt(x))
   ).toStrictEqual(VALUES);
@@ -289,10 +280,7 @@ for (let N = 1; N <= 32; N++) {
     });
     const P = await T.prover();
     const { values, exitCode } = await P.prove(
-      new EVMRequest(1)
-        .setTarget(C.target)
-        .readArray(N)
-        .setOutput(0)
+      new EVMRequest(1).setTarget(C.target).readArray(N).setOutput(0)
     );
     expect(exitCode).toStrictEqual(0);
     expect(decodeStorageArray(N, values[0])).toStrictEqual(VALUES);
@@ -314,10 +302,7 @@ for (let N = 1; N <= 32; N++) {
     });
     const P = await T.prover();
     const { values, exitCode } = await P.prove(
-      new EVMRequest(1)
-        .setTarget(C.target)
-        .readArray(N)
-        .setOutput(0)
+      new EVMRequest(1).setTarget(C.target).readArray(N).setOutput(0)
     );
     expect(exitCode).toStrictEqual(0);
     expect(decodeStorageArray(N, values[0])).toStrictEqual(VALUES);
