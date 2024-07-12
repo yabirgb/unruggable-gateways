@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "check": "bunx tsc --noEmit",
+    "check": "tsc --noEmit",
     "build": "forge build --force",
     "serve": "bun src/serve.ts",
     "test": "bun test --timeout 15000",
@@ -10,7 +10,7 @@
     "lint": "eslint . --ext .ts"
   },
   "devDependencies": {
-    "@adraffy/blocksmith": "^0.0.22",
+    "@adraffy/blocksmith": "^0.0.24",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",

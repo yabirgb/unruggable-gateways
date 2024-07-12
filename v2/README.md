@@ -12,11 +12,13 @@
 # installed by forge in step (2)
 # provided for reference
 forge install foundry-rs/forge-std
-forge install OpenZeppelin/openzeppelin-contracts
+forge install openzeppelin-contracts-v4.9=OpenZeppelin/openzeppelin-contracts@release-v4.9 # required for ens-contracts
 forge install ensdomains/ens-contracts
 forge install ensdomains/buffer
-forge install ethereum-optimism/optimism@develop
+forge install OpenZeppelin/openzeppelin-contracts@master # https://github.com/OpenZeppelin/openzeppelin-contracts/pull/4845
+forge install ethereum-optimism/optimism@develop # https://github.com/ethereum-optimism/optimism/pull/10819
 forge install offchainlabs/nitro-contracts
+forge install ensdomains/enschain
 ```
 
 ## Test
@@ -32,6 +34,8 @@ forge install offchainlabs/nitro-contracts
 
 ## Examples
 
+* [enschain](./test/examples/enschain/) &rarr; [ensdomains/**enschain**](https://github.com/ensdomains/enschain/)
+	* `bun test/examples/enschain/demo.ts`
 * [ENSv2](./test/examples/ENSv2/)
 	* copy [`contracts/`](https://github.com/unruggable-labs/ENS-V2/tree/main/contracts)
 	* `bun test/examples/ENSv2/storage.ts`
@@ -43,5 +47,6 @@ forge install offchainlabs/nitro-contracts
 
 ## Serve
 
-* `bun run serve [base|op|arb1|scroll]`
-	* listens on `PORT` (default: 8000)
+* `bun run serve <chain> [port]`
+	* Supported chains: `base op arb1 scroll`
+	* Default port: `8000`

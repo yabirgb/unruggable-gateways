@@ -19,7 +19,7 @@ switch (name) {
     gateway = OPFaultGateway.mainnet(createProviderPair(CHAIN_OP));
     break;
   }
-  case 'arb': {
+  case 'arb1': {
     gateway = NitroGateway.arb1Mainnet(createProviderPair(CHAIN_ARB1));
     break;
   }

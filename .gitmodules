@@ -16,3 +16,9 @@
 [submodule "v2/lib/nitro-contracts"]
 	path = v2/lib/nitro-contracts
 	url = https://github.com/offchainlabs/nitro-contracts
+[submodule "v2/lib/enschain"]
+	path = v2/lib/enschain
+	url = https://github.com/ensdomains/enschain
+[submodule "v2/lib/openzeppelin-contracts-v4.9"]
+	path = v2/lib/openzeppelin-contracts-v4.9
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts

@@ -153,10 +153,13 @@ export class EVMCommand {
     this.ops.push(x >> 8, x & 0xff);
     return this;
   }
-  protected addInputStr(s: string) {
+  addInput(x: BigNumberish) {
+    return this.addInputBytes(ethers.toBeHex(x, 32));
+  }
+  addInputStr(s: string) {
     return this.addInputBytes(ethers.toUtf8Bytes(s));
   }
-  protected addInputBytes(v: BytesLike) {
+  addInputBytes(v: BytesLike) {
     const hex = ethers.hexlify(v);
     const i = this.inputs.length;
     this.inputs.push(hex); // note: no check, but blows up at 256
@@ -236,7 +239,7 @@ export class EVMCommand {
     return this.addByte(OP_PUSH_INPUT).addByte(i);
   }
   push(x: BigNumberish) {
-    return this.pushBytes(ethers.toBeHex(x, 32));
+    return this.addByte(OP_PUSH_INPUT).addByte(this.addInput(x));
   }
   pushStr(s: string) {
     return this.addByte(OP_PUSH_INPUT).addByte(this.addInputStr(s));
@@ -523,7 +526,7 @@ export class EVMProver {
   async getStorage(target: HexString, slot: bigint): Promise<HexString> {
     try {
       // check to see if we know this target isn't a contract without invoking provider
-      // this is almost equivalent to: await isContract(target) 
+      // this is almost equivalent to: await isContract(target)
       const accountProof: AccountProof | undefined =
         await this.cache.peek(target);
       if (accountProof && !isContract(accountProof)) {
