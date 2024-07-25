@@ -1,14 +1,31 @@
 {
+  "name": "@unruggable/evmgateway",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "forge build --force",
+    "forge": "forge build --force",
     "serve": "bun test/serve.ts",
     "test": "bun test --timeout 15000",
     "test-components": "bun test test/components/* --timeout 15000",
     "test-gateways": "bun test test/gateway/* --timeout 0",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "clean": "rm -rf ./dist && rm -rf ./tsconfig.build.tsbuildinfo",
+    "build:esm": "tsc --project tsconfig.json --outDir ./dist/esm && echo > ./dist/esm/package.json '{\"type\":\"module\",\"sideEffects\":false}'",
+    "build:types": "tsc --project tsconfig.json --declarationDir ./dist/types --emitDeclarationOnly --declaration --declarationMap",
+    "build": "bun run clean && bun run build:esm && bun run build:types"
   },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/"
+  ],
   "devDependencies": {
     "@adraffy/blocksmith": "^0.0.24",
     "@types/bun": "latest",
@@ -26,6 +43,5 @@
   "peerDependencies": {
     "typescript": "^5.5.2"
   },
-  "name": "v2",
   "module": "index.ts"
 }

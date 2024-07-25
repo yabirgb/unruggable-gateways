@@ -180,18 +180,9 @@ export class CachedMap<K = unknown, V = unknown> {
   get(key: K, fn: (key: K) => Promise<V>, ms?: number): Promise<V> {
     let p = this.peek(key);
     if (p) return p;
-    if (this.pending.size >= this.maxPending) throw new Error('busy'); // too many in-flight
-    // this implementation might be more clear:
-    // try {
-    //   let p = fn(key);
-    //   this.pending.set(key, p);
-    //   let value = await p;
-    //   if (this.pending.delete(key)) this.set(key, value, ms);
-    //   return value;
-    // } catch (err) {
-    //   if (this.pending.delete(key)) this.set(key, Promise.reject(err), this.errorMs);
-    //   throw err;
-    // }
+    if (this.maxPending && this.pending.size >= this.maxPending) {
+      throw new Error('busy'); // too many in-flight
+    }
     const q = fn(key); // begin
     p = q
       .catch(() => ERR)
