@@ -25,9 +25,10 @@ export type GatewayConstructor = {
   errorRetryMs?: number;
   checkCommitMs?: number;
   writeCommitMs?: number;
+  blockDelay?: number;
   commitDepth?: number;
   commitStep?: number;
-  commitDelay?: number;
+  commitOffset?: number;
   callCacheSize?: number;
   commitCacheSize?: number;
 };
@@ -37,11 +38,13 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
   readonly provider2;
   readonly writeCommitMs;
   readonly commitStep;
-  readonly commitDelay;
+  readonly blockDelay;
+  readonly commitOffset;
   readonly callCache: CachedMap<string, Uint8Array>;
   readonly commitCache: CachedMap<number, C>;
   readonly recentCommits: (C | undefined)[];
   readonly latestCache: CachedValue<number>;
+  readonly delayedCache: CachedValue<number>;
   readonly commitCacheParams;
   constructor({
     provider1,
@@ -49,18 +52,20 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
     errorRetryMs = 250, // ms to wait to retry actions that failed
     checkCommitMs = 60000, // how frequently to check if rollup has commit
     writeCommitMs = 60 * 60000, // how frequently the rollup actually commits
-    commitDepth = 3, // how far back from head to support
-    commitDelay = 1, // offset from head for "latest" commit
+    commitDepth = 5, // how far back from head to support
+    blockDelay = 1, // offset from head for "latest" commit
     commitStep = 1, // index rounding
-    callCacheSize = 1000, // typically 5-10KB per call
-    commitCacheSize = 100000, // slots (bytes32), isContract (bool), proof? (bytes32x10?)
+    commitOffset = 0, // index offset
+    callCacheSize = 1000, // typically 5-10KB
+    commitCacheSize = 100000, // account and storage proofs <1KB
   }: GatewayConstructor) {
     super();
     this.provider1 = provider1;
     this.provider2 = provider2;
-    this.writeCommitMs = writeCommitMs; // unused
+    this.writeCommitMs = writeCommitMs;
     this.commitStep = commitStep;
-    this.commitDelay = commitDelay * commitStep;
+    this.blockDelay = blockDelay;
+    this.commitOffset = commitOffset;
     this.commitCacheParams = {
       cacheMs: Infinity,
       errorMs: errorRetryMs,
@@ -70,7 +75,12 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
       async () => Number(await this.fetchLatestCommitIndex()),
       checkCommitMs,
       errorRetryMs
-    ); // cached
+    );
+    this.delayedCache = new CachedValue(
+      async () => Number(await this.fetchDelayedCommitIndex()),
+      checkCommitMs,
+      errorRetryMs
+    );
     this.recentCommits = Array(commitDepth); // circular buffer
     this.commitCache = new CachedMap({
       cacheMs: 0,
@@ -84,9 +94,12 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
     this.register(
       `function proveRequest(bytes context, tuple(bytes ops, bytes[] inputs)) returns (bytes)`,
       async ([ctx, { ops, inputs }], context, history) => {
-        const index = parseGatewayContext(ctx); // TODO: support (min, max)
-        if (index % this.commitStep)
+        // TODO: support (min, max)
+        // probably should be a different function
+        const index = parseGatewayContext(ctx);
+        if (index % this.commitStep !== this.commitOffset) {
           throw new Error(`commit index not aligned: ${index}`);
+        }
         const hash = ethers.keccak256(context.calldata);
         history.show = [ethers.hexlify(ops), hash];
         return this.callCache.get(hash, async () => {
@@ -105,7 +118,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
     this.register(
       `function getStorageSlots(address target, bytes32[] commands, bytes[] constants) returns (bytes)`,
       async ([target, commands, constants], context, history) => {
-        const index = await this.getLatestCommitIndex();
+        const index = this.alignCommitIndex(await this.delayedCache.get());
         const hash = ethers.id(`${index}:${context.calldata}`);
         history.show = [hash];
         return this.callCache.get(hash, async () => {
@@ -131,11 +144,35 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
   get commitDepth() {
     return this.recentCommits.length;
   }
+  get effectiveCommitDelay() {
+    return Math.ceil((this.blockDelay * 12000) / this.writeCommitMs);
+  }
+  get commitParams() {
+    const {
+      blockDelay,
+      effectiveCommitDelay,
+      commitStep,
+      commitOffset,
+      commitDepth,
+    } = this;
+    return {
+      blockDelay,
+      effectiveCommitDelay,
+      commitStep,
+      commitOffset,
+      commitDepth,
+    };
+  }
+  protected requireNoStep() {
+    if (this.commitStep !== 1) throw new Error('expected step = 1');
+    if (this.commitOffset) throw new Error('expected offset = 0');
+  }
   shutdown() {
     this.provider1.destroy();
     this.provider2.destroy();
   }
   abstract fetchLatestCommitIndex(): Promise<number>;
+  abstract fetchDelayedCommitIndex(): Promise<number>;
   abstract fetchCommit(index: number): Promise<C>;
   abstract encodeWitnessV1(
     commit: C,
@@ -149,9 +186,10 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
   ): HexString;
   // latest aligned commit index (cached)
   async getLatestCommitIndex() {
-    return this.alignCommitIndex(
-      (await this.latestCache.get()) - this.commitDelay
-    );
+    return this.alignCommitIndex(await this.latestCache.get());
+  }
+  async getDelayedCommitIndex() {
+    return this.alignCommitIndex(await this.delayedCache.get());
   }
   // latest aligned commit (cached)
   async getLatestCommit() {
@@ -160,12 +198,12 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
   // align a commit index to cachable index
   // (typically the same unless rollup commits frequently, eg. scroll)
   protected alignCommitIndex(index: number) {
-    return index - (index % this.commitStep);
+    return index - ((index - this.commitOffset) % this.commitStep);
   }
   // translate an aligned commit index to cicular buffer index
   // throws if the index is outside servable bounds
   private async slotFromAligned(index: number) {
-    const latest = this.alignCommitIndex(await this.latestCache.get());
+    const latest = await this.getLatestCommitIndex();
     if (index > latest) throw new Error(`commit too new: ${index} > ${latest}`);
     const oldest = latest - this.commitStep * this.recentCommits.length;
     if (index < oldest) throw new Error(`commit too old: ${index} < ${oldest}`);
@@ -189,4 +227,20 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
 export function parseGatewayContext(context: HexString): number {
   const [index] = ABI_CODER.decode(['uint256'], context);
   return Number(index);
+}
+
+export abstract class AbstractGatewayNoV1<
+  T extends AbstractCommit,
+> extends AbstractGateway<T> {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  override encodeWitnessV1(
+    _commit: T,
+    _accountProof: Proof,
+    _storageProofs: Proof[]
+  ): HexString {
+    throw new Error('V1 not implemented');
+  }
+  override fetchDelayedCommitIndex(): Promise<number> {
+    throw new Error('V1 not implemented');
+  }
 }

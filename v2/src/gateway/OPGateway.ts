@@ -2,7 +2,6 @@ import { ethers } from 'ethers';
 import type { HexString } from '../types.js';
 import {
   AbstractOPGateway,
-  OPCommit,
   type AbstractOPGatewayConstructor,
 } from './AbstractOPGateway.js';
 
@@ -30,10 +29,14 @@ export class OPGateway extends AbstractOPGateway {
       this.provider1
     );
   }
-  override async fetchLatestCommitIndex(): Promise<number> {
+  override async fetchLatestCommitIndex() {
     return Number(await this.L2OutputOracle.latestOutputIndex());
   }
-  override async fetchCommit(index: number): Promise<OPCommit> {
+  override async fetchDelayedCommitIndex() {
+    const blockTag = (await this.provider1.getBlockNumber()) - this.blockDelay;
+    return Number(await this.L2OutputOracle.latestOutputIndex({ blockTag }));
+  }
+  override async fetchCommit(index: number) {
     const output = (await this.L2OutputOracle.getL2Output(index)) as {
       block: bigint;
     };

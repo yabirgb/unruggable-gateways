@@ -25,7 +25,16 @@ contract NitroVerifier is IEVMVerifier {
 		return _gatewayURLs;
 	}
 	function getLatestContext() external view returns (bytes memory) {
-		return abi.encode(_rollup.latestNodeCreated() - _delay);
+		return abi.encode(findDelayedNodeNum(_delay));
+	}
+
+	function findDelayedNodeNum(uint256 blocks) public view returns (uint64 nodeNum) {
+		uint256 delayed = block.number - blocks;
+		for (nodeNum = _rollup.latestNodeCreated(); nodeNum > 0; --nodeNum) {
+			if (_rollup.getNode(nodeNum).createdAtBlock <= delayed) {
+				break;
+			}
+		}
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {

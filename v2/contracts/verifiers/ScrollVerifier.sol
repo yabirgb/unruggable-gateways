@@ -19,39 +19,42 @@ interface IScrollChainCommitmentVerifier {
 contract ScrollVerifier is IEVMVerifier {
 
 	string[] _gatewayURLs;
-	IScrollChainCommitmentVerifier immutable _oracle;
-	uint128 immutable _delay;
-	uint128 immutable _step;
+	IScrollChainCommitmentVerifier immutable _commitmentVerifier;
+	uint256 immutable _commitDelay;
+	uint256 immutable _commitStep;
 
-	constructor(string[] memory urls, IScrollChainCommitmentVerifier oracle, uint128 delay, uint128 step) {
+	constructor(string[] memory urls, IScrollChainCommitmentVerifier commitmentVerifier, uint256 commitDelay, uint256 step) {
 		_gatewayURLs = urls;
-		_oracle = oracle;
-		_delay = delay;
-		_step = step;
+		_commitmentVerifier = commitmentVerifier;
+		_commitDelay = commitDelay; // this is COMMITS not BLOCKS
+		_commitStep = step;
 	}
 
 	function gatewayURLs() external view returns (string[] memory) {
 		return _gatewayURLs;
 	}
 	function getLatestContext() external view returns (bytes memory) {
-		uint256 index = _oracle.rollup().lastFinalizedBatchIndex() - _delay;
-		index -= (index % _step);
-		return abi.encode(index);
+		return abi.encode(findDelayedBatchIndex(_commitDelay));
+	}
+
+	function findDelayedBatchIndex(uint256 commits) public view returns (uint256 batchIndex) {
+		batchIndex = _commitmentVerifier.rollup().lastFinalizedBatchIndex() - commits;
+		batchIndex -= (batchIndex % _commitStep);
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 index = abi.decode(context, (uint256));
 		(bytes[][] memory proofs, bytes memory order) = abi.decode(proof, (bytes[][], bytes));
-		bytes32 stateRoot = _oracle.rollup().finalizedStateRoots(index);
+		bytes32 stateRoot = _commitmentVerifier.rollup().finalizedStateRoots(index);
 		return EVMProver.evalRequest(req, ProofSequence(0, stateRoot, proofs, order, proveAccountState, proveStorageValue));
 	}
 
 	function proveStorageValue(bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal view returns (uint256) {
-		return uint256(ScrollTrieHelper.proveStorageValue(_oracle.poseidon(), storageRoot, slot, proof));
+		return uint256(ScrollTrieHelper.proveStorageValue(_commitmentVerifier.poseidon(), storageRoot, slot, proof));
 	}
 
 	function proveAccountState(bytes32 stateRoot, address target, bytes[] memory proof) internal view returns (bytes32) {
-		return ScrollTrieHelper.proveAccountState(_oracle.poseidon(), stateRoot, target, proof);
+		return ScrollTrieHelper.proveAccountState(_commitmentVerifier.poseidon(), stateRoot, target, proof);
 	}
 
 }

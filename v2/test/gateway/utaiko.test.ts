@@ -1,20 +1,20 @@
-import { ScrollGateway } from '../../src/gateway/ScrollGateway.js';
+import { TaikoGateway } from '../../src/gateway/TaikoGateway.js';
+import { UnverifiedTaikoGateway } from '../../src/gateway/UnverifiedTaikoGateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { createProvider, providerURL, CHAIN_SCROLL } from '../providers.js';
+import { providerURL, CHAIN_TAIKO, createProvider } from '../providers.js';
 import { runSlotDataTests, LOG_CCIP } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
-describe('scroll', async () => {
+describe('unverified taiko', async () => {
   const foundry = await Foundry.launch({
     fork: providerURL(1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const gateway = ScrollGateway.mainnet({
+  const gateway = UnverifiedTaikoGateway.default({
     provider1: foundry.provider,
-    provider2: createProvider(CHAIN_SCROLL),
-    //commitDelay: 0 // use default since ScrollAPI indexer
+    provider2: createProvider(CHAIN_TAIKO),
   });
   const ccip = await serve(gateway, {
     protocol: 'raw',
@@ -23,18 +23,18 @@ describe('scroll', async () => {
   });
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
-    file: 'ScrollVerifier',
+    file: 'UnverifiedTaikoVerifier',
     args: [
       [ccip.endpoint],
-      gateway.ScrollChainCommitmentVerifier,
-      gateway.effectiveCommitDelay, // not .blockDelay!
+      TaikoGateway.mainnetConfig().TaikoL1,
+      gateway.blockDelay,
       gateway.commitStep,
     ],
   });
-  // https://scrollscan.com/address/0x09D2233D3d109683ea95Da4546e7E9Fc17a6dfAF#code
+  // https://taikoscan.io/address/0xAF7f1Fa8D5DF0D9316394433E841321160408565#code
   const reader = await foundry.deploy({
     file: 'SlotDataReader',
-    args: [verifier, '0x09D2233D3d109683ea95Da4546e7E9Fc17a6dfAF'],
+    args: [verifier, '0xAF7f1Fa8D5DF0D9316394433E841321160408565'],
   });
   runSlotDataTests(reader, true);
 });

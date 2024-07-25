@@ -3,10 +3,10 @@
 // 2) settled promises by key + expiration
 // requests for the same key return the same promise
 // which may be from (1) or (2)
-// too many pending {max_pending} are errors
-// too many cached {max_cached} purge the oldest
-// resolved promises are cached for {ms}
-// rejected promises are cached for {ms_error}
+// too many pending {maxPending} are errors
+// too many cached {maxCached} purge the oldest
+// resolved promises are cached for {cacheMs}
+// rejected promises are cached for {errorMs}
 
 // CachedValue does the same for a single value
 // using an init-time generator
@@ -55,9 +55,10 @@ export class CachedValue<T> {
   }
 }
 
+type CacheRow<T> = [exp: number, promise: Promise<T>];
+
 export class CachedMap<K = unknown, V = unknown> {
-  private readonly cached: Map<K, [exp: number, promise: Promise<V>]> =
-    new Map();
+  private readonly cached: Map<K, CacheRow<V>> = new Map();
   private readonly pending: Map<K, Promise<V>> = new Map();
   private timer: Timer | undefined;
   private timer_t: number = Infinity;
@@ -180,6 +181,17 @@ export class CachedMap<K = unknown, V = unknown> {
     let p = this.peek(key);
     if (p) return p;
     if (this.pending.size >= this.maxPending) throw new Error('busy'); // too many in-flight
+    // this implementation might be more clear:
+    // try {
+    //   let p = fn(key);
+    //   this.pending.set(key, p);
+    //   let value = await p;
+    //   if (this.pending.delete(key)) this.set(key, value, ms);
+    //   return value;
+    // } catch (err) {
+    //   if (this.pending.delete(key)) this.set(key, Promise.reject(err), this.errorMs);
+    //   throw err;
+    // }
     const q = fn(key); // begin
     p = q
       .catch(() => ERR)
@@ -187,7 +199,7 @@ export class CachedMap<K = unknown, V = unknown> {
         // we got an answer
         if (this.pending.delete(key)) {
           // remove from pending
-          this.set(key, q, x && x !== ERR ? ms : this.errorMs); // add original to cache if existed
+          this.set(key, q, x === ERR ? this.errorMs : ms); // add original to cache if existed
         }
         return q; // resolve to original
       });

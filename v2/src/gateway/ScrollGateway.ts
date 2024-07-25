@@ -103,9 +103,14 @@ export class ScrollGateway extends AbstractGateway<ScrollCommit> {
     const json = await res.json();
     return Number(json.finalized_index);
   }
-  async fetchLatestCommitIndexOnChain() {
-    const rollup = await this.rollupCache.get();
-    return Number(await rollup.lastFinalizedBatchIndex());
+  override async fetchDelayedCommitIndex() {
+    return (await this.latestCache.get()) - this.effectiveCommitDelay;
+    // return Math.min(...await Promise.all([
+    //   this.latestCache.get(),
+    //   Promise.all([this.provider1.getBlockNumber(), this.rollupCache.get()]).then(async ([block, rollup]) => {
+    //     return Number(await rollup.lastFinalizedBatchIndex({blockTag: block - this.blockDelay}));
+    //   })
+    // ]));
   }
   async fetchBlockFromCommitIndex(index: number) {
     // TODO: determine how to this w/o relying on indexer

@@ -6,7 +6,6 @@ import {IEVMVerifier} from "../IEVMVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
 import {MerkleTrieHelper} from "../MerkleTrieHelper.sol";
 
-import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 
 interface IL2OutputOracle {
@@ -18,19 +17,28 @@ contract OPVerifier is IEVMVerifier {
 
 	string[] public _gatewayURLs;
 	IL2OutputOracle immutable _oracle;
-	uint256 immutable _delay;
+	uint256 immutable _blockDelay;
 
-	constructor(string[] memory urls, IL2OutputOracle oracle, uint256 delay) {
+	constructor(string[] memory urls, IL2OutputOracle oracle, uint256 blockDelay) {
 		_gatewayURLs = urls;
 		_oracle = oracle;
-		_delay = delay;
+		_blockDelay = blockDelay;
 	}
 
 	function gatewayURLs() external view returns (string[] memory) {
 		return _gatewayURLs;
 	}
 	function getLatestContext() external view returns (bytes memory) {
-		return abi.encode(_oracle.latestOutputIndex() - _delay);
+		return abi.encode(findDelayedOutputIndex(_blockDelay));
+	}
+
+	function findDelayedOutputIndex(uint256 blocks) public view returns (uint256 outputIndex) {
+		uint256 delayedTime = block.timestamp - 12 * blocks; // seconds
+		for (outputIndex = _oracle.latestOutputIndex(); outputIndex > 0; --outputIndex) {
+			if (_oracle.getL2Output(outputIndex).timestamp < delayedTime) {
+				break;
+			}
+		}
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {

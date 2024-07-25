@@ -62,4 +62,4 @@ error RequestOverflow();
 error RequestInvalid();
 
 error VerifierMismatch(bytes context, bytes32 derived, bytes32 actual);
-error VerifierUnsatisfiable();
+//error VerifierUnsatisfiable();

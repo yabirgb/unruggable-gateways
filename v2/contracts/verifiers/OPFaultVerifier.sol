@@ -6,7 +6,6 @@ import {IEVMVerifier} from "../IEVMVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
 import {MerkleTrieHelper} from "../MerkleTrieHelper.sol";
 
-import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 import "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol";
 
@@ -17,42 +16,53 @@ interface IOptimismPortal {
 
 contract OPFaultVerifier is IEVMVerifier {
 
-	uint256 constant GAME_CHUNK = 10;
-
 	string[] _gatewayURLs;
 	IOptimismPortal immutable _portal;
-	uint256 immutable _delay;
+	uint256 immutable _blockDelay;
 
-	constructor(string[] memory urls, IOptimismPortal portal, uint256 delay) {
+	constructor(string[] memory urls, IOptimismPortal portal, uint256 blockDelay) {
 		_gatewayURLs = urls;
 		_portal = portal;
-		_delay = delay;
+		_blockDelay = blockDelay;
 	}
 
 	function gatewayURLs() external view returns (string[] memory) {
 		return _gatewayURLs;
 	}
 	function getLatestContext() external view returns (bytes memory) {
-		return abi.encode(findLatestGame());
+		return abi.encode(findDelayedGameIndex(_blockDelay));
 	}
 
-	function findLatestGame() internal view returns (uint256) {
+	function findDelayedGameIndex(uint256 blocks) public view returns (uint256 gameIndex) {
+		uint256 delayedTime = block.timestamp - 12 * blocks; // seconds
 		IDisputeGameFactory factory = _portal.disputeGameFactory();
+		/*
 		GameType rgt = _portal.respectedGameType();
 		uint256 n = factory.gameCount();
-		n = n > _delay ? n - _delay : 0;
+		uint256 constant GAME_CHUNK = 10;
 		while (n > 0) {
-			uint256 c = n > GAME_CHUNK ? GAME_CHUNK : n;
-			IDisputeGameFactory.GameSearchResult[] memory gs = factory.findLatestGames(rgt, n - 1, c);
-			n -= c;
+			IDisputeGameFactory.GameSearchResult[] memory gs = factory.findLatestGames(rgt, n - 1, 10);
 			for (uint256 i; i < gs.length; i++) {
 				(, , address gameProxy) = gs[i].metadata.unpack();
-				if (IDisputeGame(gameProxy).status() != GameStatus.CHALLENGER_WINS) {
-					return gs[i].index;
-				}
+				if (IDisputeGame(gameProxy).createdAt().raw() > delayedTime) continue;
+				if (IDisputeGame(gameProxy).status() == GameStatus.CHALLENGER_WINS) continue;
+				return gs[i].index;
+			}
+			n -= gs.length;
+		}
+		*/
+		uint32 rgt = _portal.respectedGameType().raw();
+		gameIndex = factory.gameCount();
+		while (gameIndex > 0) {
+			(
+				GameType gameType, 
+				Timestamp timestamp, 
+				IDisputeGame gameProxy
+			) = _portal.disputeGameFactory().gameAtIndex(--gameIndex);
+			if (gameType.raw() == rgt && timestamp.raw() <= delayedTime && gameProxy.status() != GameStatus.CHALLENGER_WINS) {
+				break;
 			}
 		}
-		revert VerifierUnsatisfiable();
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {

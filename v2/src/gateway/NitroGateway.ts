@@ -7,6 +7,7 @@ import {
   type GatewayConstructor,
   encodeProofV1,
 } from './AbstractGateway.js';
+import { encodeRlpBlock } from '../rlp.js';
 
 type NitroGatewayConstructor = {
   L2Rollup: HexString;
@@ -40,19 +41,19 @@ export class NitroGateway extends AbstractGateway<NitroCommit> {
       [
         'function latestNodeCreated() external view returns (uint64)',
         `event NodeCreated(
-				uint64 indexed nodeNum,
-				bytes32 indexed parentNodeHash,
-				bytes32 indexed nodeHash,
-				bytes32 executionHash,
-				tuple(
-					tuple(tuple(bytes32[2] bytes32Vals, uint64[2] u64Vals) globalState, uint8 machineStatus) beforeState, 
-					tuple(tuple(bytes32[2] bytes32Vals, uint64[2] u64Vals) globalState, uint8 machineStatus) afterState, 
-					uint64 numBlocks
-				) assertion, 
-				bytes32 afterInboxBatchAcc, 
-				bytes32 wasmModuleRoot, 
-				uint256 inboxMaxCount
-			)`,
+          uint64 indexed nodeNum,
+          bytes32 indexed parentNodeHash,
+          bytes32 indexed nodeHash,
+          bytes32 executionHash,
+          tuple(
+            tuple(tuple(bytes32[2] bytes32Vals, uint64[2] u64Vals) globalState, uint8 machineStatus) beforeState,
+            tuple(tuple(bytes32[2] bytes32Vals, uint64[2] u64Vals) globalState, uint8 machineStatus) afterState,
+            uint64 numBlocks
+          ) assertion,
+          bytes32 afterInboxBatchAcc,
+          bytes32 wasmModuleRoot,
+          uint256 inboxMaxCount
+        )`,
       ],
       this.provider1
     );
@@ -92,35 +93,23 @@ export class NitroGateway extends AbstractGateway<NitroCommit> {
   override async fetchLatestCommitIndex(): Promise<number> {
     return Number(await this.L2Rollup.latestNodeCreated());
   }
+  override async fetchDelayedCommitIndex(): Promise<number> {
+    const blockTag = (await this.provider1.getBlockNumber()) - this.blockDelay;
+    return Number(await this.L2Rollup.latestNodeCreated({ blockTag }));
+  }
   override async fetchCommit(index: number) {
     const [event] = await this.L2Rollup.queryFilter(
       this.L2Rollup.filters.NodeCreated(index)
     );
     if (!(event instanceof ethers.EventLog))
       throw new Error(`unknown node index: ${index}`);
-    const [blockHash, sendRoot] = event.args[4][1][0][0]; //event.args.toObject(true).afterState.globalState.bytes32Vals;
+    // ethers bug: named abi parsing doesn't propagate through event tuples
+    const [blockHash, sendRoot] = event.args[4][1][0][0]; //event.args.afterState.globalState.bytes32Vals;
     const json = await this.provider2.send('eth_getBlockByHash', [
       blockHash,
       false,
     ]);
-    const rlpEncodedBlock = ethers.encodeRlp([
-      json.parentHash,
-      json.sha3Uncles,
-      json.miner,
-      json.stateRoot,
-      json.transactionsRoot,
-      json.receiptsRoot,
-      json.logsBloom,
-      ethers.toBeHex(json.difficulty),
-      ethers.toBeHex(json.number),
-      ethers.toBeHex(json.gasLimit),
-      ethers.toBeHex(json.gasUsed),
-      ethers.toBeHex(json.timestamp),
-      json.extraData,
-      json.mixHash,
-      json.nonce,
-      ethers.toBeHex(json.baseFeePerGas),
-    ]);
+    const rlpEncodedBlock = encodeRlpBlock(json);
     return new NitroCommit(
       index,
       json.number,

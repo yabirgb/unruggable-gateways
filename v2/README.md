@@ -7,6 +7,12 @@
 1. `bun i`
 1. create [`.env`](./.env.example)
 
+#### Suggested VSCode Extensions
+
+* [NomicFoundation.hardhat-solidity](https://marketplace.visualstudio.com/items?itemName=NomicFoundation.hardhat-solidity)
+* [esbenp.prettier-vscode](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+* [dbaeumer.vscode-eslint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
+
 #### Forge Setup
 ```sh
 # installed by forge in step (2)
@@ -19,6 +25,7 @@ forge install OpenZeppelin/openzeppelin-contracts@master # https://github.com/Op
 forge install ethereum-optimism/optimism@develop # https://github.com/ethereum-optimism/optimism/pull/10819
 forge install offchainlabs/nitro-contracts
 forge install ensdomains/enschain
+# forge install taikoxyz/taiko-mono # using inline headers instead
 ```
 
 ## Test
@@ -48,5 +55,5 @@ forge install ensdomains/enschain
 ## Serve
 
 * `bun run serve <chain> [port]`
-	* Supported chains: `base op arb1 scroll`
+	* Supported chains: `base op arb1 scroll taiko utaiko`
 	* Default port: `8000`

@@ -3,12 +3,17 @@ import { CachedValue } from '../cached.js';
 import type { HexString } from '../types.js';
 import {
   AbstractOPGateway,
-  OPCommit,
   type AbstractOPGatewayConstructor,
 } from './AbstractOPGateway.js';
 
-// what actually happens when a game is disputed?
+// 20240701: what actually happens when a game is disputed?
 // continually check the current game status?
+
+// 20240724: example of disputed game, see test/debug/op-fault.md
+// either we need 2 op-fault gateways: 1) uses "latest" commit that matches L2
+// and 2) uses finality (T+7), or the op-fault gateway context needs to be sloppy
+// so the gateway itself can ensure the commit is reasonable (eg. is a real root)
+// possible temporary fix: use heuristic from starting block to detect outliers?
 
 type OPFaultGatewayConstructor = {
   OptimismPortal: HexString;
@@ -33,7 +38,6 @@ export class OPFaultGateway extends AbstractOPGateway {
       ...a,
     });
   }
-  //readonly latestRespectedCache;
   readonly OptimismPortal: ethers.Contract;
   readonly disputeGameFactory: CachedValue<{
     factory: ethers.Contract;
@@ -41,6 +45,7 @@ export class OPFaultGateway extends AbstractOPGateway {
   }>;
   constructor(args: AbstractOPGatewayConstructor & OPFaultGatewayConstructor) {
     super(args);
+    this.requireNoStep(); // remove when faster than hourly
     this.OptimismPortal = new ethers.Contract(
       args.OptimismPortal,
       [
@@ -49,10 +54,6 @@ export class OPFaultGateway extends AbstractOPGateway {
       ],
       this.provider1
     );
-    // this.latestRespectedCache = new CachedValue(async () => {
-    // 	let {index} = await this.findLatestGame(this.commitDelay);
-    // 	return index;
-    // }, this.latestCache.cacheMs, this.latestCache.errorMs);
     this.disputeGameFactory = CachedValue.once(async () => {
       const [factoryAddress, respectedGameType] = await Promise.all([
         this.OptimismPortal.disputeGameFactory(),
@@ -70,18 +71,17 @@ export class OPFaultGateway extends AbstractOPGateway {
       return { factory, respectedGameType };
     });
   }
-  override async fetchLatestCommitIndex(): Promise<number> {
-    // TODO: if we have an on-chain verifier, we can just call findLatestGame()
-    const { factory } = await this.disputeGameFactory.get();
-    const count = Number(await factory.gameCount());
-    if (!count) throw new Error('no games');
-    return count - 1;
+  override async fetchLatestCommitIndex() {
+    return this.findDelayedGameIndex(0);
   }
-  override async fetchCommit(index: number): Promise<OPCommit> {
+  override async fetchDelayedCommitIndex() {
+    return this.findDelayedGameIndex(this.blockDelay);
+  }
+  override async fetchCommit(index: number) {
     const { factory, respectedGameType } = await this.disputeGameFactory.get();
     const { gameType, gameProxy } = await factory.gameAtIndex(index);
     if (gameType != respectedGameType) {
-      throw new Error(`unrespected game type: ${gameType}`);
+      throw new Error(`Game(${index}) is not respected: GameType(${gameType})`);
     }
     const game = new ethers.Contract(gameProxy, GAME_ABI, this.provider1);
     const [blockNumber, status] = await Promise.all([
@@ -89,32 +89,29 @@ export class OPFaultGateway extends AbstractOPGateway {
       game.status() as Promise<bigint>,
     ]);
     if (!isValidGameStatus(status)) {
-      throw new Error('disputed game');
+      throw new Error(`Game(${game}) is disputed: GameStatus(${status})`);
     }
     return this.createOPCommit(index, '0x' + blockNumber.toString(16));
   }
-  // override async getLatestCommitIndex() {
-  // 	return this.alignCommitIndex(await this.latestRespectedCache.get());
-  // }
-  async findLatestGame(delay = 0) {
-    // mirror of OPFaultVerifier.sol:findLatestGame()
+  // mirror of OPFaultVerifier.sol:findDelayedGameIndex()
+  async findDelayedGameIndex(blocks: number, gamesPerCall = 10) {
+    const blockTag = (await this.provider1.getBlockNumber()) - blocks;
     const { factory, respectedGameType } = await this.disputeGameFactory.get();
-    const count = Number(await factory.gameCount());
-    let left = count - delay;
-    while (left > 0) {
+    let count = Number(await factory.gameCount({ blockTag })); // faster than checking times
+    while (count > 0) {
       for (const g of await factory.findLatestGames(
         respectedGameType,
-        left - 1,
-        10
+        count - 1,
+        gamesPerCall
       )) {
-        --left;
+        --count;
         const gameProxy = ethers.dataSlice(g.metadata, 12); // LibUDT.sol: [96, 256)
         const game = new ethers.Contract(gameProxy, GAME_ABI, this.provider1);
         if (isValidGameStatus(await game.status())) {
-          return { count, index: Number(g.index) };
+          return Number(g.index);
         }
       }
     }
-    throw new Error('no games');
+    return 0;
   }
 }

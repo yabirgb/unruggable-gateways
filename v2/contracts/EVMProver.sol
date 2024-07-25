@@ -10,7 +10,7 @@ import "forge-std/console2.sol"; // DEBUG
 
 library EVMProver {
 	
-	function dump(Machine memory vm) internal pure {
+	function dump(Machine memory vm) internal view {
 		console2.log("[pos=%s/%s]", vm.pos, vm.buf.length);
 		console2.log("[target=%s slot=%s]", vm.target, vm.slot);
 		console2.log("[proof=%s/%s]", vm.proofs.index, vm.proofs.order.length);

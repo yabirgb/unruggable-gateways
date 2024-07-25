@@ -1,4 +1,4 @@
-import type { Provider, ProviderPair } from './types.js';
+import type { Provider, ProviderPair } from '../src/types.js';
 import {
   Network,
   AlchemyProvider,
@@ -9,6 +9,7 @@ import {
 export const CHAIN_OP = 10;
 export const CHAIN_BASE = 8453;
 export const CHAIN_ARB1 = 42161;
+export const CHAIN_TAIKO = 167000;
 export const CHAIN_SCROLL = 534352;
 
 function register(chain: number, name: string) {
@@ -38,17 +39,26 @@ export function providerURL(chain: number): string {
       //Will fall through to public RPC
     }
   }
+  // 20240713: might be better to use the ankr public rpcs, eg. https://eth.public-rpc.com/
   switch (chain) {
     case 1:
+      // https://developers.cloudflare.com/web3/ethereum-gateway/
       return 'https://cloudflare-eth.com';
     case CHAIN_OP:
+      // https://docs.optimism.io/chain/networks#op-mainnet
       return 'https://mainnet.optimism.io';
     case CHAIN_BASE:
+      // https://docs.base.org/docs/network-information#base-mainnet
       return 'https://mainnet.base.org';
     case CHAIN_ARB1:
+      // https://docs.arbitrum.io/build-decentralized-apps/reference/node-providers#arbitrum-public-rpc-endpoints
       return 'https://arb1.arbitrum.io/rpc';
     case CHAIN_SCROLL:
+      // https://docs.scroll.io/en/developers/developer-quickstart/#scroll-mainnet
       return 'https://rpc.scroll.io/';
+    case CHAIN_TAIKO:
+      // https://docs.taiko.xyz/network-reference/rpc-configuration#taiko-mainnet
+      return 'https://rpc.mainnet.taiko.xyz';
   }
   throw Object.assign(new Error('unknown provider'), { chain });
 }

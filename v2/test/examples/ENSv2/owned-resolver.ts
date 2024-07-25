@@ -4,7 +4,7 @@ import {
   //createProvider,
   providerURL,
   //CHAIN_OP,
-} from '../../../src/providers.js';
+} from '../../providers.js';
 //import { OPFaultGateway } from '../../../src/gateway/OPFaultGateway.js';
 import {
   dnsEncode,

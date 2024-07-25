@@ -1,5 +1,5 @@
 import { EVMProver } from '../../src/vm.js';
-import { createProvider } from '../../src/providers.js';
+import { createProvider } from '../providers.js';
 
 const prover = await EVMProver.latest(createProvider(1));
 

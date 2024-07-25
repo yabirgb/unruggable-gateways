@@ -1,5 +1,9 @@
 import { ethers } from 'ethers';
-import { Foundry, type WalletLike, type DeployedContract } from '@adraffy/blocksmith';
+import {
+  Foundry,
+  type WalletLike,
+  type DeployedContract,
+} from '@adraffy/blocksmith';
 import { EVMProver, EVMRequest } from '../../../src/vm.js';
 import { HexString } from '../../../src/types.js';
 
@@ -11,7 +15,7 @@ const REGISTRAR_ROLE = ethers.id('REGISTRAR_ROLE');
 async function deployResolver(owner: WalletLike) {
   return foundry.deploy({
     import: '@ensdomains/ens-contracts/contracts/resolvers/OwnedResolver.sol',
-    from: owner
+    from: owner,
   });
 }
 
@@ -20,13 +24,13 @@ const raffyWallet = await foundry.ensureWallet('raffy');
 
 const datastore = await foundry.deploy({ 
   import: '@ensdomains/enschain/contracts/src/registry/RegistryDatastore.sol',
-  from: adminWallet
+  from: adminWallet,
 });
 
 const rootRegistry = await foundry.deploy({
   import: '@ensdomains/enschain/contracts/src/registry/RootRegistry.sol',
   args: [datastore],
-  from: adminWallet
+  from: adminWallet,
 });
 
 const ethRegistry = await foundry.deploy({
@@ -43,7 +47,7 @@ const ethRegistry = await foundry.deploy({
     }
   `,
   args: [datastore],
-  from: adminWallet
+  from: adminWallet,
 });
 async function registerEth(label: string, {
   expiry = BigInt(Math.floor(Date.now() / 1000) + 1000000),

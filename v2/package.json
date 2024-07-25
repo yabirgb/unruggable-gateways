@@ -3,7 +3,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "build": "forge build --force",
-    "serve": "bun src/serve.ts",
+    "serve": "bun test/serve.ts",
     "test": "bun test --timeout 15000",
     "test-components": "bun test test/components/* --timeout 15000",
     "test-gateways": "bun test test/gateway/* --timeout 0",
@@ -16,7 +16,8 @@
     "@typescript-eslint/parser": "^6.7.4",
     "eslint": "^8.50.0",
     "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-prettier": "^5.0.0"
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.3.3"
   },
   "dependencies": {
     "@resolverworks/ezccip": "^0.0.12",

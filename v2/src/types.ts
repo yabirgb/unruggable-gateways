@@ -26,20 +26,33 @@ export type RPCEthGetProof = {
   storageProof: { key: HexString; value: HexString; proof: Proof }[];
 };
 
-export type RPCEthGetBlock = {
+// without transaction detail
+// https://ethereum.github.io/execution-specs/src/ethereum/cancun/blocks.py.html#ethereum.cancun.blocks.Header
+// https://github.com/taikoxyz/taiko-geth/blob/30a615b4c3aafd0d395309035d58b86ff53c8eb0/core/types/block.go#L65
+export type RPCEthGetBlock<TransactionT = HexString> = {
   hash: HexString;
   stateRoot: HexString;
-  /*
-	parentHash: HexString;
-	sha3Uncles: HexString;
-	miner: HexString;
-	transactionsRoot: HexString;
-	receiptsRoot: HexString;
-	logsBloom: HexString;
-	difficulty: HexString;
-	number: HexString;
-	gasLimit: HexString;
-	gasUsed: HexString;
-	extraData: HexString;
-	*/
+  parentHash: HexString;
+  sha3Uncles: HexString;
+  miner: HexString;
+  transactionsRoot: HexString;
+  receiptsRoot: HexString;
+  logsBloom: HexString;
+  difficulty: HexString;
+  number: HexString;
+  gasLimit: HexString;
+  gasUsed: HexString;
+  extraData: HexString;
+  mixHash: HexString; // prev_randao
+  nonce: HexString;
+  transactions: TransactionT[];
+  timestamp: HexString;
+  uncles: HexString[];
+  // optional
+  baseFeePerGas?: HexString;
+  withdrawals?: HexString[];
+  withdrawalsRoot?: HexString;
+  blobGasUsed?: HexString;
+  excessBlobGas?: HexString;
+  parentBeaconBlockRoot?: HexString;
 };

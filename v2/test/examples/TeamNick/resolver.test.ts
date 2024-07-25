@@ -2,11 +2,7 @@ import { Foundry } from '@adraffy/blocksmith';
 import { serve } from '@resolverworks/ezccip';
 import { OPGateway } from '../../../src/gateway/OPGateway.js';
 import { ethers } from 'ethers';
-import {
-  providerURL,
-  CHAIN_BASE,
-  createProvider,
-} from '../../../src/providers.js';
+import { providerURL, CHAIN_BASE, createProvider } from '../../providers.js';
 import { afterAll, describe, test, expect } from 'bun:test';
 import { solidityFollowSlot } from '../../../src/vm.js';
 
@@ -17,7 +13,6 @@ describe('TeamNick', async () => {
   const gateway = OPGateway.baseMainnet({
     provider1: foundry.provider,
     provider2: createProvider(CHAIN_BASE),
-    commitDelay: 0,
   });
   afterAll(() => gateway.shutdown());
 
@@ -26,7 +21,7 @@ describe('TeamNick', async () => {
 
   const verifier = await foundry.deploy({
     file: 'OPVerifier',
-    args: [[ccip.endpoint], gateway.L2OutputOracle, gateway.commitDelay],
+    args: [[ccip.endpoint], gateway.L2OutputOracle, gateway.blockDelay],
   });
 
   const ENS = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
