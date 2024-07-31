@@ -1,6 +1,14 @@
 {
   "name": "@unruggable/evmgateway",
   "version": "0.0.1",
+  "keywords": [
+    "ethereum",
+    "evm",
+    "gateway",
+    "ccip",
+    "proof",
+    "unruggable"
+  ],
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
@@ -42,6 +50,5 @@
   },
   "peerDependencies": {
     "typescript": "^5.5.2"
-  },
-  "module": "index.ts"
+  }
 }

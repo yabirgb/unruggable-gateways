@@ -11,7 +11,7 @@ type OPGatewayConstructor = {
 
 export class OPGateway extends AbstractOPGateway {
   static baseMainnet(a: AbstractOPGatewayConstructor) {
-    // https://docs.base.org/docs/base-contracts
+    // https://docs.base.org/docs/base-contracts/#ethereum-mainnet
     return new this({
       L2OutputOracle: '0x56315b90c40730925ec5485cf004d835058518A0',
       ...a,

@@ -9,7 +9,7 @@
 
 #### Suggested VSCode Extensions
 
-* [NomicFoundation.hardhat-solidity](https://marketplace.visualstudio.com/items?itemName=NomicFoundation.hardhat-solidity)
+* [JuanBlanco.solidity](https://marketplace.visualstudio.com/items?itemName=JuanBlanco.solidity)
 * [esbenp.prettier-vscode](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 * [dbaeumer.vscode-eslint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 
@@ -22,7 +22,7 @@ forge install openzeppelin-contracts-v4.9=OpenZeppelin/openzeppelin-contracts@re
 forge install ensdomains/ens-contracts
 forge install ensdomains/buffer
 forge install OpenZeppelin/openzeppelin-contracts@master # https://github.com/OpenZeppelin/openzeppelin-contracts/pull/4845
-forge install ethereum-optimism/optimism@develop # https://github.com/ethereum-optimism/optimism/pull/10819
+forge install ethereum-optimism/optimism@v1.8.0
 forge install offchainlabs/nitro-contracts
 forge install ensdomains/enschain
 # forge install taikoxyz/taiko-mono # using inline headers instead

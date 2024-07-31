@@ -97,9 +97,7 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
         // TODO: support (min, max)
         // probably should be a different function
         const index = parseGatewayContext(ctx);
-        if (index % this.commitStep !== this.commitOffset) {
-          throw new Error(`commit index not aligned: ${index}`);
-        }
+        this.requireAligned(index);
         const hash = ethers.keccak256(context.calldata);
         history.show = [ethers.hexlify(ops), hash];
         return this.callCache.get(hash, async () => {
@@ -200,14 +198,24 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
   protected alignCommitIndex(index: number) {
     return index - ((index - this.commitOffset) % this.commitStep);
   }
+  protected requireAligned(index: number) {
+    if (index % this.commitStep !== this.commitOffset) {
+      throw new Error(`commit not aligned: ${index}`);
+    }
+  }
   // translate an aligned commit index to cicular buffer index
   // throws if the index is outside servable bounds
   private async slotFromAligned(index: number) {
+    this.requireAligned(index);
     const latest = await this.getLatestCommitIndex();
-    if (index > latest) throw new Error(`commit too new: ${index} > ${latest}`);
+    if (index > latest) {
+      throw new Error(`commit too new: ${index} > ${latest}`);
+    }
     const oldest = latest - this.commitStep * this.recentCommits.length;
-    if (index < oldest) throw new Error(`commit too old: ${index} < ${oldest}`);
-    return (index / this.commitStep) % this.recentCommits.length;
+    if (index < oldest) {
+      throw new Error(`commit too old: ${index} < ${oldest}`);
+    }
+    return Math.floor(index / this.commitStep) % this.recentCommits.length;
   }
   // manage circular buffer
   private async commitFromAligned(index: number) {

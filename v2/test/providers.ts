@@ -6,20 +6,27 @@ import {
   JsonRpcProvider,
 } from 'ethers';
 
+export const CHAIN_MAINNET = 1;
+export const CHAIN_SEPOLIA = 11155111;
 export const CHAIN_OP = 10;
+export const CHAIN_ZKSYNC = 324;
 export const CHAIN_BASE = 8453;
+export const CHAIN_BASE_TESTNET = 84532;
 export const CHAIN_ARB1 = 42161;
 export const CHAIN_TAIKO = 167000;
 export const CHAIN_SCROLL = 534352;
 
-function register(chain: number, name: string) {
+function registerNetworkName(chain: number, name: string) {
   try {
     Network.register(chain, () => new Network(name, chain));
   } catch (err) {
     /*empty*/
   }
 }
-register(CHAIN_SCROLL, 'scroll');
+registerNetworkName(CHAIN_SCROLL, 'scroll');
+registerNetworkName(CHAIN_TAIKO, 'taiko');
+registerNetworkName(CHAIN_ZKSYNC, 'zksync');
+registerNetworkName(CHAIN_BASE_TESTNET, 'base/sepolia');
 
 export function providerURL(chain: number): string {
   let key = process.env.INFURA_KEY;
@@ -41,15 +48,21 @@ export function providerURL(chain: number): string {
   }
   // 20240713: might be better to use the ankr public rpcs, eg. https://eth.public-rpc.com/
   switch (chain) {
-    case 1:
+    case CHAIN_MAINNET:
       // https://developers.cloudflare.com/web3/ethereum-gateway/
-      return 'https://cloudflare-eth.com';
+      //return 'https://cloudflare-eth.com';
+      return `https://rpc.ankr.com/eth`;
+    case CHAIN_SEPOLIA:
+      return `https://rpc.ankr.com/eth_sepolia`;
     case CHAIN_OP:
       // https://docs.optimism.io/chain/networks#op-mainnet
       return 'https://mainnet.optimism.io';
     case CHAIN_BASE:
       // https://docs.base.org/docs/network-information#base-mainnet
       return 'https://mainnet.base.org';
+    case CHAIN_BASE_TESTNET:
+      // https://docs.base.org/docs/network-information#base-testnet-sepolia
+      return 'https://sepolia.base.org';
     case CHAIN_ARB1:
       // https://docs.arbitrum.io/build-decentralized-apps/reference/node-providers#arbitrum-public-rpc-endpoints
       return 'https://arb1.arbitrum.io/rpc';
@@ -59,6 +72,9 @@ export function providerURL(chain: number): string {
     case CHAIN_TAIKO:
       // https://docs.taiko.xyz/network-reference/rpc-configuration#taiko-mainnet
       return 'https://rpc.mainnet.taiko.xyz';
+    case CHAIN_ZKSYNC:
+      // https://docs.zksync.io/build/connect-to-zksync
+      return 'https://mainnet.era.zksync.io';
   }
   throw Object.assign(new Error('unknown provider'), { chain });
 }
@@ -72,7 +88,7 @@ export function createProvider(chain: number): Provider {
 export function createProviderPair(a: number, b?: number): ProviderPair {
   if (!b) {
     b = a;
-    a = 1;
+    a = CHAIN_MAINNET;
   }
   return {
     provider1: createProvider(a),

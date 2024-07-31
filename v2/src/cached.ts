@@ -26,7 +26,7 @@ export class CachedValue<T> {
   constructor(
     readonly fn: () => Promise<T>,
     readonly cacheMs: number,
-    readonly errorMs: number
+    readonly errorMs: number = 250
   ) {}
   clear() {
     this.#value = undefined;
@@ -180,7 +180,7 @@ export class CachedMap<K = unknown, V = unknown> {
   get(key: K, fn: (key: K) => Promise<V>, ms?: number): Promise<V> {
     let p = this.peek(key);
     if (p) return p;
-    if (this.maxPending && this.pending.size >= this.maxPending) {
+    if (this.pending.size >= this.maxPending) {
       throw new Error('busy'); // too many in-flight
     }
     const q = fn(key); // begin

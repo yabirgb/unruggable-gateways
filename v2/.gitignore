@@ -4,3 +4,4 @@
 out/
 junk/
 *.tgz
+.vscode/
