@@ -12,18 +12,18 @@ contract SelfVerifier {
 		_poseidon = poseidon;
 	}
 
-	function verifyMerkle(EVMRequest memory req, bytes32 stateRoot, bytes[][] memory proofs, bytes memory order) external view returns (bytes[] memory outputs, uint8 exitCode) {
+	function verifyMerkle(EVMRequest memory req, bytes32 stateRoot, bytes[] memory proofs, bytes memory order) external view returns (bytes[] memory outputs, uint8 exitCode) {
 		return EVMProver.evalRequest(req, ProofSequence(0, stateRoot, proofs, order, MerkleTrieHelper.proveAccountState, MerkleTrieHelper.proveStorageValue));
 	}
 
-	function verifyScroll(EVMRequest memory req, bytes32 stateRoot, bytes[][] memory proofs, bytes memory order) external view returns (bytes[] memory outputs, uint8 exitCode) {
+	function verifyScroll(EVMRequest memory req, bytes32 stateRoot, bytes[] memory proofs, bytes memory order) external view returns (bytes[] memory outputs, uint8 exitCode) {
 		return EVMProver.evalRequest(req, ProofSequence(0, stateRoot, proofs, order, verifyScroll_proveAccountState, verifyScroll_proveStorageValue));
 	}
-	function verifyScroll_proveAccountState(bytes32 stateRoot, address target, bytes[] memory proof) internal view returns (bytes32) {
-		return ScrollTrieHelper.proveAccountState(_poseidon, stateRoot, target, proof);
+	function verifyScroll_proveAccountState(bytes32 stateRoot, address target, bytes memory proof) internal view returns (bytes32) {
+		return ScrollTrieHelper.proveAccountState(_poseidon, stateRoot, target, abi.decode(proof, (bytes[])));
 	}
-	function verifyScroll_proveStorageValue(bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal view returns (uint256) {
-		return uint256(ScrollTrieHelper.proveStorageValue(_poseidon, storageRoot, slot, proof));
+	function verifyScroll_proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) internal view returns (uint256) {
+		return uint256(ScrollTrieHelper.proveStorageValue(_poseidon, storageRoot, slot, abi.decode(proof, (bytes[]))));
 	}
 
 }

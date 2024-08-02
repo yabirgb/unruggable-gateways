@@ -91,14 +91,14 @@ library EVMProver {
 	}
 	*/
 
-	function readProof(Machine memory vm) internal pure returns (bytes[] memory) {
+	function readProof(Machine memory vm) internal pure returns (bytes memory) {
 		ProofSequence memory p = vm.proofs;
 		return p.proofs[uint8(p.order[p.index++])];
 	}
 	function getStorage(Machine memory vm, uint256 slot) internal view returns (uint256) {
-		bytes[] memory proof = vm.readProof();
+		bytes memory proof = vm.readProof();
 		if (vm.storageRoot == NOT_A_CONTRACT) return 0;
-		return vm.proofs.proveStorageValue(vm.storageRoot, slot, proof);
+		return vm.proofs.proveStorageValue(vm.storageRoot, vm.target, slot, proof);
 	}
 	function proveSlots(Machine memory vm, uint256 count) internal view returns (bytes memory v) {
 		v = new bytes(count << 5);

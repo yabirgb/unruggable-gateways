@@ -73,7 +73,7 @@ contract TaikoVerifier is IEVMVerifier {
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint64 blockId = abi.decode(context, (uint64));
-		(bytes32 parentHash, bytes[][] memory proofs, bytes memory order) = abi.decode(proof, (bytes32, bytes[][], bytes));
+		(bytes32 parentHash, bytes[] memory proofs, bytes memory order) = abi.decode(proof, (bytes32, bytes[], bytes));
 		ITaiko.TransitionState memory ts = _rollup.getTransition(blockId, parentHash);
 		return EVMProver.evalRequest(req, ProofSequence(0, ts.stateRoot, proofs, order, MerkleTrieHelper.proveAccountState, MerkleTrieHelper.proveStorageValue));
 	}

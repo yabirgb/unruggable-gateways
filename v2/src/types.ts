@@ -7,7 +7,10 @@ import type {
 
 export type { BigNumberish, BytesLike };
 export type HexString = string;
+export type HexString32 = HexString;
+export type HexString20 = HexString;
 export type Proof = HexString[];
+export type EncodedProof = HexString;
 
 export type Provider = JsonRpcApiProvider | WebSocketProvider;
 export type ProviderPair = {

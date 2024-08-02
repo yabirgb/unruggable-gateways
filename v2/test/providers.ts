@@ -9,9 +9,11 @@ import {
 export const CHAIN_MAINNET = 1;
 export const CHAIN_SEPOLIA = 11155111;
 export const CHAIN_OP = 10;
+export const CHAIN_OP_SEPOLIA = 11155420;
 export const CHAIN_ZKSYNC = 324;
+export const CHAIN_ZKSYNC_SEPOLIA = 300;
 export const CHAIN_BASE = 8453;
-export const CHAIN_BASE_TESTNET = 84532;
+export const CHAIN_BASE_SEPOLIA = 84532;
 export const CHAIN_ARB1 = 42161;
 export const CHAIN_TAIKO = 167000;
 export const CHAIN_SCROLL = 534352;
@@ -26,7 +28,9 @@ function registerNetworkName(chain: number, name: string) {
 registerNetworkName(CHAIN_SCROLL, 'scroll');
 registerNetworkName(CHAIN_TAIKO, 'taiko');
 registerNetworkName(CHAIN_ZKSYNC, 'zksync');
-registerNetworkName(CHAIN_BASE_TESTNET, 'base/sepolia');
+registerNetworkName(CHAIN_BASE_SEPOLIA, 'base/sepolia');
+registerNetworkName(CHAIN_OP_SEPOLIA, 'op/sepolia');
+registerNetworkName(CHAIN_ZKSYNC_SEPOLIA, 'zksync/sepolia');
 
 export function providerURL(chain: number): string {
   let key = process.env.INFURA_KEY;
@@ -57,10 +61,13 @@ export function providerURL(chain: number): string {
     case CHAIN_OP:
       // https://docs.optimism.io/chain/networks#op-mainnet
       return 'https://mainnet.optimism.io';
+    case CHAIN_OP_SEPOLIA:
+      // https://docs.optimism.io/chain/networks#op-sepolia
+      return 'https://sepolia.optimism.io';
     case CHAIN_BASE:
       // https://docs.base.org/docs/network-information#base-mainnet
       return 'https://mainnet.base.org';
-    case CHAIN_BASE_TESTNET:
+    case CHAIN_BASE_SEPOLIA:
       // https://docs.base.org/docs/network-information#base-testnet-sepolia
       return 'https://sepolia.base.org';
     case CHAIN_ARB1:
@@ -73,8 +80,11 @@ export function providerURL(chain: number): string {
       // https://docs.taiko.xyz/network-reference/rpc-configuration#taiko-mainnet
       return 'https://rpc.mainnet.taiko.xyz';
     case CHAIN_ZKSYNC:
-      // https://docs.zksync.io/build/connect-to-zksync
+      // https://docs.zksync.io/build/connect-to-zksync#mainnet-network-details
       return 'https://mainnet.era.zksync.io';
+    case CHAIN_ZKSYNC_SEPOLIA:
+      // https://docs.zksync.io/build/connect-to-zksync#sepolia-testnet-network-details
+      return 'https://sepolia.era.zksync.dev';
   }
   throw Object.assign(new Error('unknown provider'), { chain });
 }

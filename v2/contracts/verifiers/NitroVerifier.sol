@@ -42,9 +42,9 @@ contract NitroVerifier is IEVMVerifier {
 		(
 			bytes32 sendRoot,
 			bytes memory rlpEncodedBlock,
-			bytes[][] memory proofs,
+			bytes[] memory proofs,
 			bytes memory order
-		) = abi.decode(proof, (bytes32, bytes, bytes[][], bytes));
+		) = abi.decode(proof, (bytes32, bytes, bytes[], bytes));
 		Node memory node = _rollup.getNode(nodeNum);
  		bytes32 confirmData = keccak256(abi.encodePacked(keccak256(rlpEncodedBlock), sendRoot));
 		if (confirmData != node.confirmData) {

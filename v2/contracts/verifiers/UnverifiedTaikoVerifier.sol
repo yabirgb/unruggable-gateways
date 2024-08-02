@@ -98,7 +98,7 @@ contract UnverifiedTaikoVerifier is IEVMVerifier {
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8) {
 		uint64 blockId = abi.decode(context, (uint64));
-		(bytes memory rlpEncodedBlock, bytes[][] memory proofs, bytes memory order) = abi.decode(proof, (bytes, bytes[][], bytes));
+		(bytes memory rlpEncodedBlock, bytes[] memory proofs, bytes memory order) = abi.decode(proof, (bytes, bytes[], bytes));
 		RLPReader.RLPItem[] memory items = RLPReader.readList(rlpEncodedBlock);
 		bytes32 parentHash = bytes32(RLPReader.readBytes(items[0]));
 		ITaiko.TransitionState memory ts = _rollup.getTransition(blockId, parentHash);

@@ -55,7 +55,8 @@ describe('proofs', async () => {
     const prover = await EVMProver.latest(foundry.provider);
     const slots = [0n, 1n];
     const p0 = await prover.fetchProofs(contract.target, slots);
-    const p1 = await prover.fetchProofs(contract.target, slots, 1);
+    prover.proofBatchSize = 1;
+    const p1 = await prover.fetchProofs(contract.target, slots);
     expect(p0).toEqual(p1);
   });
 
@@ -64,7 +65,8 @@ describe('proofs', async () => {
     const slots = [0n, 1n];
     const p0 = await prover.getProofs(contract.target, slots);
     resetStats();
-    const p1 = await prover.getProofs(contract.target, slots, 1);
+    prover.proofBatchSize = 1;
+    const p1 = await prover.getProofs(contract.target, slots);
     expect(fetchedCalls).toBe(0);
     expect(p0).toEqual(p1);
   });
@@ -72,7 +74,8 @@ describe('proofs', async () => {
   test('fetchProofs() batch = 1', async () => {
     const prover = await EVMProver.latest(foundry.provider);
     resetStats();
-    await prover.fetchProofs(contract.target, [0n, 1n], 1);
+    prover.proofBatchSize = 1;
+    await prover.fetchProofs(contract.target, [0n, 1n]);
     expect(fetchedCalls).toBe(2);
   });
 

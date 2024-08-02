@@ -1,8 +1,8 @@
-import type { HexString, Proof, Provider } from '../types.js';
+import type { HexString, Proof, EncodedProof, Provider } from '../types.js';
 import { ethers } from 'ethers';
 import { EZCCIP } from '@resolverworks/ezccip';
 import { CachedMap, CachedValue } from '../cached.js';
-import { EVMProver } from '../vm.js';
+import { AbstractProver } from '../vm.js';
 import { EVMRequestV1 } from '../v1.js';
 
 export const ABI_CODER = ethers.AbiCoder.defaultAbiCoder();
@@ -10,12 +10,11 @@ export function encodeProofV1(proof: Proof) {
   return ABI_CODER.encode(['bytes[]'], [proof]);
 }
 
-export class AbstractCommit {
-  cache: CachedMap<string, any> | undefined;
+export class AbstractCommit<P extends AbstractProver> {
+  //cache: CachedMap<string, any> | undefined;
   constructor(
     readonly index: number,
-    readonly block: HexString,
-    readonly blockHash: HexString
+    readonly prover: P
   ) {}
 }
 
@@ -33,7 +32,10 @@ export type GatewayConstructor = {
   commitCacheSize?: number;
 };
 
-export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
+export abstract class AbstractGateway<
+  P extends AbstractProver,
+  C extends AbstractCommit<P>,
+> extends EZCCIP {
   readonly provider1;
   readonly provider2;
   readonly writeCommitMs;
@@ -41,11 +43,11 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
   readonly blockDelay;
   readonly commitOffset;
   readonly callCache: CachedMap<string, Uint8Array>;
-  readonly commitCache: CachedMap<number, C>;
+  readonly activeCommitCache: CachedMap<number, C>;
   readonly recentCommits: (C | undefined)[];
   readonly latestCache: CachedValue<number>;
   readonly delayedCache: CachedValue<number>;
-  readonly commitCacheParams;
+  readonly makeCommitCache;
   constructor({
     provider1,
     provider2,
@@ -66,11 +68,12 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
     this.commitStep = commitStep;
     this.blockDelay = blockDelay;
     this.commitOffset = commitOffset;
-    this.commitCacheParams = {
-      cacheMs: Infinity,
-      errorMs: errorRetryMs,
-      maxCached: commitCacheSize,
-    };
+    this.makeCommitCache = () =>
+      new CachedMap<string, any>({
+        cacheMs: Infinity,
+        errorMs: errorRetryMs,
+        maxCached: commitCacheSize,
+      });
     this.latestCache = new CachedValue(
       async () => Number(await this.fetchLatestCommitIndex()),
       checkCommitMs,
@@ -82,11 +85,11 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
       errorRetryMs
     );
     this.recentCommits = Array(commitDepth); // circular buffer
-    this.commitCache = new CachedMap({
+    this.activeCommitCache = new CachedMap({
       cacheMs: 0,
       errorMs: errorRetryMs,
       maxCached: 2 * commitDepth,
-    }); // inflight commits
+    });
     this.callCache = new CachedMap({
       cacheMs: Infinity,
       maxCached: callCacheSize,
@@ -94,21 +97,15 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
     this.register(
       `function proveRequest(bytes context, tuple(bytes ops, bytes[] inputs)) returns (bytes)`,
       async ([ctx, { ops, inputs }], context, history) => {
-        // TODO: support (min, max)
-        // probably should be a different function
-        const index = parseGatewayContext(ctx);
-        this.requireAligned(index);
-        const hash = ethers.keccak256(context.calldata);
+        const index = this.alignCommitIndex(
+          Math.min(await this.latestCache.get(), parseGatewayContext(ctx))
+        );
+        const hash = ethers.id(`${index}:${context.calldata}`);
         history.show = [ethers.hexlify(ops), hash];
         return this.callCache.get(hash, async () => {
           const commit = await this.commitFromAligned(index);
-          const prover = new EVMProver(
-            this.provider2,
-            commit.block,
-            commit.cache
-          );
-          const result = await prover.evalDecoded(ops, inputs);
-          const { proofs, order } = await prover.prove(result.needs);
+          const state = await commit.prover.evalDecoded(ops, inputs);
+          const { proofs, order } = await commit.prover.prove(state.needs);
           return ethers.getBytes(this.encodeWitness(commit, proofs, order));
         });
       }
@@ -121,14 +118,9 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
         history.show = [hash];
         return this.callCache.get(hash, async () => {
           const commit = await this.commitFromAligned(index);
-          const prover = new EVMProver(
-            this.provider2,
-            commit.block,
-            commit.cache
-          );
           const req = new EVMRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
-          const state = await prover.evalRequest(req);
-          const { proofs, order } = await prover.prove(state.needs);
+          const state = await commit.prover.evalRequest(req);
+          const { proofs, order } = await commit.prover.prove(state.needs);
           const witness = this.encodeWitnessV1(
             commit,
             proofs[order[0]],
@@ -174,12 +166,12 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
   abstract fetchCommit(index: number): Promise<C>;
   abstract encodeWitnessV1(
     commit: C,
-    accountProof: Proof,
-    storageProofs: Proof[]
+    accountProof: EncodedProof,
+    storageProofs: EncodedProof[]
   ): HexString;
   abstract encodeWitness(
     commit: C,
-    proofs: Proof[],
+    proofs: EncodedProof[],
     order: Uint8Array
   ): HexString;
   // latest aligned commit index (cached)
@@ -222,10 +214,9 @@ export abstract class AbstractGateway<C extends AbstractCommit> extends EZCCIP {
     const slot = await this.slotFromAligned(index); // compute circular index
     const commit = this.recentCommits[slot];
     if (commit?.index === index) return commit; // check if latest
-    return this.commitCache.get(index, async (index) => {
+    return this.activeCommitCache.get(index, async (index) => {
       const commit = await this.fetchCommit(index); // get newer commit
       const slot = await this.slotFromAligned(index); // check slot again
-      commit.cache = new CachedMap(this.commitCacheParams);
       this.recentCommits[slot] = commit; // replace
       return commit;
     });
@@ -238,13 +229,14 @@ export function parseGatewayContext(context: HexString): number {
 }
 
 export abstract class AbstractGatewayNoV1<
-  T extends AbstractCommit,
-> extends AbstractGateway<T> {
+  P extends AbstractProver,
+  C extends AbstractCommit<P>,
+> extends AbstractGateway<P, C> {
   /* eslint-disable @typescript-eslint/no-unused-vars */
   override encodeWitnessV1(
-    _commit: T,
-    _accountProof: Proof,
-    _storageProofs: Proof[]
+    _commit: C,
+    _accountProof: EncodedProof,
+    _storageProofs: EncodedProof[]
   ): HexString {
     throw new Error('V1 not implemented');
   }

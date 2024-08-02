@@ -1,9 +1,88 @@
-import { CHAIN_ZKSYNC, createProvider } from '../providers.js';
+import { CHAIN_MAINNET, CHAIN_ZKSYNC, createProvider } from '../providers.js';
 import { ethers } from 'ethers';
+import { EVMRequest, ZKSyncProver } from '../../src/vm.js';
+import { ZKSyncGateway } from '../../src/zksync/gateway.js';
 
-// https://docs.zksync.io/build/api-reference/zks-rpc
+const provider1 = createProvider(CHAIN_MAINNET);
+const provider2 = createProvider(CHAIN_ZKSYNC);
 
-const p = createProvider(CHAIN_ZKSYNC);
+if (true) {
+  const gateway = new ZKSyncGateway({
+    provider1,
+    provider2,
+    ...ZKSyncGateway.mainnetConfig(),
+  });
+
+  console.log(await gateway.f());
+  console.log(await gateway.DiamondProxy.getTotalBatchesCommitted());
+  console.log(await gateway.DiamondProxy.getTotalBatchesVerified());
+  console.log(await gateway.DiamondProxy.getTotalBatchesExecuted());
+
+  console.log(await gateway.getLatestCommit());
+
+
+  throw 1;
+}
+
+if (true) {
+  const proxy = new ethers.Contract(
+    '0x32400084C286CF3E17e7B677ea9583e60a000324',
+    [
+      'function getTotalBatchesCommitted() view returns (uint256)',
+      'function getTotalBatchesVerified() view returns (uint256)',
+      'function getTotalBatchesExecuted() view returns (uint256)',
+    ],
+    provider1
+  );
+
+  const batchIndex = parseInt(await provider2.send('zks_L1BatchNumber', []));
+  console.log(batchIndex);
+  console.log(await proxy.getTotalBatchesCommitted());
+  console.log(await proxy.getTotalBatchesVerified());
+  console.log(await proxy.getTotalBatchesExecuted());
+
+ // const b = Number(await proxy.getTotalBatchesVerified());
+//   const b = Number(await proxy.getTotalBatchesExecuted());
+//   const a = b - 10;
+
+//   for (let i = a; i <= b; i++) {
+// 	const b = await provider2.send('zks_getL1BatchDetails', [i]);;
+// 	console.log(i, b.status);
+//   }
+
+
+//   console.log(
+//     await provider2.send('zks_getL1BatchDetails', [batchIndex - 100])
+//   );
+}
+
+if (false) {
+  console.log(await proxy.getTotalBatchesCommitted());
+  console.log(await proxy.getTotalBatchesVerified());
+  console.log(await proxy.getTotalBatchesExecuted());
+  // 490012n
+  // 490008n -4
+  // 489961n -47
+
+  const prover = await ZKSyncProver.latest(provider2);
+
+  console.log(
+    await prover.isContract('0x51050ec063d393217B436747617aD1C2285Aeeee')
+  );
+  console.log(
+    await prover.isContract('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E')
+  );
+
+  const req = new EVMRequest();
+  req.setTarget('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E');
+  for (let i = 0; i < 5; i++) {
+    req.setSlot(i).read().addOutput();
+  }
+  const vm = await prover.evalRequest(req);
+  console.log(await vm.resolveOutputs());
+}
+
+/*
 
 //const block = await p.getBlockNumber();
 //console.log(block);
@@ -11,8 +90,22 @@ const p = createProvider(CHAIN_ZKSYNC);
 // 0x0000000000000000000000000000000000008002 account code hash
 // 0x0000000000000000000000000000000000008003 account nonce
 
+//console.log(await p.send('zks_L1BatchNumber', []));
+//const batchIndex = parseInt(await p.send('zks_L1BatchNumber', []));
 const batchIndex = parseInt(await p.send('zks_L1BatchNumber', []));
 console.log(batchIndex);
+
+const proof = await p.send('zks_getProof', [
+  '0x0000000000000000000000000000000000008002',
+  [
+    ethers.toBeHex('0x51050ec063d393217B436747617aD1C2285Aeeee', 32),
+    ethers.toBeHex('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E', 32),
+  ],
+  batchIndex,
+]);
+
+console.log(proof);
+
 
 const batch = await p.send('zks_getL1BatchDetails', [batchIndex]);
 console.log(batch);
@@ -39,9 +132,9 @@ console.log(batch);
 // }
 
 const proof = await p.send('zks_getProof', [
-  '0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E',
-  [ethers.toBeHex(0, 32), ethers.toBeHex(1, 32)],
-  batchIndex,
+'0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E',
+[ethers.toBeHex(0, 32), ethers.toBeHex(1, 32)],
+batchIndex,
 ]);
 console.log(proof);
 // {
@@ -93,3 +186,5 @@ console.log(proof);
 // 	  }
 // 	],
 // }
+
+*/

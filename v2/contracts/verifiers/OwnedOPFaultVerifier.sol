@@ -64,9 +64,9 @@ contract OwnedOPFaultVerifier is IEVMVerifier, Ownable {
 		uint256 gameIndex = abi.decode(context, (uint256));
 		(
 			Types.OutputRootProof memory outputRootProof, 
-			bytes[][] memory proofs,
+			bytes[] memory proofs,
 			bytes memory order
-		) = abi.decode(proof, (Types.OutputRootProof, bytes[][], bytes));
+		) = abi.decode(proof, (Types.OutputRootProof, bytes[], bytes));
 		(, , IDisputeGame gameProxy) = _portal.disputeGameFactory().gameAtIndex(gameIndex);
 		bytes32 outputRoot = gameProxy.rootClaim().raw();
 		bytes32 expectedRoot = Hashing.hashOutputRootProof(outputRootProof);

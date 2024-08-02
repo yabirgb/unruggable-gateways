@@ -44,17 +44,17 @@ contract ScrollVerifier is IEVMVerifier {
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 index = abi.decode(context, (uint256));
-		(bytes[][] memory proofs, bytes memory order) = abi.decode(proof, (bytes[][], bytes));
+		(bytes[] memory proofs, bytes memory order) = abi.decode(proof, (bytes[], bytes));
 		bytes32 stateRoot = _commitmentVerifier.rollup().finalizedStateRoots(index);
 		return EVMProver.evalRequest(req, ProofSequence(0, stateRoot, proofs, order, proveAccountState, proveStorageValue));
 	}
 
-	function proveStorageValue(bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal view returns (uint256) {
-		return uint256(ScrollTrieHelper.proveStorageValue(_commitmentVerifier.poseidon(), storageRoot, slot, proof));
+	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) internal view returns (uint256) {
+		return uint256(ScrollTrieHelper.proveStorageValue(_commitmentVerifier.poseidon(), storageRoot, slot, abi.decode(proof, (bytes[]))));
 	}
 
-	function proveAccountState(bytes32 stateRoot, address target, bytes[] memory proof) internal view returns (bytes32) {
-		return ScrollTrieHelper.proveAccountState(_commitmentVerifier.poseidon(), stateRoot, target, proof);
+	function proveAccountState(bytes32 stateRoot, address target, bytes memory proof) internal view returns (bytes32) {
+		return ScrollTrieHelper.proveAccountState(_commitmentVerifier.poseidon(), stateRoot, target, abi.decode(proof, (bytes[])));
 	}
 
 }

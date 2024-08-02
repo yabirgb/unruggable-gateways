@@ -8,13 +8,13 @@ import {SecureMerkleTrie} from "./trie-with-nonexistance/SecureMerkleTrie.sol";
 
 library MerkleTrieHelper {
 
-	function proveStorageValue(bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal pure returns (uint256) {
-		(bool exists, bytes memory v) = SecureMerkleTrie.get(abi.encodePacked(slot), proof, storageRoot);
+	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) internal pure returns (uint256) {
+		(bool exists, bytes memory v) = SecureMerkleTrie.get(abi.encodePacked(slot), abi.decode(proof, (bytes[])), storageRoot);
 		return exists ? ProofUtils.uint256FromBytes(RLPReader.readBytes(v)) : 0;
 	}
 
-	function proveAccountState(bytes32 stateRoot, address target, bytes[] memory proof) internal pure returns (bytes32 storageRoot) {
-		(bool exists, bytes memory v) = SecureMerkleTrie.get(abi.encodePacked(target), proof, stateRoot);
+	function proveAccountState(bytes32 stateRoot, address target, bytes memory proof) internal pure returns (bytes32 storageRoot) {
+		(bool exists, bytes memory v) = SecureMerkleTrie.get(abi.encodePacked(target), abi.decode(proof, (bytes[])), stateRoot);
 		if (!exists) return NOT_A_CONTRACT;
 		RLPReader.RLPItem[] memory accountState = RLPReader.readList(v);
 		bytes32 codeHash = bytes32(RLPReader.readBytes(accountState[3]));

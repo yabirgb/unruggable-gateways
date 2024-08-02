@@ -7,7 +7,7 @@ import { UnverifiedTaikoGateway } from '../src/gateway/UnverifiedTaikoGateway.js
 import {
   CHAIN_ARB1,
   CHAIN_BASE,
-  CHAIN_BASE_TESTNET,
+  CHAIN_BASE_SEPOLIA,
   CHAIN_OP,
   CHAIN_SCROLL,
   CHAIN_SEPOLIA,
@@ -34,7 +34,7 @@ switch (name) {
   }
   case 'base-testnet': {
     gateway = OPFaultGateway.baseTestnet(
-      createProviderPair(CHAIN_SEPOLIA, CHAIN_BASE_TESTNET)
+      createProviderPair(CHAIN_SEPOLIA, CHAIN_BASE_SEPOLIA)
     );
     break;
   }

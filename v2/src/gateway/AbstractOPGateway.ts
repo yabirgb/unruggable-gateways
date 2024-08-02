@@ -22,12 +22,12 @@ export type AbstractOPGatewayConstructor = GatewayConstructor & {
 export class OPCommit extends AbstractCommit {
   constructor(
     index: number,
-    block: HexString,
-    blockHash: HexString,
+    readonly block: HexString,
+    readonly blockHash: HexString,
     readonly stateRoot: HexString,
     readonly passerRoot: HexString
   ) {
-    super(index, block, blockHash);
+    super(index);
   }
   rootProof() {
     return [ethers.ZeroHash, this.stateRoot, this.passerRoot, this.blockHash];
