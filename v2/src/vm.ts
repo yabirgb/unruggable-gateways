@@ -2,22 +2,17 @@ import type {
   HexString,
   BytesLike,
   BigNumberish,
-  Provider,
-  RPCEthGetProof,
-  RPCEthGetBlock,
-  Proof,
   EncodedProof,
+  HexAddress,
 } from './types.js';
 import { ethers } from 'ethers';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
-import { CachedMap } from './cached.js';
+import { ABI_CODER } from './utils.js';
 
 // all addresses are lowercase
 // all values are hex-strings
 
 type HexFuture = Unwrappable<HexString>;
-
-const ABI_CODER = ethers.AbiCoder.defaultAbiCoder();
 
 // maximum number of items on stack
 // the following should be equivalent to EVMProtocol.sol
@@ -60,9 +55,6 @@ const OP_KECCAK = 60;
 const OP_CONCAT = 61;
 const OP_SLICE = 62;
 
-const NULL_CODE_HASH = ethers.id('');
-const ACCOUNT_PROOF_PH = -1n;
-
 function uint256FromHex(hex: string) {
   // the following should be equivalent to ProofUtils.uint256FromBytes(hex)
   return hex === '0x' ? 0n : BigInt(hex.slice(0, 66));
@@ -95,9 +87,16 @@ export function solidityFollowSlot(slot: BigNumberish, key: BytesLike) {
   );
 }
 
-// read an EVMCommand ops buffer
-export class CommandReader {
-  static fromCommand(cmd: EVMCommand) {
+type ProgramAction = {
+  pos: number;
+  op: number;
+  name: string;
+  [arg: string]: any;
+};
+
+// read an ops buffer
+export class ProgramReader {
+  static fromProgram(cmd: EVMProgram) {
     return new this(Uint8Array.from(cmd.ops), cmd.inputs.slice());
   }
   static fromEncoded(hex: HexString) {
@@ -132,16 +131,89 @@ export class CommandReader {
     if (i >= this.inputs.length) throw new Error(`invalid input index: ${i}`);
     return this.inputs[i];
   }
+  readInputStr() {
+    return ethers.toUtf8String(this.readInput());
+  }
+  readAction(): ProgramAction {
+    const { pos } = this;
+    const op = this.readByte();
+    switch (op) {
+      case OP_DEBUG:
+        return { pos, op, name: 'DEBUG', label: this.readInputStr() };
+      case OP_TARGET:
+        return { pos, op, name: 'TARGET' };
+      case OP_SLOT_ADD:
+        return { pos, op, name: 'SLOT_ADD' };
+      case OP_SLOT_ZERO:
+        return { pos, op, name: 'SLOT_ZERO' };
+      case OP_SET_OUTPUT:
+        return { pos, op, name: 'SET_OUTPUT', index: this.readByte() };
+      case OP_PUSH_INPUT:
+        return { pos, op, name: 'PUSH_INPUT', index: this.readByte() };
+      case OP_PUSH_OUTPUT:
+        return { pos, op, name: 'PUSH_OUTPUT', index: this.readByte() };
+      case OP_PUSH_SLOT:
+        return { pos, op, name: 'PUSH_SLOT' };
+      case OP_PUSH_TARGET:
+        return { pos, op, name: 'PUSH_TARGET' };
+      case OP_DUP:
+        return { pos, op, name: 'DUP', back: this.readByte() };
+      case OP_POP:
+        return { pos, op, name: 'POP' };
+      case OP_READ_SLOTS:
+        return { pos, op, name: 'READ_SLOTS', count: this.readByte() };
+      case OP_READ_BYTES:
+        return { pos, op, name: 'READ_BYTES' };
+      case OP_READ_ARRAY:
+        return { pos, op, name: 'READ_ARRAY' };
+      case OP_REQ_CONTRACT:
+        return { pos, op, name: 'REQ_CONTRACT' };
+      case OP_REQ_NONZERO:
+        return { pos, op, name: 'REQ_NONZERO' };
+      case OP_EVAL:
+        return {
+          pos,
+          op,
+          name: 'EVAL',
+          back: this.readByte(),
+          flags: this.readByte(),
+        };
+      case OP_SLOT_FOLLOW:
+        return { pos, op, name: 'SLOT_FOLLOW' };
+      case OP_KECCAK:
+        return { pos, op, name: 'OP_KECCAK' };
+      case OP_CONCAT:
+        return { pos, op, name: 'OP_CONCAT', back: this.readByte() };
+      case OP_SLICE:
+        return {
+          pos,
+          op,
+          name: 'SLICE',
+          offset: this.readShort(),
+          length: this.readShort(),
+        };
+      default: {
+        throw new Error(`unknown op: ${op}`);
+      }
+    }
+  }
+  readActions() {
+    const actions: ProgramAction[] = [];
+    while (this.remaining) {
+      actions.push(this.readAction());
+    }
+    return actions;
+  }
 }
 
-export class EVMCommand {
+export class EVMProgram {
   constructor(
-    private parent: EVMCommand | undefined = undefined,
+    private parent: EVMProgram | undefined = undefined,
     readonly ops: number[] = [],
     readonly inputs: string[] = []
   ) {}
   clone() {
-    return new EVMCommand(this.parent, this.ops.slice(), this.inputs.slice());
+    return new EVMProgram(this.parent, this.ops.slice(), this.inputs.slice());
   }
   protected addByte(x: number) {
     if ((x & 0xff) !== x) throw new Error(`expected byte: ${x}`);
@@ -269,7 +341,7 @@ export class EVMCommand {
   // experimental syntax
   // alternative: pushCommand()
   begin() {
-    return new EVMCommand(this);
+    return new EVMProgram(this);
   }
   end() {
     const p = this.parent;
@@ -292,7 +364,7 @@ export class EVMCommand {
 }
 
 // a request is just a command where the leading byte is the number of outputs
-export class EVMRequest extends EVMCommand {
+export class EVMRequest extends EVMProgram {
   context: HexString | undefined;
   constructor(outputCount = 0) {
     super(undefined);
@@ -309,18 +381,9 @@ export class EVMRequest extends EVMCommand {
     this.ops[0] = i + 1;
     return this.setOutput(i);
   }
-  // experimential
-  // evaluate a request inline
-  // if no data is required (pure computation) no provider is required
-  async resolveWith(
-    prover = new EVMProver(undefined as unknown as Provider, '0x')
-  ) {
-    const state = await prover.evalRequest(this);
-    return state.resolveOutputs();
-  }
 }
 
-export type Need = [target: HexString, slot: bigint];
+export type Need = [target: HexString, slot: bigint | boolean];
 
 export type ProofSequence = {
   proofs: EncodedProof[];
@@ -342,7 +405,7 @@ export class MachineState {
   constructor(
     readonly outputs: HexFuture[],
     readonly needs: Need[] = [],
-    readonly targetSet = new Set<HexString>()
+    readonly targets = new Map<HexString, Need>()
   ) {}
   checkOutputIndex(i: number) {
     if (i >= this.outputs.length) throw new Error(`invalid output index: ${i}`);
@@ -370,9 +433,10 @@ export class MachineState {
   traceTarget(target: HexString, max: number) {
     // IDEA: this could incremently build the needs map
     // instead of doing it during prove()
-    this.needs.push([target, ACCOUNT_PROOF_PH]); // special value indicate accountProof instead of slot
-    this.targetSet.add(target);
-    if (this.targetSet.size > max) {
+    const need: Need = [target, false]; // special value indicate accountProof instead of slot
+    this.needs.push(need);
+    this.targets.set(target, need);
+    if (this.targets.size > max) {
       throw new Error('too many targets');
     }
   }
@@ -386,16 +450,8 @@ export class MachineState {
   }
 }
 
-type EthAccountProof = Omit<RPCEthGetProof, 'storageProof'>;
-type EthStorageProof = RPCEthGetProof['storageProof'][0];
-
-function makeStorageKey(target: HexString, slot: bigint) {
+export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}:${slot.toString(16)}`;
-}
-function isContract(proof: EthAccountProof) {
-  return !(
-    proof.codeHash === NULL_CODE_HASH || proof.keccakCodeHash === NULL_CODE_HASH
-  );
 }
 
 export abstract class AbstractProver {
@@ -421,23 +477,23 @@ export abstract class AbstractProver {
   abstract getStorage(target: HexString, slot: bigint): Promise<HexString>;
   abstract prove(needs: Need[]): Promise<ProofSequence>;
   async evalDecoded(ops: HexString, inputs: HexString[]) {
-    return this.evalReader(new CommandReader(ethers.getBytes(ops), inputs));
+    return this.evalReader(new ProgramReader(ethers.getBytes(ops), inputs));
   }
   async evalRequest(req: EVMRequest) {
-    return this.evalReader(CommandReader.fromCommand(req));
+    return this.evalReader(ProgramReader.fromProgram(req));
   }
-  async evalReader(reader: CommandReader) {
+  async evalReader(reader: ProgramReader) {
     const vm = MachineState.create(reader.readByte());
     await this.evalCommand(reader, vm);
     return vm;
   }
-  async evalCommand(reader: CommandReader, vm: MachineState) {
+  async evalCommand(reader: ProgramReader, vm: MachineState) {
     while (reader.remaining) {
       const op = reader.readByte();
       switch (op) {
         case OP_DEBUG: {
           // args: [string(label)] / stack: 0
-          console.log('DEBUG', ethers.toUtf8String(reader.readInput()), {
+          console.log('DEBUG', reader.readInputStr(), {
             target: vm.target,
             slot: vm.slot,
             exitCode: vm.exitCode,
@@ -578,6 +634,7 @@ export abstract class AbstractProver {
         }
         case OP_REQ_CONTRACT: {
           // args: [] / stack: 0
+          vm.targets.get(vm.target)![1] = true; // mark accountProof as required
           if (!(await this.isContract(vm.target))) {
             vm.exitCode = 1;
             return;
@@ -597,9 +654,9 @@ export abstract class AbstractProver {
           // args: [back, flags] / stack: -1 (program) & -back (args)
           const back = reader.readByte();
           const flags = reader.readByte();
-          const cmd = CommandReader.fromEncoded(await unwrap(vm.pop()));
+          const cmd = ProgramReader.fromEncoded(await unwrap(vm.pop()));
           const args = vm.popSlice(back).toReversed();
-          const vm2 = new MachineState(vm.outputs, vm.needs, vm.targetSet);
+          const vm2 = new MachineState(vm.outputs, vm.needs, vm.targets);
           for (const arg of args) {
             vm2.target = vm.target;
             vm2.slot = vm.slot;
@@ -657,375 +714,5 @@ export abstract class AbstractProver {
         }
       }
     }
-  }
-}
-
-export class EVMProver extends AbstractProver {
-  static async latest(provider: Provider) {
-    const block = await provider.getBlockNumber();
-    return new this(provider, '0x' + block.toString(16));
-  }
-  constructor(
-    readonly provider: Provider,
-    readonly block: HexString,
-    readonly cache: CachedMap<string, any> = new CachedMap()
-  ) {
-    super();
-  }
-  async cachedMap() {
-    const map = new Map<HexString, bigint[]>();
-    for (const key of this.cache.cachedKeys()) {
-      const value = await this.cache.cachedValue(key);
-      const target = key.slice(0, 42);
-      let bucket = map.get(target);
-      if (!bucket) {
-        bucket = [];
-        map.set(target, bucket);
-      }
-      if (key.length == 42) {
-        //bucket.push(isContract(value as AccountProof));
-        // non-contracts will be empty lists
-      } else {
-        bucket.push(BigInt((value as EthStorageProof).key));
-        //bucket.push(BigInt('0x' + key.slice(43)))
-      }
-    }
-    return map;
-  }
-  async fetchStateRoot() {
-    // this is just a convenience
-    const block = (await this.provider.send('eth_getBlockByNumber', [
-      this.block,
-      false,
-    ])) as RPCEthGetBlock;
-    return block.stateRoot;
-  }
-  async fetchProofs(
-    target: HexString,
-    slots: bigint[] = []
-  ): Promise<RPCEthGetProof> {
-    const ps: Promise<RPCEthGetProof>[] = [];
-    for (let i = 0; ; ) {
-      ps.push(
-        this.provider.send('eth_getProof', [
-          target,
-          slots
-            .slice(i, (i += this.proofBatchSize))
-            .map((slot) => ethers.toBeHex(slot, 32)),
-          this.block,
-        ])
-      );
-      if (i >= slots.length) break;
-    }
-    const vs = await Promise.all(ps);
-    for (let i = 1; i < vs.length; i++) {
-      vs[0].storageProof.push(...vs[i].storageProof);
-    }
-    return vs[0];
-  }
-  async getProofs(
-    target: HexString,
-    slots: bigint[] = []
-  ): Promise<RPCEthGetProof> {
-    target = target.toLowerCase();
-    const missing: number[] = []; // indices of slots we dont have proofs for
-    const { promise, resolve, reject } = Promise.withResolvers(); // create a blocker
-    // 20240708: must setup blocks before await
-    let accountProof: Promise<EthAccountProof> | EthAccountProof | undefined =
-      this.cache.peek(target);
-    if (!accountProof) {
-      this.cache.set(
-        target,
-        promise.then(() => accountProof) // block
-      );
-    }
-    const storageProofs: (
-      | Promise<EthStorageProof>
-      | EthStorageProof
-      | undefined
-    )[] = slots.map((slot, i) => {
-      const key = makeStorageKey(target, slot);
-      const p = this.cache.peek(key);
-      if (!p) {
-        this.cache.set(
-          key,
-          promise.then(() => storageProofs[i]) // block
-        );
-        missing.push(i);
-      }
-      return p;
-    });
-    if (!accountProof || missing.length) {
-      // we need something
-      try {
-        const { storageProof: v, ...a } = await this.fetchProofs(
-          target,
-          missing.map((x) => slots[x])
-        );
-        // update cache
-        accountProof = a;
-        missing.forEach((x, i) => (storageProofs[x] = v[i]));
-        resolve(); // unblock
-      } catch (err) {
-        reject(err);
-      }
-    }
-    // reassemble eth_getProof
-    const [a, v] = await Promise.all([
-      accountProof as Promise<EthAccountProof>,
-      Promise.all(storageProofs) as Promise<EthStorageProof[]>,
-    ]);
-    return { storageProof: v, ...a };
-  }
-  override async getStorage(
-    target: HexString,
-    slot: bigint
-  ): Promise<HexString> {
-    // check to see if we know this target isn't a contract without invoking provider
-    // this is almost equivalent to: await isContract(target)
-    const accountProof: EthAccountProof | undefined =
-      await this.cache.peek(target);
-    if (accountProof && !isContract(accountProof)) {
-      return ethers.ZeroHash;
-    }
-    // check to see if we've already have a proof for this value
-    const storageKey = makeStorageKey(target, slot);
-    const storageProof: EthStorageProof | undefined = await (this.useFastCalls
-      ? this.cache.peek(storageKey)
-      : this.cache.get(storageKey, async () => {
-          const proofs = await this.getProofs(target, [slot]);
-          return proofs.storageProof[0];
-        }));
-    if (storageProof) {
-      return ethers.toBeHex(storageProof.value, 32);
-    }
-    // we didn't have the proof
-    // lets just get the value for now and prove it later
-    return this.cache.get(
-      storageKey + '!',
-      async () => this.provider.getStorage(target, slot),
-      this.fastCallCacheMs
-    );
-  }
-  override async isContract(target: HexString) {
-    return isContract(await this.getProofs(target, []));
-  }
-  override async prove(needs: Need[]) {
-    // reduce an ordered list of needs into a deduplicated list of proofs
-    // minimize calls to eth_getProof
-    // provide empty proofs for non-contract slots
-    type Ref = { id: number; proof: Proof };
-    type RefMap = Ref & { map: Map<bigint, Ref> };
-    const targets = new Map<HexString, RefMap>();
-    const refs: Ref[] = [];
-    const order = needs.map(([target, slot]) => {
-      let bucket = targets.get(target);
-      if (slot == ACCOUNT_PROOF_PH) {
-        // accountProof
-        if (!bucket) {
-          bucket = { id: refs.length, proof: [], map: new Map() };
-          refs.push(bucket);
-          targets.set(target, bucket);
-        }
-        return bucket.id;
-      } else {
-        // storageProof (for targeted account)
-        // bucket can be undefined if a slot is read without a target
-        // this is okay because the initial machine state is NOT_A_CONTRACT
-        let ref = bucket?.map.get(slot);
-        if (!ref) {
-          ref = { id: refs.length, proof: [] };
-          refs.push(ref);
-          bucket?.map.set(slot, ref);
-        }
-        return ref.id;
-      }
-    });
-    if (refs.length > this.maxUniqueProofs) {
-      throw new Error(
-        `too many proofs: ${refs.length} > ${this.maxUniqueProofs}`
-      );
-    }
-    await Promise.all(
-      Array.from(targets, async ([target, bucket]) => {
-        let m = [...bucket.map];
-        try {
-          const accountProof: EthAccountProof | undefined =
-            await this.cache.cachedValue(target);
-          if (accountProof && !isContract(accountProof)) {
-            m = []; // if we know target isn't a contract, we only need accountProof
-          }
-        } catch (err) {
-          /*empty*/
-        }
-        const proofs = await this.getProofs(
-          target,
-          m.map(([slot]) => slot)
-        );
-        bucket.proof = proofs.accountProof;
-        if (isContract(proofs)) {
-          m.forEach(([, ref], i) => (ref.proof = proofs.storageProof[i].proof));
-        }
-      })
-    );
-    return {
-      proofs: refs.map((x) => ABI_CODER.encode(['bytes[]'], [x.proof])),
-      order: Uint8Array.from(order),
-    };
-  }
-}
-
-type ZKSyncStorageProof = {
-  index: number;
-  key: HexString;
-  proof: Proof;
-  value: HexString;
-};
-
-type RPCZKSyncGetProof = {
-  address: HexString;
-  storageProof: ZKSyncStorageProof[];
-};
-
-// https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
-const ZKSYNC_ACCOUNT_CODEHASH = '0x0000000000000000000000000000000000008002';
-
-function encodeZKStorageProof(proof: ZKSyncStorageProof) {
-  return ABI_CODER.encode(
-    ['bytes32', 'uint64', 'bytes32[]'],
-    [proof.value, proof.index, proof.proof]
-  );
-}
-
-export class ZKSyncProver extends AbstractProver {
-  static async latest(provider: Provider) {
-    return new this(
-      provider,
-      parseInt(await provider.send('zks_L1BatchNumber', []))
-    );
-  }
-  constructor(
-    readonly provider: Provider,
-    readonly batchNumber: number,
-    readonly cache: CachedMap<string, any> = new CachedMap()
-  ) {
-    super();
-  }
-  override async isContract(target: HexString): Promise<boolean> {
-    const storageProof: ZKSyncStorageProof | undefined =
-      await this.cache.peek(target);
-    const codeHash = storageProof
-      ? storageProof.value
-      : await this.getStorage(ZKSYNC_ACCOUNT_CODEHASH, BigInt(target));
-    return /^0x0+$/.test(codeHash);
-  }
-  override async getStorage(
-    target: HexString,
-    slot: bigint
-  ): Promise<HexString> {
-    const storageKey = makeStorageKey(target, slot);
-    const storageProof: ZKSyncStorageProof | undefined = await (this
-      .useFastCalls
-      ? this.cache.peek(storageKey)
-      : this.cache.get(storageKey, async () => {
-          const vs = await this.getStorageProofs(target, [slot]);
-          return vs[0];
-        }));
-    if (storageProof) {
-      return storageProof.value;
-    }
-    return this.cache.get(
-      storageKey + '!',
-      async () => this.provider.getStorage(target, slot),
-      this.fastCallCacheMs
-    );
-  }
-  override async prove(needs: Need[]): Promise<ProofSequence> {
-    type Ref = { id: number; proof: EncodedProof };
-    const targets = new Map<HexString, Map<bigint, Ref>>();
-    const refs: Ref[] = [];
-    const order = needs.map(([target, slot]) => {
-      if (slot === ACCOUNT_PROOF_PH) {
-        slot = BigInt(target);
-        target = ZKSYNC_ACCOUNT_CODEHASH;
-      }
-      let bucket = targets.get(target);
-      if (!bucket) {
-        bucket = new Map();
-        targets.set(target, bucket);
-      }
-      let ref = bucket.get(slot);
-      if (!ref) {
-        ref = { id: refs.length, proof: '0x' };
-        refs.push(ref);
-        bucket.set(slot, ref);
-      }
-      return ref.id;
-    });
-    await Promise.all(
-      Array.from(targets, async ([target, map]) => {
-        const m = [...map];
-        const proofs = await this.getStorageProofs(
-          target,
-          m.map(([slot]) => slot)
-        );
-        m.forEach(
-          ([, ref], i) => (ref.proof = encodeZKStorageProof(proofs[i]))
-        );
-      })
-    );
-    return {
-      proofs: refs.map((x) => x.proof),
-      order: Uint8Array.from(order),
-    };
-  }
-  async getStorageProofs(target: HexString, slots: bigint[]) {
-    const missing: number[] = [];
-    const { promise, resolve, reject } = Promise.withResolvers();
-    const storageProofs: (
-      | Promise<ZKSyncStorageProof>
-      | ZKSyncStorageProof
-      | undefined
-    )[] = slots.map((slot, i) => {
-      const key = makeStorageKey(target, slot);
-      const p = this.cache.peek(key);
-      if (!p) {
-        this.cache.set(
-          key,
-          promise.then(() => storageProofs[i])
-        );
-        missing.push(i);
-      }
-      return p;
-    });
-    if (missing.length) {
-      try {
-        const vs = await this.fetchStorageProofs(
-          target,
-          missing.map((x) => slots[x])
-        );
-        missing.forEach((x, i) => (storageProofs[x] = vs[i]));
-        resolve();
-      } catch (err) {
-        reject(err);
-      }
-    }
-    return Promise.all(storageProofs) as Promise<ZKSyncStorageProof[]>;
-  }
-  async fetchStorageProofs(target: HexString, slots: bigint[]) {
-    const ps: Promise<RPCZKSyncGetProof>[] = [];
-    for (let i = 0; i < slots.length; ) {
-      ps.push(
-        this.provider.send('zks_getProof', [
-          target,
-          slots
-            .slice(i, (i += this.proofBatchSize))
-            .map((slot) => ethers.toBeHex(slot, 32)),
-          this.batchNumber,
-        ])
-      );
-    }
-    const vs = await Promise.all(ps);
-    return vs.flatMap((x) => x.storageProof);
   }
 }

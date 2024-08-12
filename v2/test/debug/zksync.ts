@@ -1,7 +1,9 @@
-import { CHAIN_MAINNET, CHAIN_ZKSYNC, createProvider } from '../providers.js';
+
+import { createProvider } from '../providers.js';
 import { ethers } from 'ethers';
 import { EVMRequest, ZKSyncProver } from '../../src/vm.js';
 import { ZKSyncGateway } from '../../src/zksync/gateway.js';
+import { CHAIN_MAINNET, CHAIN_ZKSYNC } from '../../src/chains.js';
 
 const provider1 = createProvider(CHAIN_MAINNET);
 const provider2 = createProvider(CHAIN_ZKSYNC);

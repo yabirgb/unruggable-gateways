@@ -1,14 +1,15 @@
-import type { HexString20, HexString32, Proof } from '../types.js';
+import { ethers } from 'ethers';
+import type { HexAddress, HexString32, HexString } from '../types.js';
 
 export type ZKSyncStorageProof = {
   index: number;
   key: HexString32;
-  proof: Proof;
+  proof: HexString32[];
   value: HexString32;
 };
 
 export type RPCZKSyncGetProof = {
-  address: HexString20;
+  address: HexAddress;
   storageProof: ZKSyncStorageProof[];
 };
 // {
@@ -93,3 +94,56 @@ export type RPCZKSyncL1BatchDetails = {
 //   status: "verified",
 //   timestamp: 1722381027,
 // }
+
+export type ABIZKSyncCommitBatchInfo = {
+  batchNumber: bigint;
+  timestamp: bigint;
+  indexRepeatedStorageChanges: bigint;
+  newStateRoot: HexString32;
+  numberOfLayer1Txs: bigint;
+  priorityOperationsHash: HexString32;
+  bootloaderHeapInitialContentsHash: HexString32;
+  eventsQueueStateHash: HexString32;
+  systemLogs: HexString;
+  pubdataCommitments: HexString;
+};
+
+// https://github.com/matter-labs/era-contracts/blob/main/l1-contracts/contracts/state-transition/chain-interfaces/IGetters.sol
+// https://github.com/matter-labs/era-contracts/blob/main/l1-contracts/contracts/state-transition/chain-interfaces/IExecutor.sol
+export const DIAMOND_ABI = new ethers.Interface([
+  `function storedBatchHash(uint256 batchNumber) view returns (bytes32)`,
+  `function l2LogsRootHash(uint256 batchNumber) external view returns (bytes32)`,
+  'function getTotalBatchesCommitted() view returns (uint256)',
+  `function getTotalBatchesVerified() view returns (uint256)`,
+  `function getTotalBatchesExecuted() view returns (uint256)`,
+  `function commitBatchesSharedBridge(
+    uint256 chainId,
+    (
+      uint64 batchNumber,
+      bytes32 batchHash,
+      uint64 indexRepeatedStorageChanges,
+      uint256 numberOfLayer1Txs,
+      bytes32 priorityOperationsHash,
+      bytes32 l2LogsTreeRoot,
+      uint256 timestamp,
+      bytes32 commitment,
+    ) lastCommittedBatchData,
+    (
+      uint64 batchNumber,
+      uint64 timestamp,
+      uint64 indexRepeatedStorageChanges,
+      bytes32 newStateRoot,
+      uint256 numberOfLayer1Txs,
+      bytes32 priorityOperationsHash,
+      bytes32 bootloaderHeapInitialContentsHash,
+      bytes32 eventsQueueStateHash,
+      bytes systemLogs,
+      bytes pubdataCommitments
+    )[] newBatchesData
+  )`,
+  `event BlockCommit(
+    uint256 indexed batchNumber,
+    bytes32 indexed batchHash,
+    bytes32 indexed commitment
+  )`,
+]);

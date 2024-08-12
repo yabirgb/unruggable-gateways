@@ -61,5 +61,5 @@ error RequestOverflow();
 // this should be unreachable with a valid EVMRequest
 error RequestInvalid();
 
-error VerifierMismatch(bytes context, bytes32 derived, bytes32 actual);
+//error VerifierMismatch(bytes context, bytes32 derived, bytes32 actual);
 //error VerifierUnsatisfiable();

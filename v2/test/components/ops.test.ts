@@ -1,5 +1,6 @@
 import type { BigNumberish } from '../../src/types.js';
-import { EVMRequest, EVMProver, solidityFollowSlot } from '../../src/vm.js';
+import { EVMRequest, solidityFollowSlot } from '../../src/vm.js';
+import { EVMProver } from '../../src/evm/prover.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { test, afterAll, expect, describe } from 'bun:test';
@@ -15,8 +16,7 @@ describe('ops', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({
-    file: 'SelfVerifier',
-    args: [ethers.ZeroAddress],
+    file: 'EthSelfVerifier',
   });
   const contract = await foundry.deploy({
     sol: `

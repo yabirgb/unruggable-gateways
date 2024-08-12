@@ -1,7 +1,8 @@
 import { ethers } from 'ethers';
 import { expect, test } from 'bun:test';
 
-export const LOG_CCIP = false;
+export const SHOW_CCIP_LOGS = true;
+export const SHOW_BLOCKSMITH_LOGS = true;
 
 export function runSlotDataTests(
   reader: ethers.Contract,

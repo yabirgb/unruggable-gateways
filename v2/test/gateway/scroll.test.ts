@@ -1,34 +1,33 @@
-import { ScrollGateway } from '../../src/gateway/ScrollGateway.js';
+import { ScrollGateway } from '../../src/scroll/ScrollGateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { createProvider, providerURL, CHAIN_SCROLL } from '../providers.js';
-import { runSlotDataTests, LOG_CCIP } from './tests.js';
+import { providerURL, createProviderPair } from '../providers.js';
+import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
 describe('scroll', async () => {
+  const config = ScrollGateway.mainnetConfig;
   const foundry = await Foundry.launch({
-    fork: providerURL(1),
+    fork: providerURL(config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const gateway = ScrollGateway.mainnet({
-    provider1: foundry.provider,
-    provider2: createProvider(CHAIN_SCROLL),
-    //commitDelay: 0 // use default since ScrollAPI indexer
+  const gateway = new ScrollGateway({
+    ...createProviderPair(config),
+    ...config,
   });
   const ccip = await serve(gateway, {
     protocol: 'raw',
     port: 0,
-    log: LOG_CCIP,
+    log: false,
   });
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'ScrollVerifier',
     args: [
       [ccip.endpoint],
+      gateway.supportedWindow,
       gateway.ScrollChainCommitmentVerifier,
-      gateway.effectiveCommitDelay, // not .blockDelay!
-      gateway.commitStep,
     ],
   });
   // https://scrollscan.com/address/0x09D2233D3d109683ea95Da4546e7E9Fc17a6dfAF#code

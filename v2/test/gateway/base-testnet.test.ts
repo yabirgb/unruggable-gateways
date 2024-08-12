@@ -1,34 +1,39 @@
-import { OPFaultGateway } from '../../src/gateway/OPFaultGateway.js';
+import { OPFaultGateway } from '../../src/op/OPFaultGateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import {
-  createProvider,
-  providerURL,
-  CHAIN_SEPOLIA,
-  CHAIN_BASE_TESTNET,
-} from '../providers.js';
-import { runSlotDataTests, LOG_CCIP } from './tests.js';
+import { createProviderPair, providerURL } from '../providers.js';
+import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
 describe('base testnet', async () => {
+  const config = OPFaultGateway.baseTestnetConfig;
   const foundry = await Foundry.launch({
-    fork: providerURL(CHAIN_SEPOLIA),
+    fork: providerURL(config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const gateway = OPFaultGateway.baseTestnet({
-    provider1: foundry.provider,
-    provider2: createProvider(CHAIN_BASE_TESTNET),
+  const gateway = new OPFaultGateway({
+    ...createProviderPair(config),
+    ...config,
   });
   const ccip = await serve(gateway, {
     protocol: 'raw',
     port: 0,
-    log: LOG_CCIP,
+    log: false,
   });
   afterAll(() => ccip.http.close());
+  const helper = await foundry.deploy({
+    file: 'OPFaultConstantHelper',
+    args: [await gateway.getLatestCommitIndex()],
+  });
   const verifier = await foundry.deploy({
     file: 'OPFaultVerifier',
-    args: [[ccip.endpoint], gateway.OptimismPortal, gateway.blockDelay],
+    args: [
+      [ccip.endpoint],
+      gateway.supportedWindow,
+      gateway.OptimismPortal,
+      helper,
+    ],
   });
   // https://sepolia.basescan.org/address/0x7AE933cf265B9C7E7Fd43F0D6966E34aaa776411
   const reader = await foundry.deploy({

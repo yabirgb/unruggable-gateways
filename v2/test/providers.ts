@@ -1,38 +1,29 @@
-import type { Provider, ProviderPair } from '../src/types.js';
+import type { Chain, ChainPair, Provider, ProviderPair } from '../src/types.js';
 import {
   Network,
   AlchemyProvider,
   InfuraProvider,
   JsonRpcProvider,
 } from 'ethers';
+import {
+  CHAIN_MAINNET,
+  CHAIN_SEPOLIA,
+  CHAIN_OP,
+  CHAIN_OP_SEPOLIA,
+  CHAIN_BASE,
+  CHAIN_BASE_SEPOLIA,
+  CHAIN_ARB1,
+  CHAIN_SCROLL,
+  CHAIN_TAIKO,
+  CHAIN_ZKSYNC,
+  CHAIN_ZKSYNC_SEPOLIA,
+  CHAIN_ZKEVM,
+  CHAIN_ZKEVM_CARDONA as CHAIN_ZKEVM_CARDONA,
+  CHAIN_ARB_NOVA,
+  CHAIN_ARB_SEPOLIA,
+} from '../src/chains.js';
 
-export const CHAIN_MAINNET = 1;
-export const CHAIN_SEPOLIA = 11155111;
-export const CHAIN_OP = 10;
-export const CHAIN_OP_SEPOLIA = 11155420;
-export const CHAIN_ZKSYNC = 324;
-export const CHAIN_ZKSYNC_SEPOLIA = 300;
-export const CHAIN_BASE = 8453;
-export const CHAIN_BASE_SEPOLIA = 84532;
-export const CHAIN_ARB1 = 42161;
-export const CHAIN_TAIKO = 167000;
-export const CHAIN_SCROLL = 534352;
-
-function registerNetworkName(chain: number, name: string) {
-  try {
-    Network.register(chain, () => new Network(name, chain));
-  } catch (err) {
-    /*empty*/
-  }
-}
-registerNetworkName(CHAIN_SCROLL, 'scroll');
-registerNetworkName(CHAIN_TAIKO, 'taiko');
-registerNetworkName(CHAIN_ZKSYNC, 'zksync');
-registerNetworkName(CHAIN_BASE_SEPOLIA, 'base/sepolia');
-registerNetworkName(CHAIN_OP_SEPOLIA, 'op/sepolia');
-registerNetworkName(CHAIN_ZKSYNC_SEPOLIA, 'zksync/sepolia');
-
-export function providerURL(chain: number): string {
+export function providerURL(chain: Chain): string {
   let key = process.env.INFURA_KEY;
   if (key) {
     try {
@@ -73,6 +64,10 @@ export function providerURL(chain: number): string {
     case CHAIN_ARB1:
       // https://docs.arbitrum.io/build-decentralized-apps/reference/node-providers#arbitrum-public-rpc-endpoints
       return 'https://arb1.arbitrum.io/rpc';
+    case CHAIN_ARB_NOVA:
+      return 'https://nova.arbitrum.io/rpc';
+    case CHAIN_ARB_SEPOLIA:
+      return 'https://sepolia-rollup.arbitrum.io/rpc';
     case CHAIN_SCROLL:
       // https://docs.scroll.io/en/developers/developer-quickstart/#scroll-mainnet
       return 'https://rpc.scroll.io/';
@@ -85,18 +80,32 @@ export function providerURL(chain: number): string {
     case CHAIN_ZKSYNC_SEPOLIA:
       // https://docs.zksync.io/build/connect-to-zksync#sepolia-testnet-network-details
       return 'https://sepolia.era.zksync.dev';
+    case CHAIN_ZKEVM:
+      // https://docs.polygon.technology/zkEVM/get-started/quick-start/#manually-add-network-to-wallet
+      return 'https://zkevm.polygonscan.com/';
+    case CHAIN_ZKEVM_CARDONA:
+      //return 'https://cardona-zkevm.polygonscan.com/';
+      return 'https://rpc.cardona.zkevm-rpc.com/';
   }
   throw Object.assign(new Error('unknown provider'), { chain });
 }
 
-export function createProvider(chain: number): Provider {
+export function createProvider(chain: Chain): Provider {
   return new JsonRpcProvider(providerURL(chain), chain, {
     staticNetwork: true,
   });
 }
 
-export function createProviderPair(a: number, b?: number): ProviderPair {
+export function createProviderPair(
+  a: Chain | ChainPair,
+  b?: Chain
+): ProviderPair {
+  if (typeof a !== 'bigint') {
+    b = a.chain2;
+    a = a.chain1;
+  }
   if (!b) {
+    // if only 1 chain is provided => (mainnet, chain)
     b = a;
     a = CHAIN_MAINNET;
   }
