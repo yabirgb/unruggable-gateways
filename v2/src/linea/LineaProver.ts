@@ -7,11 +7,10 @@ import {
 } from '../vm.js';
 import { CachedMap } from '../cached.js';
 import { ethers } from 'ethers';
-import { ABI_CODER } from '../utils.js';
+import { ABI_CODER, NULL_CODE_HASH } from '../utils.js';
 import type { LineaProof, RPCLineaGetProof } from './types.js';
 
-const NULL_CODE_HASH =
-  '0x0134373b65f439c874734ff51ea349327c140cde2e47a933146e6f9f2ad8eb17'; // mimc(ZeroHash)
+//const NULL_CODE_HASH = '0x0134373b65f439c874734ff51ea349327c140cde2e47a933146e6f9f2ad8eb17'; // mimc(ZeroHash)
 
 function isExistanceProof(proof: LineaProof) {
   return 'leafIndex' in proof;

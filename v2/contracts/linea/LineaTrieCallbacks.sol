@@ -31,13 +31,16 @@ library LineaTrieCallbacks {
 			SparseMerkleProof.Account memory account = SparseMerkleProof.getAccount(proof.value);
 			return account.keccakCodeHash == NULL_CODE_HASH ? NOT_A_CONTRACT : account.storageRoot;
 		} else {
-			proveDoesNotExist(proofs[0], proofs[1]);
+			proveDoesNotExist(stateRoot, proofs[0], proofs[1]);
 			return NOT_A_CONTRACT;
 		}
 	}
 
-	function proveDoesNotExist(Proof memory left, Proof memory right) internal pure {
-
+	function proveDoesNotExist(bytes32 root, Proof memory left, Proof memory right) internal pure {
+		if (!SparseMerkleProof.verifyProof(left.nodes, left.leafIndex, root)) revert InvalidProof();
+		if (!SparseMerkleProof.verifyProof(right.nodes, right.leafIndex, root)) revert InvalidProof();
+		SparseMerkleProof.Leaf memory leaf = SparseMerkleProof.getLeaf(left.nodes[LAST_LEAF_INDEX]);
+		if (leaf.next != right.leafIndex) revert InvalidProof();
 	}
 	
 	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory encodedProof) internal pure returns (uint256) {
@@ -51,7 +54,7 @@ library LineaTrieCallbacks {
 			if (SparseMerkleProof.hashStorageValue(value) != leaf.hValue) revert InvalidProof();
 			return uint256(value);
 		} else {
-			proveDoesNotExist(proofs[0], proofs[1]);
+			proveDoesNotExist(storageRoot, proofs[0], proofs[1]);
 			return 0;
 		}
 	}
