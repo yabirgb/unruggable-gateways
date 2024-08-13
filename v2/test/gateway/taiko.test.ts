@@ -2,7 +2,7 @@ import { TaikoGateway } from '../../src/taiko/TaikoGateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { providerURL, createProviderPair } from '../providers.js';
-import { runSlotDataTests, SHOW_CCIP_LOGS } from './tests.js';
+import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
 describe('taiko', async () => {
@@ -19,7 +19,7 @@ describe('taiko', async () => {
   const ccip = await serve(gateway, {
     protocol: 'raw',
     port: 0,
-    log: SHOW_CCIP_LOGS,
+    log: false,
   });
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({

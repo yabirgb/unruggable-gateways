@@ -1,6 +1,6 @@
 import { CHAIN_ZKEVM_CARDONA } from '../../src/chains.js';
 import { createProvider } from '../providers.js';
-import {ethers} from 'ethers';
+import { ethers } from 'ethers';
 
 const p = createProvider(CHAIN_ZKEVM_CARDONA);
 

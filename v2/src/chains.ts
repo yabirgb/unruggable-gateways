@@ -20,6 +20,8 @@ export const CHAIN_TAIKO: Chain = 167000n;
 export const CHAIN_SCROLL: Chain = 534352n;
 export const CHAIN_ZKEVM: Chain = 1101n;
 export const CHAIN_ZKEVM_CARDONA: Chain = 2442n;
+export const CHAIN_LINEA: Chain = 59144n;
+export const CHAIN_LINEA_SEPOLIA: Chain = 59141n;
 
 function registerNetworkName(chain: Chain, name: string) {
   // 20240809: ethers bug, injectCommonNetworks() only called on from()
@@ -35,5 +37,6 @@ registerNetworkName(CHAIN_SCROLL, 'scroll');
 registerNetworkName(CHAIN_TAIKO, 'taiko');
 registerNetworkName(CHAIN_ZKSYNC, 'zksync');
 registerNetworkName(CHAIN_ZKSYNC_SEPOLIA, 'zksync-sepolia');
+registerNetworkName(CHAIN_ZKEVM, 'zkevm');
 registerNetworkName(CHAIN_ZKEVM_CARDONA, 'zkevm-cardonia');
 registerNetworkName(CHAIN_ARB_NOVA, 'arb-nova');

@@ -8,6 +8,7 @@ import type {
 import {
   AbstractProver,
   makeStorageKey,
+  storageMapFromCache,
   type Need,
   type ProofSequence,
 } from '../vm.js';
@@ -39,6 +40,9 @@ export class ZKSyncProver extends AbstractProver {
     readonly cache: CachedMap<string, any> = new CachedMap()
   ) {
     super();
+  }
+  storageMap() {
+    return storageMapFromCache(this.cache);
   }
   override async isContract(target: HexAddress): Promise<boolean> {
     const storageProof: ZKSyncStorageProof | undefined =

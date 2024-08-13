@@ -12,9 +12,9 @@ library EVMProver {
 	
 	function dump(Machine memory vm) internal pure {
 		console2.log("[pos=%s/%s]", vm.pos, vm.buf.length);
+		console2.logBytes(vm.buf);
 		console2.log("[target=%s slot=%s]", vm.target, vm.slot);
 		console2.log("[proof=%s/%s]", vm.proofs.index, vm.proofs.order.length);
-		console2.logBytes(vm.buf);
 		for (uint256 i; i < vm.stackSize; i++) {
 			console2.log("[stack=%s size=%s]", i, vm.stack[i].length);
 			console2.logBytes(vm.stack[i]);
@@ -235,6 +235,9 @@ library EVMProver {
 				} else {
 					vm.stackSize = vm.stackSize > back ? vm.stackSize - back : 0;
 				}
+			} else if (op == OP_DEBUG) {
+				console2.log(string(vm.inputs[vm.readByte()]));
+				vm.dump();
 			} else {
 				revert RequestInvalid();
 			}

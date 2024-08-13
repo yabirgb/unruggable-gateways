@@ -1,7 +1,8 @@
-import { EVMProver, EVMRequest, MAX_STACK } from '../../src/vm.js';
+import { EVMRequest, MAX_STACK } from '../../src/vm.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { afterAll, test, expect, describe } from 'bun:test';
+import { EVMProver } from '../../src/evm/prover.js';
 
 describe('limits', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
@@ -18,7 +19,7 @@ describe('limits', async () => {
     const state = await prover.evalRequest(r);
     return prover.prove(state.needs);
   }
-  //afterAll(async () => console.log(await prover.cachedMap()));
+  afterAll(async () => console.log(await prover.storageMap()));
 
   test('max stack', async () => {
     const req = new EVMRequest();

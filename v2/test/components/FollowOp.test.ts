@@ -1,4 +1,5 @@
-import { EVMRequest, EVMProver } from '../../src/vm.js';
+import { EVMRequest } from '../../src/vm.js';
+import { EVMProver } from '../../src/evm/prover.js';
 import { Foundry } from '@adraffy/blocksmith';
 import assert from 'node:assert/strict';
 import { test, afterAll } from 'bun:test';

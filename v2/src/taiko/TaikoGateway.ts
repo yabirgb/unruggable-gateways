@@ -65,7 +65,7 @@ export class TaikoGateway extends AbstractGatewayNoV1<EVMProver, TaikoCommit> {
     );
   }
   override async fetchLatestCommitIndex(blockDelay: number) {
-    const blockTag = await delayedBlockTag(this.TaikoL1, blockDelay);
+    const blockTag = await delayedBlockTag(this.provider1, blockDelay);
     const { blockId } = await this.TaikoL1.getLastSyncedBlock({ blockTag });
     return Number(blockId);
   }

@@ -8,6 +8,7 @@ import type {
 import { ethers } from 'ethers';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
 import { ABI_CODER } from './utils.js';
+import type { CachedMap } from './cached.js';
 
 // all addresses are lowercase
 // all values are hex-strings
@@ -24,13 +25,15 @@ const STOP_ON_SUCCESS = 1;
 const STOP_ON_FAILURE = 2;
 const ACQUIRE_STATE = 4;
 
-// EVMRequest operations
+// program ops
 // specific ids just need to be unique
 // the following should be equivalent to EVMProtocol.sol
 const OP_DEBUG = 255; // experimental
 const OP_TARGET = 1;
 const OP_SET_OUTPUT = 2;
 const OP_EVAL = 3;
+const OP_COMPARE = 4;
+//const OP_IS_ZEROS = 5;
 
 const OP_REQ_NONZERO = 10;
 const OP_REQ_CONTRACT = 11;
@@ -146,6 +149,8 @@ export class ProgramReader {
         return { pos, op, name: 'SLOT_ADD' };
       case OP_SLOT_ZERO:
         return { pos, op, name: 'SLOT_ZERO' };
+      case OP_COMPARE:
+        return { pos, op, name: 'COMPARE' };
       case OP_SET_OUTPUT:
         return { pos, op, name: 'SET_OUTPUT', index: this.readByte() };
       case OP_PUSH_INPUT:
@@ -298,6 +303,10 @@ export class EVMProgram {
     return this.addByte(OP_REQ_NONZERO).addByte(back);
   }
 
+  //   compare({greater = false, equal = true, less = false} = {}) {
+  //     return this.addByte(OP_COMPARE).addByte()
+  //   }
+
   pop() {
     return this.addByte(OP_POP);
   }
@@ -390,7 +399,7 @@ export type ProofSequence = {
   order: Uint8Array;
 };
 
-// tracks the state of an EVMCommand evaluation
+// tracks the state of an program evaluation
 // registers: [slot, target, stack]
 // outputs are shared across eval()
 // needs records sequence of necessary proofs
@@ -433,12 +442,17 @@ export class MachineState {
   traceTarget(target: HexString, max: number) {
     // IDEA: this could incremently build the needs map
     // instead of doing it during prove()
-    const need: Need = [target, false]; // special value indicate accountProof instead of slot
-    this.needs.push(need);
-    this.targets.set(target, need);
-    if (this.targets.size > max) {
-      throw new Error('too many targets');
+    let need = this.targets.get(target);
+    if (!need) {
+      // special value indicate accountProof instead of slot
+      // false => account proof is optional (so far)
+      need = [target, false];
+      this.targets.set(target, need);
+      if (this.targets.size > max) {
+        throw new Error('too many targets');
+      }
     }
+    this.needs.push(need);
   }
   traceSlot(target: HexString, slot: bigint) {
     this.needs.push([target, slot]);
@@ -448,10 +462,6 @@ export class MachineState {
       this.traceSlot(target, slot);
     }
   }
-}
-
-export function makeStorageKey(target: HexAddress, slot: bigint) {
-  return `${target}:${slot.toString(16)}`;
 }
 
 export abstract class AbstractProver {
@@ -518,6 +528,17 @@ export abstract class AbstractProver {
         case OP_SLOT_ZERO: {
           // args: [] / stack: 0
           vm.slot = 0n;
+          continue;
+        }
+        case OP_COMPARE: {
+          // args: [] / stack: +1
+          const rhs = uint256FromHex(await unwrap(vm.peek(0)));
+          const lhs = uint256FromHex(await unwrap(vm.peek(1)));
+          vm.push(
+            ethers.toBeHex(
+              (lhs == rhs ? 1 : 0) + (lhs > rhs ? 2 : 0) + (lhs < rhs ? 4 : 0)
+            )
+          );
           continue;
         }
         case OP_SET_OUTPUT: {
@@ -634,7 +655,8 @@ export abstract class AbstractProver {
         }
         case OP_REQ_CONTRACT: {
           // args: [] / stack: 0
-          vm.targets.get(vm.target)![1] = true; // mark accountProof as required
+          const need = vm.targets.get(vm.target);
+          if (need) need[1] = true; // mark accountProof as required
           if (!(await this.isContract(vm.target))) {
             vm.exitCode = 1;
             return;
@@ -671,6 +693,7 @@ export abstract class AbstractProver {
             vm.target = vm2.target;
             vm.slot = vm2.slot;
             vm.stack = vm2.stack;
+            // question: what if we want to acquire the exitCode?
           }
           continue;
         }
@@ -687,6 +710,7 @@ export abstract class AbstractProver {
         case OP_CONCAT: {
           // args: [back]
           //        stack = [a, b, c]
+          // => concat(1) = unchanged
           // => concat(2) = [a, b+c]
           // => concat(4) = [a+b+c]
           // => concat(0) = [a, b, c, 0x]
@@ -715,4 +739,28 @@ export abstract class AbstractProver {
       }
     }
   }
+}
+
+// standard caching protocol:
+// account proofs stored under 0x{HexAddress}
+// storage proofs stored under 0x{HexAddress}{HexSlot w/NoZeroPad} via makeStorageKey()
+
+export function makeStorageKey(target: HexAddress, slot: bigint) {
+  return `${target}${slot.toString(16)}`;
+}
+
+export function storageMapFromCache(cache: CachedMap<string, any>) {
+  const map = new Map<HexString, bigint[]>();
+  for (const key of cache.cachedKeys()) {
+    const target = key.slice(0, 42);
+    let bucket = map.get(target);
+    if (!bucket) {
+      bucket = [];
+      map.set(target, bucket);
+    }
+    if (key.length > 42) {
+      bucket.push(BigInt('0x' + key.slice(42)));
+    }
+  }
+  return map;
 }

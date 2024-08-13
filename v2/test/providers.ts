@@ -1,10 +1,5 @@
 import type { Chain, ChainPair, Provider, ProviderPair } from '../src/types.js';
-import {
-  Network,
-  AlchemyProvider,
-  InfuraProvider,
-  JsonRpcProvider,
-} from 'ethers';
+import { ethers } from 'ethers';
 import {
   CHAIN_MAINNET,
   CHAIN_SEPOLIA,
@@ -12,40 +7,43 @@ import {
   CHAIN_OP_SEPOLIA,
   CHAIN_BASE,
   CHAIN_BASE_SEPOLIA,
-  CHAIN_ARB1,
   CHAIN_SCROLL,
   CHAIN_TAIKO,
   CHAIN_ZKSYNC,
   CHAIN_ZKSYNC_SEPOLIA,
   CHAIN_ZKEVM,
-  CHAIN_ZKEVM_CARDONA as CHAIN_ZKEVM_CARDONA,
+  CHAIN_ZKEVM_CARDONA,
+  CHAIN_ARB1,
   CHAIN_ARB_NOVA,
   CHAIN_ARB_SEPOLIA,
+  CHAIN_LINEA_SEPOLIA,
+  CHAIN_LINEA,
 } from '../src/chains.js';
 
 export function providerURL(chain: Chain): string {
-  let key = process.env.INFURA_KEY;
-  if (key) {
+  type ProviderClass = {
+    getRequest(network: ethers.Network, key: string): ethers.FetchRequest;
+  };
+  const ordering: [string, ProviderClass][] = [
+    ['INFURA_KEY', ethers.InfuraProvider],
+    ['ALCHEMY_KEY', ethers.AlchemyProvider],
+    ['ANKR_KEY', ethers.AnkrProvider],
+  ];
+  const network = ethers.Network.from(chain);
+  for (const [env, cls] of ordering) {
+    const key = process.env[env];
+    if (!key) continue;
     try {
-      return InfuraProvider.getRequest(Network.from(chain), key).url;
+      return cls.getRequest(network, key).url;
     } catch (err) {
       /*empty*/
     }
   }
-  key = process.env.ALCHEMY_KEY;
-  if (key) {
-    try {
-      return AlchemyProvider.getRequest(Network.from(chain), key).url;
-    } catch (err) {
-      //Unsupported chain errors will be caught e.g. 27/07/24 Alchemy does not support Scroll
-      //Will fall through to public RPC
-    }
-  }
-  // 20240713: might be better to use the ankr public rpcs, eg. https://eth.public-rpc.com/
   switch (chain) {
     case CHAIN_MAINNET:
       // https://developers.cloudflare.com/web3/ethereum-gateway/
       //return 'https://cloudflare-eth.com';
+      // 20240713: might be better to use the ankr public rpcs
       return `https://rpc.ankr.com/eth`;
     case CHAIN_SEPOLIA:
       return `https://rpc.ankr.com/eth_sepolia`;
@@ -82,16 +80,21 @@ export function providerURL(chain: Chain): string {
       return 'https://sepolia.era.zksync.dev';
     case CHAIN_ZKEVM:
       // https://docs.polygon.technology/zkEVM/get-started/quick-start/#manually-add-network-to-wallet
-      return 'https://zkevm.polygonscan.com/';
+      return 'https://zkevm.polygonscan.com';
     case CHAIN_ZKEVM_CARDONA:
       //return 'https://cardona-zkevm.polygonscan.com/';
-      return 'https://rpc.cardona.zkevm-rpc.com/';
+      return 'https://rpc.cardona.zkevm-rpc.com';
+    case CHAIN_LINEA:
+      // https://docs.linea.build/developers/quickstart/info-contracts
+      return 'https://rpc.linea.build';
+    case CHAIN_LINEA_SEPOLIA:
+      return 'https://rpc.sepolia.linea.build';
   }
   throw Object.assign(new Error('unknown provider'), { chain });
 }
 
 export function createProvider(chain: Chain): Provider {
-  return new JsonRpcProvider(providerURL(chain), chain, {
+  return new ethers.JsonRpcProvider(providerURL(chain), chain, {
     staticNetwork: true,
   });
 }

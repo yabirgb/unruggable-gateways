@@ -1,11 +1,4 @@
 import type { EncodedProof, HexString, Provider } from '../types.js';
-import type {
-  EthAccountProof,
-  EthProof,
-  EthStorageProof,
-  RPCEthGetBlock,
-  RPCEthGetProof,
-} from './types.js';
 import {
   AbstractProver,
   makeStorageKey,
@@ -14,23 +7,25 @@ import {
 } from '../vm.js';
 import { CachedMap } from '../cached.js';
 import { ethers } from 'ethers';
-import { ABI_CODER, NULL_CODE_HASH } from '../utils.js';
+import { ABI_CODER } from '../utils.js';
+import type { LineaProof, RPCLineaGetProof } from './types.js';
 
-function isContract(proof: EthAccountProof) {
+const NULL_CODE_HASH =
+  '0x0134373b65f439c874734ff51ea349327c140cde2e47a933146e6f9f2ad8eb17'; // mimc(ZeroHash)
+
+function isExistanceProof(proof: LineaProof) {
+  return 'leafIndex' in proof;
+}
+
+function isContract(accountProof: LineaProof) {
   return (
-    proof.codeHash !== NULL_CODE_HASH && proof.keccakCodeHash !== NULL_CODE_HASH
+    isExistanceProof(accountProof) &&
+    // https://github.com/Consensys/linea-monorepo/blob/a001342170768a22988a29b2dca8601199c6e205/contracts/contracts/lib/SparseMerkleProof.sol#L23
+    ethers.dataSlice(accountProof.proof.value, 128, 160) !== NULL_CODE_HASH
   );
 }
 
-function encodeProof(proof: EthProof): EncodedProof {
-  return ABI_CODER.encode(['bytes[]'], [proof]);
-}
-
-export class EVMProver extends AbstractProver {
-  static async latest(provider: Provider) {
-    const block = await provider.getBlockNumber();
-    return new this(provider, '0x' + block.toString(16));
-  }
+export class LineaProver extends AbstractProver {
   constructor(
     readonly provider: Provider,
     readonly block: HexString,
@@ -41,22 +36,11 @@ export class EVMProver extends AbstractProver {
   storageMap() {
     return storageMapFromCache(this.cache);
   }
-  async fetchStateRoot() {
-    // this is just a convenience
-    const block = (await this.provider.send('eth_getBlockByNumber', [
-      this.block,
-      false,
-    ])) as RPCEthGetBlock;
-    return block.stateRoot;
-  }
-  async fetchProofs(
-    target: HexString,
-    slots: bigint[] = []
-  ): Promise<RPCEthGetProof> {
-    const ps: Promise<RPCEthGetProof>[] = [];
+  async fetchProofs(target: HexString, slots: bigint[] = []) {
+    const ps: Promise<RPCLineaGetProof>[] = [];
     for (let i = 0; ; ) {
       ps.push(
-        this.provider.send('eth_getProof', [
+        this.provider.send('linea_getProof', [
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
@@ -68,101 +52,119 @@ export class EVMProver extends AbstractProver {
     }
     const vs = await Promise.all(ps);
     for (let i = 1; i < vs.length; i++) {
-      vs[0].storageProof.push(...vs[i].storageProof);
+      vs[0].storageProofs.push(...vs[i].storageProofs);
     }
     return vs[0];
   }
   async getProofs(
     target: HexString,
     slots: bigint[] = []
-  ): Promise<RPCEthGetProof> {
+  ): Promise<RPCLineaGetProof> {
     target = target.toLowerCase();
-    const missing: number[] = []; // indices of slots we dont have proofs for
-    const { promise, resolve, reject } = Promise.withResolvers(); // create a blocker
-    // 20240708: must setup blocks before await
-    let accountProof: Promise<EthAccountProof> | EthAccountProof | undefined =
+    // there are (3) cases:
+    // 1.) account doesn't exist
+    // 2.) account is EOA
+    // 3.) account is contract
+    const missing: number[] = [];
+    const { promise, resolve, reject } = Promise.withResolvers();
+    // check if we have an account proof
+    let accountProof: Promise<LineaProof> | LineaProof | undefined =
       this.cache.peek(target);
     if (!accountProof) {
       // missing account proof, so block it
       this.cache.set(
         target,
-        promise.then(() => accountProof) // block
+        promise.then(() => accountProof),
+        0
       );
     }
     // check if we're missing any slots
-    const storageProofs: (
-      | Promise<EthStorageProof>
-      | EthStorageProof
-      | undefined
-    )[] = slots.map((slot, i) => {
-      const key = makeStorageKey(target, slot);
-      const p = this.cache.peek(key);
-      if (!p) {
-        // missing storage proof, so block it
-        this.cache.set(
-          key,
-          promise.then(() => storageProofs[i])
-        );
-        missing.push(i);
-      }
-      return p;
-    });
+    const storageProofs: (Promise<LineaProof> | LineaProof | undefined)[] =
+      slots.map((slot, i) => {
+        const key = makeStorageKey(target, slot);
+        const p = this.cache.peek(key);
+        if (!p) {
+          // missing storage proof, so block it
+          this.cache.set(
+            key,
+            promise.then(() => storageProofs[i]),
+            0
+          );
+          missing.push(i);
+        }
+        return p;
+      });
     // check if we need something
     if (!accountProof || missing.length) {
       try {
-        const { storageProof: v, ...a } = await this.fetchProofs(
+        const { storageProofs: v, accountProof: a } = await this.fetchProofs(
           target,
           missing.map((x) => slots[x])
         );
-        // update cache
+        // update the blocked values
         accountProof = a;
         missing.forEach((x, i) => (storageProofs[x] = v[i]));
-        resolve(); // unblock
+        resolve();
+        // refresh all cache expirations
+        this.cache.set(target, a);
+        if (isContract(accountProof)) {
+          slots.forEach((slot, i) => {
+            this.cache.set(makeStorageKey(target, slot), storageProofs[i]);
+          });
+        }
       } catch (err) {
         reject(err);
-        throw err;
+        throw err; // must throw because accountProof is undefined
       }
     } else {
       accountProof = await accountProof;
     }
+    // nuke the proofs if we dont exist
+    if (!isContract(accountProof)) {
+      storageProofs.length = 0;
+    }
     // reassemble
     return {
-      storageProof: (await Promise.all(storageProofs)) as EthStorageProof[],
-      ...accountProof,
+      accountProof,
+      storageProofs: (await Promise.all(storageProofs)) as LineaProof[],
     };
   }
   override async getStorage(
     target: HexString,
     slot: bigint
   ): Promise<HexString> {
-    // check to see if we know this target isn't a contract without invoking provider
-    // this is almost equivalent to: await isContract(target)
-    const accountProof: EthAccountProof | undefined =
-      await this.cache.peek(target);
+    // check to see if we know this target isn't a contract
+    const accountProof: LineaProof | undefined = await this.cache.peek(target);
     if (accountProof && !isContract(accountProof)) {
       return ethers.ZeroHash;
     }
     // check to see if we've already have a proof for this value
     const storageKey = makeStorageKey(target, slot);
-    const storageProof: EthStorageProof | undefined = await (this.useFastCalls
-      ? this.cache.peek(storageKey)
-      : this.cache.get(storageKey, async () => {
-          const proofs = await this.getProofs(target, [slot]);
-          return proofs.storageProof[0];
-        }));
+    const storageProof: LineaProof | undefined =
+      await this.cache.peek(storageKey);
     if (storageProof) {
-      return ethers.toBeHex(storageProof.value, 32);
+      return isExistanceProof(storageProof)
+        ? storageProof.proof.value
+        : ethers.ZeroHash;
     }
     // we didn't have the proof
-    // lets just get the value for now and prove it later
-    return this.cache.get(
-      storageKey + '!',
-      () => this.provider.getStorage(target, slot),
-      this.fastCallCacheMs
-    );
+    if (this.useFastCalls) {
+      return this.cache.get(
+        storageKey + '!',
+        () => this.provider.getStorage(target, slot),
+        this.fastCallCacheMs
+      );
+    } else {
+      const proof = await this.getProofs(target, [slot]);
+      return isContract(proof.accountProof) &&
+        isExistanceProof(proof.storageProofs[0])
+        ? proof.storageProofs[0].proof.value
+        : ethers.ZeroHash;
+    }
   }
   override async isContract(target: HexString) {
-    return isContract(await this.getProofs(target, []));
+    const { accountProof } = await this.getProofs(target);
+    return isContract(accountProof);
   }
   override async prove(needs: Need[]) {
     // reduce an ordered list of needs into a deduplicated list of proofs
@@ -205,7 +207,7 @@ export class EVMProver extends AbstractProver {
       Array.from(targets, async ([target, bucket]) => {
         let m = [...bucket.map];
         try {
-          const accountProof: EthAccountProof | undefined =
+          const accountProof: LineaProof | undefined =
             await this.cache.cachedValue(target);
           if (accountProof && !isContract(accountProof)) {
             m = []; // if we know target isn't a contract, we only need accountProof
@@ -218,10 +220,9 @@ export class EVMProver extends AbstractProver {
           m.map(([slot]) => slot)
         );
         bucket.proof = encodeProof(proofs.accountProof);
-        if (isContract(proofs)) {
+        if (isContract(proofs.accountProof)) {
           m.forEach(
-            ([, ref], i) =>
-              (ref.proof = encodeProof(proofs.storageProof[i].proof))
+            ([, ref], i) => (ref.proof = encodeProof(proofs.storageProofs[i]))
           );
         }
       })
@@ -231,4 +232,26 @@ export class EVMProver extends AbstractProver {
       order: Uint8Array.from(order),
     };
   }
+}
+
+function encodeProof(proof: LineaProof) {
+  return ABI_CODER.encode(
+    ['tuple(uint256, bytes, bytes[])[]'],
+    [
+      isExistanceProof(proof)
+        ? [[proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes]]
+        : [
+            [
+              proof.leftLeafIndex,
+              proof.leftProof.value,
+              proof.leftProof.proofRelatedNodes,
+            ],
+            [
+              proof.rightLeafIndex,
+              proof.rightProof.value,
+              proof.rightProof.proofRelatedNodes,
+            ],
+          ],
+    ]
+  );
 }
