@@ -1,10 +1,10 @@
 import type { HexString, BigNumberish } from '../../src/types.js';
-import { EVMProver } from '../../src/vm.js';
+import { EVMProver } from '../../src/evm/prover.js';
 import {
   proveAccountState,
   proveStorageValue,
   NULL_TRIE_HASH,
-} from '../../src/merkle.js';
+} from '../../src/evm/merkle.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { afterAll, test, expect } from 'bun:test';

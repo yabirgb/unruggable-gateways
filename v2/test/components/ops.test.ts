@@ -36,7 +36,7 @@ describe('ops', async () => {
     const vm = await prover.evalRequest(req);
     const { proofs, order } = await prover.prove(vm.needs);
     const values = await vm.resolveOutputs();
-    const res = await verifier.verifyMerkle(
+    const res = await verifier.verify(
       [Uint8Array.from(req.ops), req.inputs],
       stateRoot,
       proofs,

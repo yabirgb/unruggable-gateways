@@ -1,5 +1,7 @@
-import { EVMProver, EVMRequest } from '../../../src/vm.js';
-import { CHAIN_BASE, createProvider } from '../../providers.js';
+import { EVMRequest } from '../../../src/vm.js';
+import { EVMProver } from '../../../src/evm/prover.js';
+import { createProvider } from '../../providers.js';
+import { CHAIN_BASE } from '../../../src/chains.js';
 import { AbiCoder, toUtf8String } from 'ethers';
 
 const coder = AbiCoder.defaultAbiCoder();

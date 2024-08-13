@@ -1,4 +1,4 @@
-import { EVMProver } from '../../src/vm.js';
+import { EVMProver } from '../../src/evm/prover.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { describe, afterAll, test, expect } from 'bun:test';
 

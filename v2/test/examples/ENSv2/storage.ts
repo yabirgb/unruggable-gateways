@@ -7,7 +7,8 @@ import {
   toUtf8String,
 } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
-import { EVMProver, EVMRequest } from '../../../src/vm.js';
+import { EVMRequest } from '../../../src/vm.js';
+import { EVMProver } from '../../../src/evm/prover.js';
 import { HexString } from '../../../src/types.js';
 
 const coder = AbiCoder.defaultAbiCoder();
