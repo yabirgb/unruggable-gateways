@@ -1,18 +1,15 @@
 import { Foundry } from '@adraffy/blocksmith';
-import { createProviderPair, providerURL } from '../providers';
-import { CHAIN_MAINNET } from '../../src/chains';
-import { LineaGateway } from '../../src/linea/LineaGateway';
+import { createProviderPair, providerURL } from '../providers.js';
+import { CHAIN_MAINNET } from '../../src/chains.js';
+import { LineaRollup } from '../../src/linea/LineaRollup.js';
 import { describe, test, expect, afterAll } from 'bun:test';
 import { ethers } from 'ethers';
 import { HexString } from '@resolverworks/ezccip';
 
 describe('linea prover', async () => {
-  const config = LineaGateway.mainnetConfig;
-  const gateway = new LineaGateway({
-    ...createProviderPair(config),
-    ...config,
-  });
-  const commit = await gateway.getLatestCommit();
+  const config = LineaRollup.mainnetConfig;
+  const gateway = new LineaRollup(createProviderPair(config), config);
+  const commit = await gateway.fetchLatestCommit();
 
   const foundry = await Foundry.launch({
     fork: providerURL(CHAIN_MAINNET),
@@ -27,14 +24,12 @@ describe('linea prover', async () => {
     },
   });
 
-  const stateRoot = await gateway.fetchStateRoot(commit.index);
-
   test('dne', async () => {
     const account = '0x0000000000000000000000000000000000001234';
     expect(commit.prover.isContract(account)).resolves.toBeFalse();
     const proof = await commit.prover.prove([[account, false]]);
     const storageRoot: HexString = await verifier.proveAccountState(
-      stateRoot,
+      commit.stateRoot,
       account,
       proof.proofs[0]
     );
@@ -46,7 +41,7 @@ describe('linea prover', async () => {
     expect(commit.prover.isContract(account)).resolves.toBeFalse();
     const proof = await commit.prover.prove([[account, false]]);
     const storageRoot: HexString = await verifier.proveAccountState(
-      stateRoot,
+      commit.stateRoot,
       account,
       proof.proofs[0]
     );
@@ -61,7 +56,7 @@ describe('linea prover', async () => {
       [account, 0n],
     ]);
     const storageRoot = await verifier.proveAccountState(
-      stateRoot,
+		commit.stateRoot,
       account,
       proof.proofs[0]
     );
