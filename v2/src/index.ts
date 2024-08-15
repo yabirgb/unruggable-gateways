@@ -6,8 +6,8 @@ export * from './rlp.js';
 export * from './vm.js';
 export * from './v1.js';
 
-export * from './evm/prover.js';
-export * from './evm/merkle.js';
+export * from './eth/EthProver.js';
+export * from './eth/merkle.js';
 
 export * from './AbstractGateway.js';
 export * from './op/index.js';

@@ -26,7 +26,7 @@ function encodeProof(proof: EthProof): EncodedProof {
   return ABI_CODER.encode(['bytes[]'], [proof]);
 }
 
-export class EVMProver extends AbstractProver {
+export class EthProver extends AbstractProver {
   static async latest(provider: Provider) {
     const block = await provider.getBlockNumber();
     return new this(provider, '0x' + block.toString(16));

@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
-import {MerkleTrieHelper} from "../eth/MerkleTrieHelper.sol";
+import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 
 interface ITaiko {
 	struct Config {
@@ -63,20 +63,20 @@ contract TaikoVerifier is OwnedVerifier {
 	// }
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
-		uint64 blockIdLatest = abi.decode(context, (uint64));
+		uint64 latestBlockId = abi.decode(context, (uint64));
 		(
 			uint64 blockId,
 			bytes32 parentHash, 
 			bytes[] memory proofs, 
 			bytes memory order
 		) = abi.decode(proof, (uint64, bytes32, bytes[], bytes));
-		_checkWindow(blockIdLatest, blockId);
-		ITaiko.TransitionState memory ts = _rollup.getTransition(blockId, parentHash);
+		_checkWindow(latestBlockId, blockId);
+		ITaiko.TransitionState memory ts = _rollup.getTransition(blockId, parentHash); // reverts if invalid
 		return EVMProver.evalRequest(req, ProofSequence(0, 
-			ts.stateRoot, 
-			proofs, order, 
-			MerkleTrieHelper.proveAccountState, 
-			MerkleTrieHelper.proveStorageValue
+			ts.stateRoot,
+			proofs, order,
+			EthTrieHooks.proveAccountState,
+			EthTrieHooks.proveStorageValue
 		));
 	}
 

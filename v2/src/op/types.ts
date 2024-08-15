@@ -31,6 +31,7 @@ export const GAME_ABI = new ethers.Interface([
   'function l2BlockNumber() external view returns (uint256)',
   'function status() external view returns (uint8)',
   'function rootClaim() external view returns (bytes32)',
+  'function startingRootHash() external view returns (bytes32)',
 ]);
 
 export const FACTORY_ABI = new ethers.Interface([

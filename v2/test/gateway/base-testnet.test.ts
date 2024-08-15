@@ -1,4 +1,5 @@
-import { OPFaultGateway } from '../../src/op/OPFaultGateway.js';
+import { OPFaultRollup } from '../../src/op/OPFaultRollup.js';
+import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
@@ -6,32 +7,31 @@ import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
 describe('base testnet', async () => {
-  const config = OPFaultGateway.baseTestnetConfig;
+  const config = OPFaultRollup.baseTestnetConfig;
+  const rollup = await OPFaultRollup.create(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const gateway = new OPFaultGateway({
-    ...createProviderPair(config),
-    ...config,
-  });
+  const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, {
     protocol: 'raw',
     port: 0,
     log: false,
   });
   afterAll(() => ccip.http.close());
+  const commit = await gateway.getLatestCommit();
   const helper = await foundry.deploy({
     file: 'OPFaultConstantHelper',
-    args: [await gateway.getLatestCommitIndex()],
+    args: [commit.index],
   });
   const verifier = await foundry.deploy({
     file: 'OPFaultVerifier',
     args: [
       [ccip.endpoint],
-      gateway.supportedWindow,
-      gateway.OptimismPortal,
+      config.suggestedWindow,
+      rollup.OptimismPortal,
       helper,
     ],
   });

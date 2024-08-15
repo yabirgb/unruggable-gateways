@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
-import {MerkleTrieHelper} from "../eth/MerkleTrieHelper.sol";
+import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 import "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol";
 
@@ -44,11 +44,11 @@ contract OPFaultVerifier is OwnedVerifier {
 		bytes32 computedRoot = Hashing.hashOutputRootProof(outputRootProof);
 		require(outputRoot == computedRoot, "OPFault: invalid root");
 		require(gameProxy.status() == GameStatus.DEFENDER_WINS, "OPFault: not finalized");
-		return EVMProver.evalRequest(req, ProofSequence(0, 
-			outputRootProof.stateRoot, 
-			proofs, order, 
-			MerkleTrieHelper.proveAccountState, 
-			MerkleTrieHelper.proveStorageValue
+		return EVMProver.evalRequest(req, ProofSequence(0,
+			outputRootProof.stateRoot,
+			proofs, order,
+			EthTrieHooks.proveAccountState,
+			EthTrieHooks.proveStorageValue
 		));
 	}
 

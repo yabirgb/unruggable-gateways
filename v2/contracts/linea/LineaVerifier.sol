@@ -3,9 +3,7 @@ pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
-import {LineaTrieCallbacks} from "./LineaTrieCallbacks.sol";
-
-import "forge-std/console2.sol";
+import {LineaTrieHooks} from "./LineaTrieHooks.sol";
 
 interface IRollup {
 	function currentL2BlockNumber() external view returns (uint256);
@@ -37,8 +35,8 @@ contract LineaVerifier is OwnedVerifier {
 		return EVMProver.evalRequest(req, ProofSequence(0, 
 			stateRoot, 
 			proofs, order, 
-			LineaTrieCallbacks.proveAccountState,
-			LineaTrieCallbacks.proveStorageValue
+			LineaTrieHooks.proveAccountState,
+			LineaTrieHooks.proveStorageValue
 		));
 	}
 

@@ -51,18 +51,25 @@ contract ZKSyncVerifier is OwnedVerifier {
 		_checkWindow(latestBatchIndex, batchInfo.batchNumber);
 		require(keccak256(encodedBatch) == _diamond.storedBatchHash(batchInfo.batchNumber), "ZKS: batchHash");
 		require(batchInfo.l2LogsTreeRoot == _diamond.l2LogsRootHash(batchInfo.batchNumber), "ZKS: l2LogsRootHash");
-		return EVMProver.evalRequest(req, ProofSequence(0, batchInfo.batchHash, proofs, order, proveAccountState, proveStorageValue));
+		return EVMProver.evalRequest(req, ProofSequence(0,
+			batchInfo.batchHash,
+			proofs, order,
+			proveAccountState,
+			proveStorageValue
+		));
 	}
 
-	function proveStorageValue(bytes32 root, address target, uint256 slot, bytes memory proof) internal view returns (uint256) {
-		return uint256(proveValue(root, target, slot, proof));
+	function proveStorageValue(bytes32 root, address target, uint256 slot, bytes memory proof) internal view returns (bytes32) {
+		return _proveValue(root, target, slot, proof);
 	}
 
 	function proveAccountState(bytes32 root, address target, bytes memory proof) internal view returns (bytes32) {
-		return proof.length > 0 && proveValue(root, ACCOUNT_CODEHASH, uint160(target), proof) == 0 ? NOT_A_CONTRACT : root;
+		// when no account proof is provided, we assume the target is a contract
+		// this is safe because zksync uses a single trie and there is no storage root
+		return proof.length > 0 && _proveValue(root, ACCOUNT_CODEHASH, uint160(target), proof) == 0 ? NOT_A_CONTRACT : root;
 	}
 
-	function proveValue(bytes32 root, address target, uint256 slot, bytes memory proof) internal view returns (bytes32) {
+	function _proveValue(bytes32 root, address target, uint256 slot, bytes memory proof) internal view returns (bytes32) {
 		uint256 g = gasleft();
 		(bytes32 value, uint64 leafIndex, bytes32[] memory path) = abi.decode(proof, (bytes32, uint64, bytes32[]));
 		require(root == _smt.getRootHash(path, TreeEntry(slot, value, leafIndex), target), "ZKS: proof");

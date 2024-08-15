@@ -20,6 +20,10 @@ library EVMProver {
 			console2.logBytes(vm.stack[i]);
 		}
 	}
+
+	function uint256FromBytes(bytes memory v) internal pure returns (uint256) {
+		return uint256(v.length < 32 ? bytes32(v) >> ((32 - v.length) << 3) : bytes32(v));
+	}
 	
 	// TODO this checks beyond bound
 	function isZeros(bytes memory v) internal pure returns (bool ret) {
@@ -98,7 +102,7 @@ library EVMProver {
 	function getStorage(Machine memory vm, uint256 slot) internal view returns (uint256) {
 		bytes memory proof = vm.readProof();
 		if (vm.storageRoot == NOT_A_CONTRACT) return 0;
-		return vm.proofs.proveStorageValue(vm.storageRoot, vm.target, slot, proof);
+		return uint256(vm.proofs.proveStorageValue(vm.storageRoot, vm.target, slot, proof));
 	}
 	function proveSlots(Machine memory vm, uint256 count) internal view returns (bytes memory v) {
 		v = new bytes(count << 5);
@@ -163,7 +167,7 @@ library EVMProver {
 		while (vm.pos < vm.buf.length) {
 			uint256 op = vm.readByte();
 			if (op == OP_TARGET) {
-				vm.target = address(uint160(ProofUtils.uint256FromBytes(vm.pop())));
+				vm.target = address(uint160(uint256FromBytes(vm.pop())));
 				vm.storageRoot = vm.proofs.proveAccountState(vm.proofs.stateRoot, vm.target, vm.readProof()); // TODO balance?
 				vm.slot = 0;
 			} else if (op == OP_SET_OUTPUT) {
@@ -193,7 +197,7 @@ library EVMProver {
 			} else if (op == OP_SLOT_ZERO) {
 				vm.slot = 0;
 			} else if (op == OP_SLOT_ADD) {
-				vm.slot += ProofUtils.uint256FromBytes(vm.pop());
+				vm.slot += uint256FromBytes(vm.pop());
 			} else if (op == OP_SLOT_FOLLOW) {
 				vm.slot = uint256(keccak256(abi.encodePacked(vm.pop(), vm.slot)));
 			} else if (op == OP_SLICE) {

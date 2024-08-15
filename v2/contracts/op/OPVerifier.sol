@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
-import {MerkleTrieHelper} from "../eth/MerkleTrieHelper.sol";
+import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 
 interface IL2OutputOracle {
@@ -23,15 +23,6 @@ contract OPVerifier is OwnedVerifier {
 		return abi.encode(_oracle.latestOutputIndex());
 	}
 
-	// function findDelayedOutputIndex(uint256 blocks) public view returns (uint256 outputIndex) {
-	// 	uint256 delayedTime = block.timestamp - 12 * blocks; // seconds
-	// 	for (outputIndex = _oracle.latestOutputIndex(); outputIndex > 0; --outputIndex) {
-	// 		if (_oracle.getL2Output(outputIndex).timestamp < delayedTime) {
-	// 			break;
-	// 		}
-	// 	}
-	// }
-
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 latestOutputIndex = abi.decode(context, (uint256));
 		(
@@ -47,8 +38,8 @@ contract OPVerifier is OwnedVerifier {
 		return EVMProver.evalRequest(req, ProofSequence(0, 
 			outputRootProof.stateRoot,
 			proofs, order,
-			MerkleTrieHelper.proveAccountState,
-			MerkleTrieHelper.proveStorageValue
+			EthTrieHooks.proveAccountState,
+			EthTrieHooks.proveStorageValue
 		));
 	}
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {EVMRequest, EVMProver, ProofSequence} from "../EVMProver.sol";
-import {ScrollTrieHelper, IPoseidon} from "./ScrollTrieHelper.sol";
+import {ScrollTrieHooks, IPoseidon} from "./ScrollTrieHooks.sol";
 
 contract ScrollSelfVerifier {
 
@@ -12,13 +12,20 @@ contract ScrollSelfVerifier {
 	}
 
 	function verify(EVMRequest memory req, bytes32 stateRoot, bytes[] memory proofs, bytes memory order) external view returns (bytes[] memory outputs, uint8 exitCode) {
-		return EVMProver.evalRequest(req, ProofSequence(0, stateRoot, proofs, order, verify_proveAccountState, verify_proveStorageValue));
+		return EVMProver.evalRequest(req, ProofSequence(0, 
+			stateRoot,
+			proofs, order,
+			proveAccountState,
+			proveStorageValue
+		));
 	}
-	function verify_proveAccountState(bytes32 stateRoot, address target, bytes memory proof) internal view returns (bytes32) {
-		return ScrollTrieHelper.proveAccountState(_poseidon, stateRoot, target, abi.decode(proof, (bytes[])));
+
+	function proveAccountState(bytes32 stateRoot, address target, bytes memory proof) internal view returns (bytes32) {
+		return ScrollTrieHooks.proveAccountState(_poseidon, stateRoot, target, abi.decode(proof, (bytes[])));
 	}
-	function verify_proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) internal view returns (uint256) {
-		return uint256(ScrollTrieHelper.proveStorageValue(_poseidon, storageRoot, slot, abi.decode(proof, (bytes[]))));
+
+	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) internal view returns (bytes32) {
+		return ScrollTrieHooks.proveStorageValue(_poseidon, storageRoot, slot, abi.decode(proof, (bytes[])));
 	}
 
 }

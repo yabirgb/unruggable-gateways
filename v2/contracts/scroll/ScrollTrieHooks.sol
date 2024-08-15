@@ -12,12 +12,11 @@ import {NOT_A_CONTRACT, NULL_CODE_HASH} from "../ProofUtils.sol";
 
 error InvalidProof();
 
-//import "forge-std/console2.sol";
 interface IPoseidon {
 	function poseidon(uint256[2] memory, uint256) external view returns (bytes32);
 }
 
-library ScrollTrieHelper {
+library ScrollTrieHooks {
 	
 	// 20240622
 	// we no longer care (verify or require) about the magic bytes, as it doesn't do anything

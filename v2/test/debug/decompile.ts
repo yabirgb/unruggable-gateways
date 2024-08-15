@@ -12,7 +12,7 @@ for (const action of ProgramReader.fromProgram(req).readActions()) {
   const { pos, op, name, ...a } = action;
   console.log(
     pos.toString().padStart(3),
-    //op.toString().padStart(3),
+    op.toString().padStart(3),
     name,
     `[${Object.entries(a)
       .map(([k, v]) => `${k}:${v}`)

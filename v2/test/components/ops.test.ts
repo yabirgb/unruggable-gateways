@@ -1,6 +1,6 @@
 import type { BigNumberish } from '../../src/types.js';
 import { EVMRequest, solidityFollowSlot } from '../../src/vm.js';
-import { EVMProver } from '../../src/evm/prover.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { test, afterAll, expect, describe } from 'bun:test';
@@ -31,12 +31,12 @@ describe('ops', async () => {
   });
 
   async function verify(req: EVMRequest) {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     const stateRoot = await prover.fetchStateRoot();
     const vm = await prover.evalRequest(req);
     const { proofs, order } = await prover.prove(vm.needs);
     const values = await vm.resolveOutputs();
-    const res = await verifier.verifyMerkle(
+    const res = await verifier.verify(
       [Uint8Array.from(req.ops), req.inputs],
       stateRoot,
       proofs,

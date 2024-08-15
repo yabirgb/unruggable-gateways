@@ -1,4 +1,4 @@
-import type { RPCEthGetBlock } from './evm/types.js';
+import type { RPCEthGetBlock } from './eth/types.js';
 import type { Provider } from './types.js';
 import { ethers } from 'ethers';
 

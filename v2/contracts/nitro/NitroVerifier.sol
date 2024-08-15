@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
 import {EVMProver, ProofSequence} from "../EVMProver.sol";
-import {MerkleTrieHelper} from "../eth/MerkleTrieHelper.sol";
+import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 import {Node, IRollupCore} from "@arbitrum/nitro-contracts/src/rollup/IRollupCore.sol";
 
@@ -32,18 +32,14 @@ contract NitroVerifier is OwnedVerifier {
 		Node memory node = _rollup.getNode(nodeNum);
  		bytes32 confirmData = keccak256(abi.encodePacked(keccak256(rlpEncodedBlock), sendRoot));
 		require(confirmData == node.confirmData, "Nitro: confirmData");
-		bytes32 stateRoot = getStateRootFromBlock(rlpEncodedBlock);
-		return EVMProver.evalRequest(req, ProofSequence(0, 
-			stateRoot, 
-			proofs, order, 
-			MerkleTrieHelper.proveAccountState, 
-			MerkleTrieHelper.proveStorageValue
-		));
-	}
-
-	function getStateRootFromBlock(bytes memory rlpEncodedBlock) internal pure returns (bytes32) {
 		RLPReader.RLPItem[] memory v = RLPReader.readList(rlpEncodedBlock);
-		return bytes32(RLPReader.readBytes(v[3]));
+		bytes32 stateRoot =bytes32(RLPReader.readBytes(v[3])); // see: rlp.ts: encodeRlpBlock()
+		return EVMProver.evalRequest(req, ProofSequence(0,
+			stateRoot,
+			proofs, order,
+			EthTrieHooks.proveAccountState,
+			EthTrieHooks.proveStorageValue
+		));
 	}
 
 }

@@ -1,10 +1,10 @@
 import type { HexString, BigNumberish } from '../../src/types.js';
-import { EVMProver } from '../../src/vm.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import {
   proveAccountState,
   proveStorageValue,
   NULL_TRIE_HASH,
-} from '../../src/merkle.js';
+} from '../../src/eth/merkle.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { afterAll, test, expect } from 'bun:test';
@@ -16,7 +16,7 @@ async function setup() {
   return {
     foundry,
     async prover() {
-      const prover = await EVMProver.latest(foundry.provider);
+      const prover = await EthProver.latest(foundry.provider);
       const stateRoot = await prover.fetchStateRoot();
       return {
         async assertDoesNotExist(target: HexString) {
