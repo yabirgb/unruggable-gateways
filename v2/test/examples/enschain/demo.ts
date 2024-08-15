@@ -4,7 +4,8 @@ import {
   type WalletLike,
   type DeployedContract,
 } from '@adraffy/blocksmith';
-import { EVMProver, EVMRequest } from '../../../src/vm.js';
+import { EVMRequest } from '../../../src/vm.js';
+import { EVMProver } from '../../../src/evm/prover.js';
 import { HexString } from '../../../src/types.js';
 
 const foundry = await Foundry.launch({ infoLog: true, procLog: false });
