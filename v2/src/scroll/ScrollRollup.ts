@@ -56,7 +56,7 @@ export class ScrollRollup extends AbstractRollup<EthProver, ScrollCommit> {
     readonly commitmentVerifier: ethers.Contract,
     readonly rollup: ethers.Contract,
     readonly apiURL: string,
-    readonly commitStep: bigint
+    override readonly commitStep: bigint
   ) {
     super(providers);
   }

@@ -62,7 +62,7 @@ export class TaikoRollup extends AbstractRollupNoV1<EthProver, TaikoCommit> {
   private constructor(
     providers: ProviderPair,
     readonly TaikoL1: ethers.Contract,
-    readonly commitStep: bigint
+    override readonly commitStep: bigint
   ) {
     super(providers);
   }

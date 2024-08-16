@@ -21,7 +21,7 @@ export abstract class AbstractRollup<
   C extends RollupCommit<P>,
 > {
   commitCacheSize = 10000;
-  commitStep = 1;
+  commitStep = 1n;
   constructor(readonly providers: ProviderPair) {}
   async fetchLatestCommit() {
     return this.fetchCommit(await this.fetchLatestCommitIndex());
