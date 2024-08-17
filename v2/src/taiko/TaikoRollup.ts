@@ -80,11 +80,12 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     return res.blockId;
   }
   override async fetchParentCommitIndex(commit: TaikoCommit): Promise<bigint> {
-    if (this.commitStep == 1n) return commit.index - 1n;
-    if (commit.index < this.commitStep) return 0n; // genesis is not aligned
-    // remove any unaligned remainder (see above)
-    const rem = (commit.index + 1n) % this.commitStep;
-    if (rem) return commit.index - rem;
+    if (this.commitStep > 1) {
+      if (commit.index < this.commitStep) return 0n; // genesis is not aligned
+      // remove any unaligned remainder (see above)
+      const rem = (commit.index + 1n) % this.commitStep;
+      if (rem) return commit.index - rem;
+    }
     return commit.index - this.commitStep;
   }
   override async fetchCommit(index: bigint): Promise<TaikoCommit> {

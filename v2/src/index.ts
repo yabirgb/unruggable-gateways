@@ -3,6 +3,7 @@ export * from './wrap.js';
 export * from './cached.js';
 export * from './vm.js';
 export * from './v1.js';
+export * from './chains.js';
 
 export * from './chains.js';
 export * from './rlp.js';
