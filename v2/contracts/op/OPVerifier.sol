@@ -24,15 +24,17 @@ contract OPVerifier is OwnedVerifier {
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
-		uint256 latestOutputIndex = abi.decode(context, (uint256));
+		uint256 outputIndex1 = abi.decode(context, (uint256));
 		(
 			uint256 outputIndex,
 			Types.OutputRootProof memory outputRootProof,
 			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (uint256, Types.OutputRootProof, bytes[], bytes));
-		_checkWindow(latestOutputIndex, outputIndex);
+		//_checkWindow(outputIndex1, outputIndex);
 		Types.OutputProposal memory output = _oracle.getL2Output(outputIndex);
+		Types.OutputProposal memory output1 = _oracle.getL2Output(outputIndex1);
+		_checkWindow(output1.timestamp, output.timestamp);
 		bytes32 computedRoot = Hashing.hashOutputRootProof(outputRootProof);
 		require(computedRoot == output.outputRoot, "OP: invalid root");
 		return EVMProver.evalRequest(req, ProofSequence(0, 

@@ -23,8 +23,6 @@ export type OPFaultConfig = {
   OPFaultHelper: HexAddress;
 };
 
-const suggestedWindow = 5; // unit is games
-
 export class OPFaultRollup extends AbstractOPRollup {
   static readonly mainnetConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAIN_MAINNET,
@@ -33,7 +31,6 @@ export class OPFaultRollup extends AbstractOPRollup {
     OptimismPortal: '0xbEb5Fc579115071764c7423A4f12eDde41f106Ed',
     // https://etherscan.io/address/0x6CbF8cd866a0FAE64b9C2B007D3D47c4E1B809fF
     OPFaultHelper: '0x6CbF8cd866a0FAE64b9C2B007D3D47c4E1B809fF',
-    suggestedWindow,
   } as const;
   static readonly baseTestnetConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAIN_SEPOLIA,
@@ -42,14 +39,13 @@ export class OPFaultRollup extends AbstractOPRollup {
     OptimismPortal: '0x49f53e41452C74589E85cA1677426Ba426459e85',
     // https://sepolia.etherscan.io/address/0x5e43AB3442355fF1c045E5ECCB78e68e5838e219
     OPFaultHelper: '0x5e43AB3442355fF1c045E5ECCB78e68e5838e219',
-    suggestedWindow,
   } as const;
+
   static async create(providers: ProviderPair, config: OPFaultConfig) {
-    const { provider1 } = providers;
     const optimismPortal = new ethers.Contract(
       config.OptimismPortal,
       PORTAL_ABI,
-      provider1
+      providers.provider1
     );
     const [disputeGameFactoryAddress, respectedGameType] = await Promise.all([
       optimismPortal.disputeGameFactory(),
@@ -58,34 +54,42 @@ export class OPFaultRollup extends AbstractOPRollup {
     const disputeGameFactory = new ethers.Contract(
       disputeGameFactoryAddress,
       FACTORY_ABI,
-      provider1
+      providers.provider1
     );
     const gameAddress = await disputeGameFactory.gameImpls(respectedGameType);
     const gameImpl = new ethers.Contract(
       gameAddress,
       FAULT_GAME_ABI,
-      provider1
+      providers.provider1
     );
     const anchorRegistryAddress = await gameImpl.anchorStateRegistry();
     const anchorRegistry = new ethers.Contract(
       anchorRegistryAddress,
       ANCHOR_REGISTRY_ABI,
-      provider1
+      providers.provider1
     );
     const gameFinder = new OPFaultGameFinder(
       disputeGameFactory,
       respectedGameType
     );
-    return new this(providers, optimismPortal, gameFinder, anchorRegistry);
+    return new this(
+      providers,
+      optimismPortal,
+      gameFinder,
+      anchorRegistry,
+      gameImpl
+    );
   }
-  constructor(
+  private constructor(
     providers: ProviderPair,
     readonly OptimismPortal: ethers.Contract,
     readonly gameFinder: OPFaultGameFinder,
-    readonly anchorRegistry: ethers.Contract
+    readonly anchorRegistry: ethers.Contract,
+    readonly gameImpl: ethers.Contract
   ) {
     super(providers);
   }
+
   override async fetchLatestCommitIndex() {
     const { rootClaim } = await this.anchorRegistry.anchors(
       this.gameFinder.respectedGameType,
@@ -104,7 +108,7 @@ export class OPFaultRollup extends AbstractOPRollup {
       const disputeGame = new ethers.Contract(
         game.gameProxy,
         GAME_ABI,
-        this.providers.provider1
+        this.provider1
       );
       const status = await disputeGame.status();
       if (status == DEFENDER_WINS) break;
@@ -120,7 +124,7 @@ export class OPFaultRollup extends AbstractOPRollup {
     const disputeGame = new ethers.Contract(
       gameProxy,
       GAME_ABI,
-      this.providers.provider1
+      this.provider1
     );
     const [blockNumber, status] = await Promise.all([
       disputeGame.l2BlockNumber() as Promise<bigint>,
@@ -130,5 +134,11 @@ export class OPFaultRollup extends AbstractOPRollup {
       throw new Error(`Game(${index}) is not finalized: GameStatus(${status})`);
     }
     return this.createCommit(index, '0x' + blockNumber.toString(16));
+  }
+
+  override windowFromSec(sec: number): number {
+    // finalization time is on-chain
+    // https://github.com/ethereum-optimism/optimism/blob/a81de910dc2fd9b2f67ee946466f2de70d62611a/packages/contracts-bedrock/src/dispute/FaultDisputeGame.sol#L590
+    return sec;
   }
 }

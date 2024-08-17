@@ -12,11 +12,12 @@ import {
   type Need,
   type ProofSequence,
 } from '../vm.js';
-import { CachedMap } from '../cached.js';
 import { ethers } from 'ethers';
+import { CachedMap } from '../cached.js';
 import { ABI_CODER } from '../utils.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
+// https://github.com/matter-labs/era-contracts/blob/fd4aebcfe8833b26e096e87e142a5e7e4744f3fa/system-contracts/bootloader/bootloader.yul#L458
 export const ZKSYNC_ACCOUNT_CODEHASH =
   '0x0000000000000000000000000000000000008002';
 
@@ -31,12 +32,12 @@ export class ZKSyncProver extends AbstractProver {
   static async latest(provider: Provider) {
     return new this(
       provider,
-      parseInt(await provider.send('zks_L1BatchNumber', []))
+      Number(await provider.send('zks_L1BatchNumber', []))
     );
   }
   constructor(
     readonly provider: Provider,
-    readonly batchNumber: number,
+    readonly batchIndex: number,
     readonly cache: CachedMap<string, any> = new CachedMap()
   ) {
     super();
@@ -150,6 +151,7 @@ export class ZKSyncProver extends AbstractProver {
         resolve();
       } catch (err) {
         reject(err);
+        throw err;
       }
     }
     return Promise.all(storageProofs) as Promise<ZKSyncStorageProof[]>;
@@ -166,7 +168,7 @@ export class ZKSyncProver extends AbstractProver {
           slots
             .slice(i, (i += this.proofBatchSize))
             .map((slot) => ethers.toBeHex(slot, 32)),
-          this.batchNumber,
+          this.batchIndex,
         ])
       );
     }

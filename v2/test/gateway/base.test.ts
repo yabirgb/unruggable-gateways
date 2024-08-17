@@ -23,7 +23,7 @@ describe('base', async () => {
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'OPVerifier',
-    args: [[ccip.endpoint], config.suggestedWindow, rollup.L2OutputOracle],
+    args: [[ccip.endpoint], rollup.defaultWindow, rollup.L2OutputOracle],
   });
   // https://basescan.org/address/0x0C49361E151BC79899A9DD31B8B0CCdE4F6fd2f6
   const reader = await foundry.deploy({

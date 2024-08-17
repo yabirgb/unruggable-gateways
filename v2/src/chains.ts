@@ -18,6 +18,7 @@ export const CHAIN_ARB_NOVA: Chain = 42170n;
 export const CHAIN_ARB_SEPOLIA: Chain = 421614n;
 export const CHAIN_TAIKO: Chain = 167000n;
 export const CHAIN_SCROLL: Chain = 534352n;
+export const CHAIN_SCROLL_SEPOLIA: Chain = 534351n;
 export const CHAIN_ZKEVM: Chain = 1101n;
 export const CHAIN_ZKEVM_CARDONA: Chain = 2442n;
 export const CHAIN_LINEA: Chain = 59144n;
@@ -34,6 +35,7 @@ function registerNetworkName(chain: Chain, name: string) {
 }
 
 registerNetworkName(CHAIN_SCROLL, 'scroll');
+registerNetworkName(CHAIN_SCROLL_SEPOLIA, 'scroll-sepolia');
 registerNetworkName(CHAIN_TAIKO, 'taiko');
 registerNetworkName(CHAIN_ZKSYNC, 'zksync');
 registerNetworkName(CHAIN_ZKSYNC_SEPOLIA, 'zksync-sepolia');

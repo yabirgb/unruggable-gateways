@@ -43,11 +43,11 @@ export class EthProver extends AbstractProver {
   }
   async fetchStateRoot() {
     // this is just a convenience
-    const block = (await this.provider.send('eth_getBlockByNumber', [
-      this.block,
-      false,
-    ])) as RPCEthGetBlock;
-    return block.stateRoot;
+    const blockInfo: RPCEthGetBlock = await this.provider.send(
+      'eth_getBlockByNumber',
+      [this.block, false]
+    );
+    return blockInfo.stateRoot;
   }
   async fetchProofs(
     target: HexString,

@@ -31,15 +31,18 @@ contract OPFaultVerifier is OwnedVerifier {
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
-		uint256 latestGameIndex = abi.decode(context, (uint256));
+		uint256 gameIndex1 = abi.decode(context, (uint256));
 		(
 			uint256 gameIndex,
 			Types.OutputRootProof memory outputRootProof, 
 			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (uint256, Types.OutputRootProof, bytes[], bytes));
-		_checkWindow(latestGameIndex, gameIndex);
-		(, , IDisputeGame gameProxy) = _portal.disputeGameFactory().gameAtIndex(gameIndex);
+		//_checkWindow(gameIndex1, gameIndex);
+		IDisputeGameFactory factory = _portal.disputeGameFactory();
+		(, , IDisputeGame gameProxy) = factory.gameAtIndex(gameIndex);
+		(, , IDisputeGame gameProxy1) = factory.gameAtIndex(gameIndex1);
+		_checkWindow(gameProxy1.resolvedAt().raw(), gameProxy.resolvedAt().raw());
 		bytes32 outputRoot = gameProxy.rootClaim().raw();
 		bytes32 computedRoot = Hashing.hashOutputRootProof(outputRootProof);
 		require(outputRoot == computedRoot, "OPFault: invalid root");

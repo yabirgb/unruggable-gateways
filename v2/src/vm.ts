@@ -4,6 +4,7 @@ import type {
   BigNumberish,
   EncodedProof,
   HexAddress,
+  Provider,
 } from './types.js';
 import { ethers } from 'ethers';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';

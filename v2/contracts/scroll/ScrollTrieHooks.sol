@@ -59,7 +59,6 @@ library ScrollTrieHooks {
 		} else if (nodeType == 5) {
 			if (leaf.length != 1) revert InvalidProof();
 			if (leafHash != 0) revert InvalidProof(); // InvalidStorageEmptyLeafNodeHash
-			return 0;
 		}
 	}
 

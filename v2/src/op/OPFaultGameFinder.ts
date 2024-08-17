@@ -60,7 +60,7 @@ export class OPFaultGameFinder {
     return this.finalizedMap.get(rootClaim, async (rootClaim) => {
       await this.searchGuard.get();
       const bucket = this.claimMap.get(rootClaim);
-      if (!bucket) throw new Error('unknown claim');
+      if (!bucket) throw new Error(`unknown claim: ${rootClaim}`);
       const v = await Promise.all(
         bucket.map((game) =>
           new ethers.Contract(

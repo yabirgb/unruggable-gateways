@@ -23,7 +23,7 @@ describe('taiko', async () => {
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'TaikoVerifier',
-    args: [[ccip.endpoint], config.suggestedWindow, rollup.TaikoL1],
+    args: [[ccip.endpoint], rollup.defaultWindow, rollup.TaikoL1],
   });
   // https://taikoscan.io/address/0xAF7f1Fa8D5DF0D9316394433E841321160408565#code
   const reader = await foundry.deploy({

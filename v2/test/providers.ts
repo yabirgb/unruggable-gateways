@@ -18,6 +18,7 @@ import {
   CHAIN_ARB_SEPOLIA,
   CHAIN_LINEA_SEPOLIA,
   CHAIN_LINEA,
+  CHAIN_SCROLL_SEPOLIA,
 } from '../src/chains.js';
 
 export function providerURL(chain: Chain): string {
@@ -68,7 +69,10 @@ export function providerURL(chain: Chain): string {
       return 'https://sepolia-rollup.arbitrum.io/rpc';
     case CHAIN_SCROLL:
       // https://docs.scroll.io/en/developers/developer-quickstart/#scroll-mainnet
-      return 'https://rpc.scroll.io/';
+      return 'https://rpc.scroll.io';
+    case CHAIN_SCROLL_SEPOLIA:
+      // https://docs.scroll.io/en/developers/developer-quickstart/#scroll-sepolia-testnet
+      return 'https://sepolia-rpc.scroll.io';
     case CHAIN_TAIKO:
       // https://docs.taiko.xyz/network-reference/rpc-configuration#taiko-mainnet
       return 'https://rpc.mainnet.taiko.xyz';

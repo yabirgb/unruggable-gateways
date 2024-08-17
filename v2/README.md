@@ -28,13 +28,26 @@ forge install ensdomains/enschain
 # forge install taikoxyz/taiko-mono # using inline headers instead
 ```
 
+## Support
+* Provers
+	* [EthProver](./src/eth//EthProver.ts) &rarr; `eth_getProof`
+	* [LineaProver](./src/linea/LineaProver.ts) &rarr; `linea_getProof`
+	* [ZKSyncProver](./src/zksync/ZKSyncProver.ts) &rarr; `zks_getProof`
+* Rollups: 
+	* [OP](./src/op/OPRollup.ts) &mdash; Base Mainnet
+	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; OP Mainnet, Base Testnet
+	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
+	* [Scroll](./src/scroll/ScrollRollup.ts)
+	* [Taiko](./src/taiko/TaikoRollup.ts)
+	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
+
 ## Test
 
 * `bun run test`
 	* `bun run test-components`
 		* [Supported Operations](./test/components/ops.test.ts)
 		* [Protocol Limits](./test/components/limits.test.ts)
-		* [Batched eth_getProof](./test/components/proofs.test.ts)
+		* [Batched `eth_getProof`](./test/components/proofs.test.ts)
 	* `bun run test-gateways`
 		* [Contract](./test/gateway/SlotDataContract.sol) &rarr; [Reader](./test/gateway/SlotDataReader.sol) &rarr; [Tests](./test/gateway/tests.ts)
 		* ⚠️ Scroll fails [`readZero()`](./test/gateway/tests.ts#L26) test
@@ -55,5 +68,5 @@ forge install ensdomains/enschain
 ## Serve
 
 * `bun run serve <chain> [port]`
-	* Supported chains: `base op arb1 scroll taiko utaiko`
+	* Supported chains: `base op arb1 scroll taiko zksync`
 	* Default port: `8000`

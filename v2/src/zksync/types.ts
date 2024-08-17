@@ -113,8 +113,8 @@ export type ABIZKSyncCommitBatchInfo = {
 export const DIAMOND_ABI = new ethers.Interface([
   `function storedBatchHash(uint256 batchNumber) view returns (bytes32)`,
   `function l2LogsRootHash(uint256 batchNumber) external view returns (bytes32)`,
-  'function getTotalBatchesCommitted() view returns (uint256)',
-  `function getTotalBatchesVerified() view returns (uint256)`,
+  //`function getTotalBatchesCommitted() view returns (uint256)`,
+  //`function getTotalBatchesVerified() view returns (uint256)`,
   `function getTotalBatchesExecuted() view returns (uint256)`,
   `function commitBatchesSharedBridge(
     uint256 chainId,

@@ -1,18 +1,27 @@
 import type { AbstractProver } from './vm.js';
-import type { RollupCommit, AbstractRollup } from './rollup.js';
+import {
+  type RollupCommit,
+  type AbstractRollup,
+  AbstractRollupV1,
+} from './rollup.js';
 import { ethers } from 'ethers';
 import { CachedMap, CachedValue } from './cached.js';
 import { ABI_CODER } from './utils.js';
 import { EVMRequestV1 } from './v1.js';
 import { EZCCIP } from '@resolverworks/ezccip';
 
+export const GATEWAY_ABI = new ethers.Interface([
+  `function proveRequest(bytes context, tuple(bytes ops, bytes[] inputs)) returns (bytes)`,
+  `function getStorageSlots(address target, bytes32[] commands, bytes[] constants) returns (bytes)`,
+]);
+
 export class Gateway<
   P extends AbstractProver,
   C extends RollupCommit<P>,
-  R extends AbstractRollup<P, C>,
+  R extends AbstractRollup<C>,
 > extends EZCCIP {
   commitDepth = 3;
-  oldCacheMs = -1;
+  enableHistorical = false;
   private readonly latestCache = new CachedValue(
     () => this.rollup.fetchLatestCommitIndex(),
     60000
@@ -22,9 +31,8 @@ export class Gateway<
   readonly callCacheMap = new CachedMap<string, Uint8Array>(Infinity, 1000);
   constructor(readonly rollup: R) {
     super();
-    this.register(
-      `function proveRequest(bytes context, tuple(bytes ops, bytes[] inputs)) returns (bytes)`,
-      async ([ctx, { ops, inputs }], _context, history) => {
+    this.register(GATEWAY_ABI, {
+      proveRequest: async ([ctx, { ops, inputs }], _context, history) => {
         const commit = await this.getCommit(BigInt(ctx));
         const hash = ethers.solidityPackedKeccak256(
           ['uint256', 'bytes', 'bytes[]'],
@@ -38,27 +46,33 @@ export class Gateway<
             this.rollup.encodeWitness(commit, proofs, order)
           );
         });
-      }
-    );
-    this.register(
-      `function getStorageSlots(address target, bytes32[] commands, bytes[] constants) returns (bytes)`,
-      async ([target, commands, constants], context, history) => {
-        const commit = await this.getLatestCommit();
-        const hash = ethers.id(`${commit.index}:${context.calldata}`);
-        history.show = [commit.index, hash];
-        return this.callCacheMap.get(hash, async () => {
-          const req = new EVMRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
-          const state = await commit.prover.evalRequest(req);
-          const { proofs, order } = await commit.prover.prove(state.needs);
-          const witness = this.rollup.encodeWitnessV1(
-            commit,
-            proofs[order[0]],
-            Array.from(order.subarray(1), (i) => proofs[i])
-          );
-          return ethers.getBytes(ABI_CODER.encode(['bytes'], [witness]));
-        });
-      }
-    );
+      },
+    });
+    if (rollup instanceof AbstractRollupV1) {
+      const rollupV1 = rollup; // 20240815: tsc bug https://github.com/microsoft/TypeScript/issues/30625
+      this.register(GATEWAY_ABI, {
+        getStorageSlots: async (
+          [target, commands, constants],
+          context,
+          history
+        ) => {
+          const commit = await this.getLatestCommit();
+          const hash = ethers.id(`${commit.index}:${context.calldata}`);
+          history.show = [commit.index, hash];
+          return this.callCacheMap.get(hash, async () => {
+            const req = new EVMRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
+            const state = await commit.prover.evalRequest(req);
+            const { proofs, order } = await commit.prover.prove(state.needs);
+            const witness = rollupV1.encodeWitnessV1(
+              commit,
+              proofs[order[0]],
+              Array.from(order.subarray(1), (i) => proofs[i])
+            );
+            return ethers.getBytes(ABI_CODER.encode(['bytes'], [witness]));
+          });
+        },
+      });
+    }
   }
   async getLatestCommit() {
     const prev = await this.latestCache.value;
@@ -82,11 +96,11 @@ export class Gateway<
       const prevIndex = await this.cachedParentCommitIndex(commit);
       commit = await this.cachedCommit(prevIndex);
     }
-    if (this.oldCacheMs >= 0) {
+    if (this.enableHistorical) {
       return this.commitCacheMap.get(
         index,
         (i) => this.rollup.fetchCommit(i),
-        this.oldCacheMs
+        0 // dont cache it
       );
     }
     throw new Error(`too old: ${index}`);

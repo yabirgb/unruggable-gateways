@@ -14,8 +14,8 @@ export class OPRollup extends AbstractOPRollup {
     chain1: CHAIN_MAINNET,
     chain2: CHAIN_BASE,
     L2OutputOracle: '0x56315b90c40730925ec5485cf004d835058518A0',
-    suggestedWindow: 5,
   } as const;
+
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {
     super(providers);
@@ -25,6 +25,7 @@ export class OPRollup extends AbstractOPRollup {
       providers.provider1
     );
   }
+
   override async fetchLatestCommitIndex(): Promise<bigint> {
     return this.L2OutputOracle.latestOutputIndex({ blockTag: 'finalized' });
   }
@@ -35,5 +36,11 @@ export class OPRollup extends AbstractOPRollup {
     const output: ABIOutputProposal =
       await this.L2OutputOracle.getL2Output(index);
     return this.createCommit(index, '0x' + output.l2BlockNumber.toString(16));
+  }
+
+  override windowFromSec(sec: number): number {
+    // finalization time is on-chain
+    // https://github.com/ethereum-optimism/optimism/blob/a81de910dc2fd9b2f67ee946466f2de70d62611a/packages/contracts-bedrock/src/L1/L2OutputOracle.sol#L231
+    return sec;
   }
 }

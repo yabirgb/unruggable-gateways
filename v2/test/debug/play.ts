@@ -1,5 +1,6 @@
 import { EVMRequestV1 } from '../../src/v1.js';
-import { EVMProver, EVMRequest } from '../../src/vm.js';
+import { EVMRequest } from '../../src/vm.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 //import {Foundry} from '@adraffy/blocksmith';
 //import {ethers} from 'ethers';
 import { createProvider } from '../providers.js';
@@ -8,7 +9,7 @@ import { createProvider } from '../providers.js';
 
 //let foundry = await Foundry.launch({infoLog: false});
 
-const prover = await EVMProver.latest(createProvider(1));
+const prover = await EthProver.latest(createProvider(1));
 
 const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 

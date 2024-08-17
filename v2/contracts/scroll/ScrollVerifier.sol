@@ -51,7 +51,7 @@ contract ScrollVerifier is OwnedVerifier {
 		return ScrollTrieHooks.proveAccountState(_commitmentVerifier.poseidon(), stateRoot, target, abi.decode(proof, (bytes[])));
 	}
 
-	function proveStorageValue(bytes32 storageRoot, address target, uint256 slot, bytes memory proof) internal view returns (bytes32) {
+	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) internal view returns (bytes32) {
 		return ScrollTrieHooks.proveStorageValue(_commitmentVerifier.poseidon(), storageRoot, slot, abi.decode(proof, (bytes[])));
 	}
 

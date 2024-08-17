@@ -23,7 +23,7 @@ describe('linea', async () => {
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'LineaVerifier',
-    args: [[ccip.endpoint], config.suggestedWindow, rollup.L1MessageService],
+    args: [[ccip.endpoint], rollup.defaultWindow, rollup.L1MessageService],
     libs: {
       SparseMerkleProof: config.SparseMerkleProof,
     },

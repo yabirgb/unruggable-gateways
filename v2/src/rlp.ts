@@ -1,4 +1,5 @@
-import type { RPCEthGetBlock, BigNumberish, HexString } from './types.js';
+import type { RPCEthGetBlock } from './eth/types.js';
+import type { BigNumberish, HexString } from './types.js';
 import { encodeRlp, type RlpStructuredDataish } from 'ethers';
 
 // https://ethereum.github.io/execution-specs/src/ethereum/rlp.py.html

@@ -24,6 +24,28 @@ function isContract(accountProof: LineaProof) {
   );
 }
 
+function encodeProof(proof: LineaProof) {
+  return ABI_CODER.encode(
+    ['tuple(uint256, bytes, bytes[])[]'],
+    [
+      isExistanceProof(proof)
+        ? [[proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes]]
+        : [
+            [
+              proof.leftLeafIndex,
+              proof.leftProof.value,
+              proof.leftProof.proofRelatedNodes,
+            ],
+            [
+              proof.rightLeafIndex,
+              proof.rightProof.value,
+              proof.rightProof.proofRelatedNodes,
+            ],
+          ],
+    ]
+  );
+}
+
 export class LineaProver extends AbstractProver {
   constructor(
     readonly provider: Provider,
@@ -34,99 +56,6 @@ export class LineaProver extends AbstractProver {
   }
   storageMap() {
     return storageMapFromCache(this.cache);
-  }
-  async fetchProofs(target: HexString, slots: bigint[] = []) {
-    const ps: Promise<RPCLineaGetProof>[] = [];
-    for (let i = 0; ; ) {
-      ps.push(
-        this.provider.send('linea_getProof', [
-          target,
-          slots
-            .slice(i, (i += this.proofBatchSize))
-            .map((slot) => ethers.toBeHex(slot, 32)),
-          this.block,
-        ])
-      );
-      if (i >= slots.length) break;
-    }
-    const vs = await Promise.all(ps);
-    for (let i = 1; i < vs.length; i++) {
-      vs[0].storageProofs.push(...vs[i].storageProofs);
-    }
-    return vs[0];
-  }
-  async getProofs(
-    target: HexString,
-    slots: bigint[] = []
-  ): Promise<RPCLineaGetProof> {
-    target = target.toLowerCase();
-    // there are (3) cases:
-    // 1.) account doesn't exist
-    // 2.) account is EOA
-    // 3.) account is contract
-    const missing: number[] = [];
-    const { promise, resolve, reject } = Promise.withResolvers();
-    // check if we have an account proof
-    let accountProof: Promise<LineaProof> | LineaProof | undefined =
-      this.cache.peek(target);
-    if (!accountProof) {
-      // missing account proof, so block it
-      this.cache.set(
-        target,
-        promise.then(() => accountProof),
-        0
-      );
-    }
-    // check if we're missing any slots
-    const storageProofs: (Promise<LineaProof> | LineaProof | undefined)[] =
-      slots.map((slot, i) => {
-        const key = makeStorageKey(target, slot);
-        const p = this.cache.peek(key);
-        if (!p) {
-          // missing storage proof, so block it
-          this.cache.set(
-            key,
-            promise.then(() => storageProofs[i]),
-            0
-          );
-          missing.push(i);
-        }
-        return p;
-      });
-    // check if we need something
-    if (!accountProof || missing.length) {
-      try {
-        const { storageProofs: v, accountProof: a } = await this.fetchProofs(
-          target,
-          missing.map((x) => slots[x])
-        );
-        // update the blocked values
-        accountProof = a;
-        missing.forEach((x, i) => (storageProofs[x] = v[i]));
-        resolve();
-        // refresh all cache expirations
-        this.cache.set(target, a);
-        if (isContract(accountProof)) {
-          slots.forEach((slot, i) => {
-            this.cache.set(makeStorageKey(target, slot), storageProofs[i]);
-          });
-        }
-      } catch (err) {
-        reject(err);
-        throw err; // must throw because accountProof is undefined
-      }
-    } else {
-      accountProof = await accountProof;
-    }
-    // nuke the proofs if we dont exist
-    if (!isContract(accountProof)) {
-      storageProofs.length = 0;
-    }
-    // reassemble
-    return {
-      accountProof,
-      storageProofs: (await Promise.all(storageProofs)) as LineaProof[],
-    };
   }
   override async getStorage(
     target: HexString,
@@ -231,26 +160,97 @@ export class LineaProver extends AbstractProver {
       order: Uint8Array.from(order),
     };
   }
-}
-
-function encodeProof(proof: LineaProof) {
-  return ABI_CODER.encode(
-    ['tuple(uint256, bytes, bytes[])[]'],
-    [
-      isExistanceProof(proof)
-        ? [[proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes]]
-        : [
-            [
-              proof.leftLeafIndex,
-              proof.leftProof.value,
-              proof.leftProof.proofRelatedNodes,
-            ],
-            [
-              proof.rightLeafIndex,
-              proof.rightProof.value,
-              proof.rightProof.proofRelatedNodes,
-            ],
-          ],
-    ]
-  );
+  async getProofs(
+    target: HexString,
+    slots: bigint[] = []
+  ): Promise<RPCLineaGetProof> {
+    target = target.toLowerCase();
+    // there are (3) cases:
+    // 1.) account doesn't exist
+    // 2.) account is EOA
+    // 3.) account is contract
+    const missing: number[] = [];
+    const { promise, resolve, reject } = Promise.withResolvers();
+    // check if we have an account proof
+    let accountProof: Promise<LineaProof> | LineaProof | undefined =
+      this.cache.peek(target);
+    if (!accountProof) {
+      // missing account proof, so block it
+      this.cache.set(
+        target,
+        promise.then(() => accountProof),
+        0
+      );
+    }
+    // check if we're missing any slots
+    const storageProofs: (Promise<LineaProof> | LineaProof | undefined)[] =
+      slots.map((slot, i) => {
+        const key = makeStorageKey(target, slot);
+        const p = this.cache.peek(key);
+        if (!p) {
+          // missing storage proof, so block it
+          this.cache.set(
+            key,
+            promise.then(() => storageProofs[i]),
+            0
+          );
+          missing.push(i);
+        }
+        return p;
+      });
+    // check if we need something
+    if (!accountProof || missing.length) {
+      try {
+        const { storageProofs: v, accountProof: a } = await this.fetchProofs(
+          target,
+          missing.map((x) => slots[x])
+        );
+        // update the blocked values
+        accountProof = a;
+        missing.forEach((x, i) => (storageProofs[x] = v[i]));
+        resolve();
+        // refresh all cache expirations
+        this.cache.set(target, a);
+        if (isContract(accountProof)) {
+          slots.forEach((slot, i) => {
+            this.cache.set(makeStorageKey(target, slot), storageProofs[i]);
+          });
+        }
+      } catch (err) {
+        reject(err);
+        throw err; // must throw because accountProof is undefined
+      }
+    } else {
+      accountProof = await accountProof;
+    }
+    // nuke the proofs if we dont exist
+    if (!isContract(accountProof)) {
+      storageProofs.length = 0;
+    }
+    // reassemble
+    return {
+      accountProof,
+      storageProofs: (await Promise.all(storageProofs)) as LineaProof[],
+    };
+  }
+  async fetchProofs(target: HexString, slots: bigint[] = []) {
+    const ps: Promise<RPCLineaGetProof>[] = [];
+    for (let i = 0; ; ) {
+      ps.push(
+        this.provider.send('linea_getProof', [
+          target,
+          slots
+            .slice(i, (i += this.proofBatchSize))
+            .map((slot) => ethers.toBeHex(slot, 32)),
+          this.block,
+        ])
+      );
+      if (i >= slots.length) break;
+    }
+    const vs = await Promise.all(ps);
+    for (let i = 1; i < vs.length; i++) {
+      vs[0].storageProofs.push(...vs[i].storageProofs);
+    }
+    return vs[0];
+  }
 }

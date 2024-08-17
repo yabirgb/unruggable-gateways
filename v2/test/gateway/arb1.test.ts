@@ -23,7 +23,7 @@ describe('arb1', async () => {
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'NitroVerifier',
-    args: [[ccip.endpoint], config.suggestedWindow, rollup.L2Rollup],
+    args: [[ccip.endpoint], rollup.defaultWindow, rollup.L2Rollup],
   });
   // https://arbiscan.io/address/0xCC344B12fcc8512cc5639CeD6556064a8907c8a1#code
   const reader = await foundry.deploy({

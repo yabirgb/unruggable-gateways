@@ -1,6 +1,6 @@
 import type { EncodedProof, HexAddress, HexString } from '../types.js';
 import type { RPCEthGetBlock, RPCEthGetProof } from '../eth/types.js';
-import { AbstractRollup, type RollupCommit } from '../rollup.js';
+import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
 import { ethers } from 'ethers';
 import { CachedMap } from '../cached.js';
@@ -28,22 +28,18 @@ function outputRootProofTuple(commit: OPCommit) {
   ];
 }
 
-export abstract class AbstractOPRollup extends AbstractRollup<
-  EthProver,
-  OPCommit
-> {
+export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
   L2ToL1MessagePasser: HexAddress =
     '0x4200000000000000000000000000000000000016';
   async createCommit(index: bigint, block: HexString): Promise<OPCommit> {
-    const { provider2 } = this.providers;
     const [{ storageHash: passerRoot }, { stateRoot, hash: blockHash }] =
       await Promise.all([
-        provider2.send('eth_getProof', [
+        this.provider2.send('eth_getProof', [
           this.L2ToL1MessagePasser,
           [],
           block,
         ]) as Promise<RPCEthGetProof>,
-        provider2.send('eth_getBlockByNumber', [
+        this.provider2.send('eth_getBlockByNumber', [
           block,
           false,
         ]) as Promise<RPCEthGetBlock>,
@@ -54,7 +50,7 @@ export abstract class AbstractOPRollup extends AbstractRollup<
       stateRoot,
       passerRoot,
       prover: new EthProver(
-        provider2,
+        this.provider2,
         block,
         new CachedMap(Infinity, this.commitCacheSize)
       ),

@@ -20,7 +20,7 @@ contract NitroVerifier is OwnedVerifier {
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
-		uint64 latestNodeNum = abi.decode(context, (uint64));
+		uint64 nodeNum1 = abi.decode(context, (uint64));
 		(
 			uint64 nodeNum,
 			bytes32 sendRoot,
@@ -28,8 +28,10 @@ contract NitroVerifier is OwnedVerifier {
 			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (uint64, bytes32, bytes, bytes[], bytes));
-		_checkWindow(latestNodeNum, nodeNum);
+		//_checkWindow(nodeNum1, nodeNum);
 		Node memory node = _rollup.getNode(nodeNum);
+		Node memory node1 = _rollup.getNode(nodeNum1);
+		_checkWindow(node1.createdAtBlock, node.createdAtBlock);
  		bytes32 confirmData = keccak256(abi.encodePacked(keccak256(rlpEncodedBlock), sendRoot));
 		require(confirmData == node.confirmData, "Nitro: confirmData");
 		RLPReader.RLPItem[] memory v = RLPReader.readList(rlpEncodedBlock);

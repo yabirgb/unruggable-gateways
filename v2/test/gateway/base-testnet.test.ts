@@ -30,7 +30,7 @@ describe('base testnet', async () => {
     file: 'OPFaultVerifier',
     args: [
       [ccip.endpoint],
-      config.suggestedWindow,
+      rollup.defaultWindow,
       rollup.OptimismPortal,
       helper,
     ],

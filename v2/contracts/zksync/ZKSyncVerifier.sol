@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
 import {EVMProver, ProofSequence, NOT_A_CONTRACT} from "../EVMProver.sol";
-import {IZKSyncSMT, TreeEntry} from "./IZKSyncSMT.sol";
+import {IZKSyncSMT, TreeEntry, ACCOUNT_CODE_HASH} from "./IZKSyncSMT.sol";
 
 import "forge-std/console2.sol";
 
@@ -24,8 +24,6 @@ struct StoredBatchInfo {
 	bytes32 commitment;
 }
 
-address constant ACCOUNT_CODEHASH = 0x0000000000000000000000000000000000008002;
-
 contract ZKSyncVerifier is OwnedVerifier {
 
 	IZKSyncDiamond immutable _diamond;
@@ -43,8 +41,8 @@ contract ZKSyncVerifier is OwnedVerifier {
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 latestBatchIndex = abi.decode(context, (uint256));
 		(
-			bytes memory encodedBatch, 
-			bytes[] memory proofs, 
+			bytes memory encodedBatch,
+			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (bytes, bytes[], bytes));
 		StoredBatchInfo memory batchInfo = abi.decode(encodedBatch, (StoredBatchInfo));
@@ -66,14 +64,13 @@ contract ZKSyncVerifier is OwnedVerifier {
 	function proveAccountState(bytes32 root, address target, bytes memory proof) internal view returns (bytes32) {
 		// when no account proof is provided, we assume the target is a contract
 		// this is safe because zksync uses a single trie and there is no storage root
-		return proof.length > 0 && _proveValue(root, ACCOUNT_CODEHASH, uint160(target), proof) == 0 ? NOT_A_CONTRACT : root;
+		return proof.length > 0 && _proveValue(root, ACCOUNT_CODE_HASH, uint160(target), proof) == 0 ? NOT_A_CONTRACT : root;
 	}
 
+	// TODO should this be moved to an external library?
 	function _proveValue(bytes32 root, address target, uint256 slot, bytes memory proof) internal view returns (bytes32) {
-		uint256 g = gasleft();
 		(bytes32 value, uint64 leafIndex, bytes32[] memory path) = abi.decode(proof, (bytes32, uint64, bytes32[]));
 		require(root == _smt.getRootHash(path, TreeEntry(slot, value, leafIndex), target), "ZKS: proof");
-		console2.log("Gas: %s", g - gasleft());
 		return value;
 	}
 
