@@ -21,7 +21,7 @@ export class Gateway<
   R extends AbstractRollup<C>,
 > extends EZCCIP {
   commitDepth = 3;
-  enableHistorical = false;
+  allowHistorical = false;
   private readonly latestCache = new CachedValue(
     () => this.rollup.fetchLatestCommitIndex(),
     60000
@@ -33,7 +33,11 @@ export class Gateway<
     super();
     this.register(GATEWAY_ABI, {
       proveRequest: async ([ctx, { ops, inputs }], _context, history) => {
-        const commit = await this.getCommit(BigInt(ctx));
+        const commit = await this.getRecentCommit(BigInt(ctx));
+        // const hash = createHash('sha256')
+        //   .update(`${commit.index}:${_context.calldata.slice(74)}`)
+        //   .digest()
+        //   .toString('hex');
         const hash = ethers.solidityPackedKeccak256(
           ['uint256', 'bytes', 'bytes[]'],
           [commit.index, ops, inputs]
@@ -75,11 +79,13 @@ export class Gateway<
     }
   }
   async getLatestCommit() {
+    // check if the commit changed
     const prev = await this.latestCache.value;
     const next = await this.latestCache.get();
     const commit = await this.cachedCommit(next);
     const max = this.commitDepth + 1;
     if (prev !== next && this.commitCacheMap.cachedSize > max) {
+      // purge the oldest if we have too many
       const old = [...this.commitCacheMap.cachedKeys()].sort().slice(0, -max);
       for (const key of old) {
         this.commitCacheMap.delete(key);
@@ -87,16 +93,15 @@ export class Gateway<
     }
     return commit;
   }
-  async getCommit(index?: bigint) {
+  async getRecentCommit(index: bigint) {
     let commit = await this.getLatestCommit();
-    if (index === undefined) return commit;
     for (let depth = 0; ; ) {
       if (index >= commit.index) return commit;
       if (++depth >= this.commitDepth) break;
       const prevIndex = await this.cachedParentCommitIndex(commit);
       commit = await this.cachedCommit(prevIndex);
     }
-    if (this.enableHistorical) {
+    if (this.allowHistorical) {
       return this.commitCacheMap.get(
         index,
         (i) => this.rollup.fetchCommit(i),

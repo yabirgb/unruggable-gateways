@@ -4,6 +4,12 @@ import { createProviderPair } from '../providers.js';
 const config = TaikoRollup.mainnetConfig;
 const rollup = await TaikoRollup.create(createProviderPair(config), config);
 
+console.log({
+  TaikoL1: rollup.TaikoL1.target,
+  commitStep: rollup.commitStep,
+  defaultWindow: rollup.defaultWindow,
+});
+
 const commits = await rollup.fetchRecentCommits(10);
 
 const v = commits.map((x) => Number(x.index));

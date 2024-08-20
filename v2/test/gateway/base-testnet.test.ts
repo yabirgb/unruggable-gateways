@@ -22,17 +22,14 @@ describe('base testnet', async () => {
   });
   afterAll(() => ccip.http.close());
   const commit = await gateway.getLatestCommit();
-  const helper = await foundry.deploy({
-    file: 'OPFaultConstantHelper',
-    args: [commit.index],
-  });
   const verifier = await foundry.deploy({
-    file: 'OPFaultVerifier',
+    file: 'FixedOPFaultVerifier',
     args: [
       [ccip.endpoint],
       rollup.defaultWindow,
       rollup.OptimismPortal,
-      helper,
+      rollup.gameTypes,
+      commit.index,
     ],
   });
   // https://sepolia.basescan.org/address/0x7AE933cf265B9C7E7Fd43F0D6966E34aaa776411

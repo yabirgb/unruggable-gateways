@@ -64,6 +64,11 @@ library EVMProver {
 			v = vm.stack[vm.stackSize - 1 - back];
 		}
 	}
+	function readBack(Machine memory vm) internal pure returns (uint256) {
+		uint8 back = vm.readByte();
+		if (back >= vm.stackSize) revert RequestOverflow();
+		return vm.stackSize + ~back;
+	}
 	function checkRead(Machine memory vm, uint256 n) internal pure returns (uint256 ptr) {
 		uint256 pos = vm.pos;
 		bytes memory buf = vm.buf;
@@ -175,7 +180,8 @@ library EVMProver {
 			} else if (op == OP_REQ_CONTRACT) {
 				if (vm.storageRoot == NOT_A_CONTRACT) return 1;
 			} else if (op == OP_REQ_NONZERO) {
-				if (isZeros(vm.peek(vm.readByte()))) return 1;
+				//if (isZeros(vm.peek(vm.readByte()))) return 1;
+				if (isZeros(vm.stack[vm.readBack()])) return 1;
 			} else if (op == OP_READ_SLOTS) {
 				vm.push(vm.proveSlots(vm.readByte()));
 			} else if (op == OP_READ_BYTES) {
@@ -191,9 +197,13 @@ library EVMProver {
 			} else if (op == OP_PUSH_TARGET) {
 				vm.push(abi.encodePacked(vm.target));
 			} else if (op == OP_DUP) {
-				vm.push(abi.encodePacked(vm.peek(vm.readByte())));
+				//vm.push(abi.encodePacked(vm.stack(vm.readByte())));
+				vm.push(abi.encodePacked(vm.stack[vm.readBack()]));
 			} else if (op == OP_POP) {
 				if (vm.stackSize != 0) --vm.stackSize;
+			} else if (op == OP_SWAP) {
+				uint256 i = vm.readBack();
+				(vm.stack[0], vm.stack[i]) = (vm.stack[i], vm.stack[0]);
 			} else if (op == OP_SLOT_ZERO) {
 				vm.slot = 0;
 			} else if (op == OP_SLOT_ADD) {
@@ -211,6 +221,22 @@ library EVMProver {
 					v = bytes.concat(vm.pop(), v); // TODO: optimize
 				}
 				vm.push(v);
+			} else if (op == OP_RUN) {
+				bytes memory program = vm.pop();
+				// save program
+				uint256 pos = vm.pos;
+				bytes memory buf = vm.buf;
+				bytes[] memory inputs = vm.inputs; 
+				// load new program
+				vm.pos = 0;
+				(vm.buf, vm.inputs) = abi.decode(program, (bytes, bytes[]));
+				bytes memory result = new bytes(1);
+				result[0] = bytes1(evalCommand(vm, outputs));
+				vm.push(result);
+				// restore program
+				vm.pos = pos;
+				vm.buf = buf;
+				vm.inputs = inputs;
 			} else if (op == OP_EVAL) {
 				uint8 back = vm.readByte();
 				uint8 flags = vm.readByte();

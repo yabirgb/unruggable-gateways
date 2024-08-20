@@ -36,7 +36,7 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
     return this.fetchCommit(await this.fetchLatestCommitIndex());
   }
   async fetchRecentCommits(count: number): Promise<C[]> {
-    if (!Number.isSafeInteger(count) || count < 1) return [];
+    if (count < 1) return [];
     let commit = await this.fetchLatestCommit();
     const v = [commit];
     while (v.length < count && commit.index > 0) {

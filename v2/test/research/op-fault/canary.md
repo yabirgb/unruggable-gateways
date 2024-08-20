@@ -52,4 +52,7 @@
 
 Note: `150XXX` &rarr; `1.75 days`
 
+---
 
+Answer: [`0xaA08d45476DA6831E03b707DbD4d473e1a0f9288` is canary proposer](https://discord.com/channels/667044843901681675/1080862392281481246/1266023793520939038)
+> Ethnical — 07/25/2024 6:26 AM: Hey, This is the canary proposer address! This is part of the liveness to ensure that the fault dispute game challenger is working as expected

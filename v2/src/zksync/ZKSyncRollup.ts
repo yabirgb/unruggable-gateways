@@ -53,7 +53,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     DiamondProxy: '0x9a6de0f62Aa270A8bCB1e2610078650D539B1Ef9',
   } as const;
 
-  readonly DiamondProxy;
+  readonly DiamondProxy: ethers.Contract;
   constructor(providers: ProviderPair, config: ZKSyncConfig) {
     super(providers);
     this.DiamondProxy = new ethers.Contract(
@@ -152,6 +152,6 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     // finalization time not on-chain
     // approximately 1 batch every hour, sequential
     // https://explorer.zksync.io/batches/
-    return Math.ceil(sec / 3600); // units of batches
+    return Math.ceil(sec / 3600); // units of commit index
   }
 }

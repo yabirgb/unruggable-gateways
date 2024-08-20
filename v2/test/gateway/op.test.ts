@@ -22,17 +22,15 @@ describe('op', async () => {
   });
   afterAll(() => ccip.http.close());
   const commit = await gateway.getLatestCommit();
-  const helper = await foundry.deploy({
-    file: 'OPFaultConstantHelper',
-    args: [commit.index],
-  });
   const verifier = await foundry.deploy({
-    file: 'OPFaultVerifier',
+    // OPFaultVerifier is too slow in fork mode (30sec+)
+    file: 'FixedOPFaultVerifier',
     args: [
       [ccip.endpoint],
       rollup.defaultWindow,
       rollup.OptimismPortal,
-      helper,
+      rollup.gameTypes,
+      commit.index,
     ],
   });
   // https://optimistic.etherscan.io/address/0xf9d79d8c09d24e0C47E32778c830C545e78512CF

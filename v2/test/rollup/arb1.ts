@@ -4,6 +4,11 @@ import { createProviderPair } from '../providers.js';
 const config = NitroRollup.arb1MainnetConfig;
 const rollup = new NitroRollup(createProviderPair(config), config);
 
+console.log({
+  L2Rollup: rollup.L2Rollup,
+  defaultWindow: rollup.defaultWindow,
+});
+
 const commits = await rollup.fetchRecentCommits(10);
 
 const v = commits.map((x) => Number(x.index));

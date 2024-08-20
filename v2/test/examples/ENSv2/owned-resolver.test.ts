@@ -8,7 +8,6 @@ import {
 //import { OPFaultGateway } from '../../../src/gateway/OPFaultGateway.js';
 import {
   dnsEncode,
-  AbiCoder,
   toBeHex,
   namehash,
   getAddress,
@@ -16,8 +15,7 @@ import {
 } from 'ethers';
 import { solidityFollowSlot } from '../../../src/vm.js';
 import { afterAll, describe, test, expect } from 'bun:test';
-
-export const ABI_CODER = AbiCoder.defaultAbiCoder();
+import { ABI_CODER } from '../../../src/utils.js';
 
 function dns(name: string) {
   return dnsEncode(name, 255);

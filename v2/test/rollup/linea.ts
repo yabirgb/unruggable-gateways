@@ -3,6 +3,7 @@ import { createProviderPair } from '../providers.js';
 
 const config = LineaRollup.mainnetConfig;
 const rollup = new LineaRollup(createProviderPair(config), config);
+
 console.log({
   L1MessageService: rollup.L1MessageService.target,
   defaultWindow: rollup.defaultWindow,

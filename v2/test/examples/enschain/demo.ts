@@ -5,7 +5,7 @@ import {
   type DeployedContract,
 } from '@adraffy/blocksmith';
 import { EVMRequest } from '../../../src/vm.js';
-import { EVMProver } from '../../../src/evm/prover.js';
+import { EthProver } from '../../../src/eth/EthProver.js';
 import { HexString } from '../../../src/types.js';
 
 const foundry = await Foundry.launch({ infoLog: true, procLog: false });
@@ -23,7 +23,7 @@ async function deployResolver(owner: WalletLike) {
 const adminWallet = foundry.requireWallet('admin');
 const raffyWallet = await foundry.ensureWallet('raffy');
 
-const datastore = await foundry.deploy({ 
+const datastore = await foundry.deploy({
   import: '@ensdomains/enschain/contracts/src/registry/RegistryDatastore.sol',
   from: adminWallet,
 });
@@ -50,48 +50,71 @@ const ethRegistry = await foundry.deploy({
   args: [datastore],
   from: adminWallet,
 });
-async function registerEth(label: string, {
-  expiry = BigInt(Math.floor(Date.now() / 1000) + 1000000),
-  owner,
-  subregistry = ethers.ZeroAddress,
-  locked = false
-}: {
-  expiry?: bigint,
-  owner: WalletLike,
-  subregistry?: HexString | DeployedContract,
-  locked?: boolean
-}) {
+async function registerEth(
+  label: string,
+  {
+    expiry = BigInt(Math.floor(Date.now() / 1000) + 1000000),
+    owner,
+    subregistry = ethers.ZeroAddress,
+    locked = false,
+  }: {
+    expiry?: bigint;
+    owner: WalletLike;
+    subregistry?: HexString | DeployedContract;
+    locked?: boolean;
+  }
+) {
   let flags = expiry;
   if (locked) flags |= 0x100000000n;
-  return foundry.confirm(ethRegistry.register(label, owner, subregistry, flags));
+  return foundry.confirm(
+    ethRegistry.register(label, owner, subregistry, flags)
+  );
 }
 
-async function deployUserRegistry(parentRegistry: DeployedContract, label: string, owner: WalletLike) {
+async function deployUserRegistry(
+  parentRegistry: DeployedContract,
+  label: string,
+  owner: WalletLike
+) {
   return foundry.deploy({
     import: '@ensdomains/enschain/contracts/src/registry/UserRegistry.sol',
     args: [parentRegistry, label, datastore],
-    from: owner
+    from: owner,
   });
 }
 
-await foundry.confirm(rootRegistry.grantRole(SUBDOMAIN_ISSUER_ROLE, adminWallet));
+await foundry.confirm(
+  rootRegistry.grantRole(SUBDOMAIN_ISSUER_ROLE, adminWallet)
+);
 await foundry.confirm(ethRegistry.grantRole(REGISTRAR_ROLE, adminWallet));
 
 await foundry.confirm(rootRegistry.mint('eth', adminWallet, ethRegistry, true));
 
-const raffyRegistry = await deployUserRegistry(ethRegistry, 'raffy', raffyWallet); 
+const raffyRegistry = await deployUserRegistry(
+  ethRegistry,
+  'raffy',
+  raffyWallet
+);
 const raffyResolver = await deployResolver(raffyWallet);
 
 await registerEth('raffy', { owner: raffyWallet, subregistry: raffyRegistry });
 
-await foundry.confirm(raffyRegistry.mint('chonk', raffyWallet, ethers.ZeroAddress, 0));
+await foundry.confirm(
+  raffyRegistry.mint('chonk', raffyWallet, ethers.ZeroAddress, 0)
+);
 
-await foundry.confirm(ethRegistry.setResolver(ethers.id('raffy'), raffyResolver, 0));
+await foundry.confirm(
+  ethRegistry.setResolver(ethers.id('raffy'), raffyResolver, 0)
+);
 
-await foundry.confirm(raffyResolver.setText(ethers.namehash('raffy.eth'), 'name', 'Raffy'));
-await foundry.confirm(raffyResolver.setText(ethers.namehash('chonk.raffy.eth'), 'name', 'Chonk'));
+await foundry.confirm(
+  raffyResolver.setText(ethers.namehash('raffy.eth'), 'name', 'Raffy')
+);
+await foundry.confirm(
+  raffyResolver.setText(ethers.namehash('chonk.raffy.eth'), 'name', 'Chonk')
+);
 
-const prover = await EVMProver.latest(foundry.provider);
+const prover = await EthProver.latest(foundry.provider);
 
 // 0: mapping(address registry => mapping(uint256 tokenId => uint256)) internal subregistries;
 // 1: mapping(address registry => mapping(uint256 tokenId => uint256)) internal resolvers;
@@ -102,26 +125,49 @@ async function resolve(name: string) {
   const iNode = req.addInput(ethers.namehash(name));
   req.setTarget(datastore.target); // use storage contract
   req.push(rootRegistry.target).setOutput(0); // start at root
-  name.split('.').forEach(x => req.push(ethers.id(x))); // tokenIds
-  req.begin()
+  name.split('.').forEach((x) => req.push(ethers.id(x))); // tokenIds
+  req
+    .begin()
     .dup() // duplicate tokenId
     .begin()
-      .setSlot(1).pushOutput(0).follow().follow().read() // resolvers[registry][tokenId]
-      .requireNonzero()
-      .setOutput(1) // save nonzero resolver
-    .end().eval({ back: 1 })
+    .setSlot(1)
+    .pushOutput(0)
+    .follow()
+    .follow()
+    .read() // resolvers[registry][tokenId]
+    .requireNonzero()
+    .setOutput(1) // save nonzero resolver
+    .end()
+    .eval({ back: 1 })
     .setSlot(0)
-    .pushOutput(0).follow().follow()
+    .pushOutput(0)
+    .follow()
+    .follow()
     .read() // subregistries[registry][tokenId]
     .requireNonzero() // require registry
-    .slice(12, 20).requireNonzero() // check address
-    .pushBytes(ethers.toBeHex(0, 12)).dup(1).concat(2).setOutput(0) // save it
-  .end().eval({ failure: true }) // loop until we get a failure
-  .pushOutput(1)
-  .requireNonzero()
-  .target() // set target to resolver
-  .setSlot(1).pushInput(iNode).follow().read() // versions[node]
-  .setSlot(11).follow().pushInput(iNode).follow().pushStr('name').follow().readBytes().setOutput(2); // text[versions[node]][node][key]
+    .slice(12, 20)
+    .requireNonzero() // check address
+    .pushBytes(ethers.toBeHex(0, 12))
+    .dup(1)
+    .concat(2)
+    .setOutput(0) // save it
+    .end()
+    .eval({ failure: true }) // loop until we get a failure
+    .pushOutput(1)
+    .requireNonzero()
+    .target() // set target to resolver
+    .setSlot(1)
+    .pushInput(iNode)
+    .follow()
+    .read() // versions[node]
+    .setSlot(11)
+    .follow()
+    .pushInput(iNode)
+    .follow()
+    .pushStr('name')
+    .follow()
+    .readBytes()
+    .setOutput(2); // text[versions[node]][node][key]
 
   const state = await prover.evalRequest(req);
   const values = await state.resolveOutputs();
@@ -141,7 +187,7 @@ async function resolve(name: string) {
 }
 
 await resolve('raffy.eth');
-await resolve('chonk.raffy.eth'); 
+await resolve('chonk.raffy.eth');
 await resolve('does-not-exist'); // no resolver
 
 foundry.shutdown();

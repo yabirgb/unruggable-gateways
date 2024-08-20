@@ -14,7 +14,8 @@ type ABIGameSearchResult = {
 type KnownGame = {
   index: bigint;
   rootClaim: HexString32;
-  gameProxy: HexAddress;
+  address: HexAddress;
+  blockNumber: bigint;
 };
 
 export class OPFaultGameFinder {
@@ -28,14 +29,15 @@ export class OPFaultGameFinder {
       const chunk = Math.min(512, n - this.lastCount);
       if (!chunk) break;
       for (const res of (await this.disputeGameFactory.findLatestGames(
-        this.respectedGameType,
+        this.gameType,
         this.lastCount + chunk - 1,
         chunk
       )) as ABIGameSearchResult[]) {
         const game: KnownGame = {
           index: res.index,
-          gameProxy: ethers.dataSlice(res.metadata, 12), // LibUDT.sol: [96, 256)
+          address: ethers.dataSlice(res.metadata, 12), // LibUDT.sol: [96, 256)
           rootClaim: res.rootClaim,
+          blockNumber: BigInt(res.extraData),
         };
         let bucket = this.claimMap.get(res.rootClaim);
         if (!bucket) {
@@ -50,11 +52,13 @@ export class OPFaultGameFinder {
   });
   constructor(
     readonly disputeGameFactory: ethers.Contract,
-    readonly respectedGameType: bigint
+    readonly gameType: bigint
   ) {}
   async findGameAtIndex(index: bigint) {
     await this.searchGuard.get();
-    return this.indexMap.get(index);
+    const game = this.indexMap.get(index);
+    if (!game) throw new Error(`unknown game: ${index}`);
+    return game;
   }
   async findGameWithClaim(rootClaim: HexString32) {
     return this.finalizedMap.get(rootClaim, async (rootClaim) => {
@@ -64,7 +68,7 @@ export class OPFaultGameFinder {
       const v = await Promise.all(
         bucket.map((game) =>
           new ethers.Contract(
-            game.gameProxy,
+            game.address,
             GAME_ABI,
             this.disputeGameFactory.runner
           ).status()

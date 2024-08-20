@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
-import { OPFaultRollup } from '../../src/op/OPFaultRollup';
-import { createProviderPair } from '../providers';
+import { OPFaultRollup } from '../../../src/op/OPFaultRollup';
+import { createProviderPair } from '../../providers';
 
 const config = OPFaultRollup.mainnetConfig;
 const rollup = await OPFaultRollup.create(createProviderPair(config), config);

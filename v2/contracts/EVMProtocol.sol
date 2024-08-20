@@ -13,6 +13,7 @@ uint8 constant OP_DEBUG = 255;
 uint8 constant OP_TARGET = 1;
 uint8 constant OP_SET_OUTPUT = 2;
 uint8 constant OP_EVAL = 3;
+uint8 constant OP_RUN = 4;
 
 uint8 constant OP_REQ_NONZERO = 10;
 uint8 constant OP_REQ_CONTRACT = 11;
@@ -32,6 +33,7 @@ uint8 constant OP_PUSH_TARGET = 43;
 
 uint8 constant OP_DUP = 50;
 uint8 constant OP_POP = 51;
+uint8 constant OP_SWAP = 52;
 
 uint8 constant OP_KECCAK = 60;
 uint8 constant OP_CONCAT = 61;

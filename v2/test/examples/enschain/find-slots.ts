@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
 import { EVMRequest } from '../../../src/vm.js';
-import { EVMProver } from '../../../src/evm/prover.js';
+import { EthProver } from '../../../src/eth/EthProver.js';
 
 const foundry = await Foundry.launch();
 
@@ -15,7 +15,7 @@ const key = 'name';
 await foundry.confirm(resolver.clearRecords(node));
 await foundry.confirm(resolver.setText(node, key, 'Raffy'));
 
-const prover = await EVMProver.latest(foundry.provider);
+const prover = await EthProver.latest(foundry.provider);
 
 // find versions => 1
 {

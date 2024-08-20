@@ -1,28 +1,36 @@
 import { EVMRequest } from '../../../src/vm.js';
-import { EVMProver } from '../../../src/evm/prover.js';
+import { EthProver } from '../../../src/eth/EthProver.js';
 import { createProvider } from '../../providers.js';
 import { CHAIN_BASE } from '../../../src/chains.js';
-import { AbiCoder, toUtf8String } from 'ethers';
+import { ABI_CODER } from '../../../src/utils.js';
+import { ethers } from 'ethers';
 
-const coder = AbiCoder.defaultAbiCoder();
-const prover = await EVMProver.latest(createProvider(CHAIN_BASE));
+const prover = await EthProver.latest(createProvider(CHAIN_BASE));
 
 //https://basescan.org/address/0x7C6EfCb602BC88794390A0d74c75ad2f1249A17f#code
-const req = new EVMRequest(3).setTarget(
-  '0x7C6EfCb602BC88794390A0d74c75ad2f1249A17f'
-);
-req.setSlot(8).read().setOutput(0);
-req.setSlot(7).pushStr('raffy').keccak().follow().read().setOutput(1);
-req.offset(1).readBytes().setOutput(2);
+const req = new EVMRequest(3)
+  .setTarget('0x7C6EfCb602BC88794390A0d74c75ad2f1249A17f')
+  .setSlot(8)
+  .read()
+  .setOutput(0)
+  .setSlot(7)
+  .pushStr('raffy')
+  .keccak()
+  .follow()
+  .read()
+  .setOutput(1)
+  .offset(1)
+  .readBytes()
+  .setOutput(2);
 
 const state = await prover.evalRequest(req);
 
-console.log(state);
+console.log(state.needs);
 
 const values = await state.resolveOutputs();
 
 console.log({
-  supply: coder.decode(['uint256'], values[0])[0],
-  address: coder.decode(['address'], values[1])[0],
-  avatar: toUtf8String(values[2]),
+  supply: ABI_CODER.decode(['uint256'], values[0])[0],
+  address: ABI_CODER.decode(['address'], values[1])[0],
+  avatar: ethers.toUtf8String(values[2]),
 });
