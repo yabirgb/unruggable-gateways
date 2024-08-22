@@ -66,8 +66,8 @@ library EVMProver {
 	}
 	function readBack(Machine memory vm) internal pure returns (uint256) {
 		uint8 back = vm.readByte();
-		if (back >= vm.stackSize) revert RequestOverflow();
-		return vm.stackSize + ~back;
+		if (back > vm.stackSize - 1) revert RequestOverflow();
+		return vm.stackSize - 1 - back;
 	}
 	function checkRead(Machine memory vm, uint256 n) internal pure returns (uint256 ptr) {
 		uint256 pos = vm.pos;
