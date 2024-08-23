@@ -6,8 +6,6 @@ import {EVMProver, ProofSequence} from "../EVMProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 import "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol";
-import {IFaultDisputeGame} from "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IFaultDisputeGame.sol";
-import {IAnchorStateRegistry} from "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IAnchorStateRegistry.sol";
 
 interface IOptimismPortal {
 	function disputeGameFactory() external view returns (IDisputeGameFactory);
@@ -16,22 +14,19 @@ interface IOptimismPortal {
 	//function disputeGameBlacklist(IDisputeGame game) external view returns (bool);
 }
 
-// interface IOPFaultHelper {
-// 	function findDelayedGameIndex(IOptimismPortal portal, uint256 delaySec) external view returns (uint256);
-// }
-
-// interface IFaultDisputeGameStub {
-// 	function anchorStateRegistry() external view returns (IAnchorStateRegistry);
-// }
+interface IOPFaultGameFinder {
+	function findFinalizedGameIndex(IOptimismPortal portal, uint256 gameTypes, uint256 gameCount) external view returns (uint256);
+}
 
 contract OPFaultVerifier is OwnedVerifier {
 
 	IOptimismPortal immutable _portal;
-	//IOPFaultHelper immutable _helper;
+	IOPFaultGameFinder immutable _gameFinder;
 	uint256 _gameTypes;
 
-	constructor(string[] memory urls, uint256 window, IOptimismPortal portal, uint256 gameTypes) OwnedVerifier(urls, window) {
+	constructor(string[] memory urls, uint256 window, IOptimismPortal portal, IOPFaultGameFinder gameFinder, uint256 gameTypes) OwnedVerifier(urls, window) {
 		_portal = portal;
+		_gameFinder = gameFinder;
 		_gameTypes = gameTypes;
 	}
 
@@ -40,20 +35,8 @@ contract OPFaultVerifier is OwnedVerifier {
 		emit GatewayChanged();
 	}
 
-	function _isSupportedGameType(GameType gt) internal view returns (bool) {
-		return (_gameTypes & (1 << gt.raw())) != 0;
-	}
-
 	function getLatestContext() external virtual view returns (bytes memory) {
-		IDisputeGameFactory factory = _portal.disputeGameFactory();
-		uint256 i = factory.gameCount();
-		while (i > 0) {
-			(GameType gt, , IDisputeGame proxy) = factory.gameAtIndex(--i);
-			if (_isSupportedGameType(gt) && proxy.status() == GameStatus.DEFENDER_WINS) {
-				return abi.encode(i);
-			}
-		}
-		revert("no game");
+		return abi.encode(_gameFinder.findFinalizedGameIndex(_portal, _gameTypes, 0));
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
@@ -67,12 +50,19 @@ contract OPFaultVerifier is OwnedVerifier {
 		IDisputeGameFactory factory = _portal.disputeGameFactory();
 		(GameType gt, , IDisputeGame gameProxy) = factory.gameAtIndex(gameIndex);
 		if (gameIndex != gameIndex1) {
+			// the gateway gave us a different game, so lets check it
 			(, , IDisputeGame gameProxy1) = factory.gameAtIndex(gameIndex1);
+			// check if game is within our window
 			_checkWindow(gameProxy1.resolvedAt().raw(), gameProxy.resolvedAt().raw());
+			// check if game is finalized
+			//(, , uint256 blockNumber) = _gameFinder.getFinalizedGame(_portal, _gameTypes, gameIndex);
+			//require(blockNumber != 0, "OPFault: not finalized");
+			uint256 gameTypes = _gameTypes;
+			if (gameTypes == 0) gameTypes = 1 << _portal.respectedGameType().raw();
+			require((gameTypes & (1 << gt.raw())) != 0, "OPFault: unsupported gameType");
+			require(gameProxy.status() == GameStatus.DEFENDER_WINS, "OPFault: not finalized");
 		}
-		require(_isSupportedGameType(gt), "OPFault: gameType");
-		require(gameProxy.status() == GameStatus.DEFENDER_WINS, "OPFault: status");
-		require(gameProxy.rootClaim().raw() == Hashing.hashOutputRootProof(outputRootProof), "OPFault: root");
+		require(gameProxy.rootClaim().raw() == Hashing.hashOutputRootProof(outputRootProof), "OPFault: invalid root");
 		return EVMProver.evalRequest(req, ProofSequence(0,
 			outputRootProof.stateRoot,
 			proofs, order,

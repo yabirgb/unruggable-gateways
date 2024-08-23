@@ -4,7 +4,6 @@ import type {
   BigNumberish,
   EncodedProof,
   HexAddress,
-  Provider,
 } from './types.js';
 import { ethers } from 'ethers';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
@@ -32,9 +31,8 @@ const ACQUIRE_STATE = 4;
 const OP_DEBUG = 255; // experimental
 const OP_TARGET = 1;
 const OP_SET_OUTPUT = 2;
-const OP_EVAL = 3;
-const OP_COMPARE = 4;
-//const OP_IS_ZEROS = 5;
+const OP_EVAL_LOOP = 3;
+const OP_EVAL_INLINE = 4;
 
 const OP_REQ_NONZERO = 10;
 const OP_REQ_CONTRACT = 11;
@@ -100,8 +98,8 @@ type ProgramAction = {
 
 // read an ops buffer
 export class ProgramReader {
-  static fromProgram(cmd: EVMProgram) {
-    return new this(Uint8Array.from(cmd.ops), cmd.inputs.slice());
+  static fromProgram(program: EVMProgram) {
+    return new this(Uint8Array.from(program.ops), program.inputs.slice());
   }
   static fromEncoded(hex: HexString) {
     const [ops, inputs] = ABI_CODER.decode(['bytes', 'bytes[]'], hex);
@@ -150,8 +148,6 @@ export class ProgramReader {
         return { pos, op, name: 'SLOT_ADD' };
       case OP_SLOT_ZERO:
         return { pos, op, name: 'SLOT_ZERO' };
-      case OP_COMPARE:
-        return { pos, op, name: 'COMPARE' };
       case OP_SET_OUTPUT:
         return { pos, op, name: 'SET_OUTPUT', index: this.readByte() };
       case OP_PUSH_INPUT:
@@ -176,20 +172,22 @@ export class ProgramReader {
         return { pos, op, name: 'REQ_CONTRACT' };
       case OP_REQ_NONZERO:
         return { pos, op, name: 'REQ_NONZERO' };
-      case OP_EVAL:
+      case OP_EVAL_INLINE:
+        return { pos, op, name: 'EVAL_INLINE' };
+      case OP_EVAL_LOOP:
         return {
           pos,
           op,
-          name: 'EVAL',
+          name: 'EVAL_LOOP',
           back: this.readByte(),
           flags: this.readByte(),
         };
       case OP_SLOT_FOLLOW:
         return { pos, op, name: 'SLOT_FOLLOW' };
       case OP_KECCAK:
-        return { pos, op, name: 'OP_KECCAK' };
+        return { pos, op, name: 'KECCAK' };
       case OP_CONCAT:
-        return { pos, op, name: 'OP_CONCAT', back: this.readByte() };
+        return { pos, op, name: 'CONCAT' };
       case OP_SLICE:
         return {
           pos,
@@ -270,7 +268,10 @@ export class EVMProgram {
   setOutput(i: number) {
     return this.addByte(OP_SET_OUTPUT).addByte(i);
   }
-  eval(
+  eval() {
+    return this.addByte(OP_EVAL_INLINE);
+  }
+  evalLoop(
     opts: {
       success?: boolean;
       failure?: boolean;
@@ -282,7 +283,7 @@ export class EVMProgram {
     if (opts.success) flags |= STOP_ON_SUCCESS;
     if (opts.failure) flags |= STOP_ON_FAILURE;
     if (opts.acquire) flags |= ACQUIRE_STATE;
-    return this.addByte(OP_EVAL)
+    return this.addByte(OP_EVAL_LOOP)
       .addByte(opts.back ?? 255)
       .addByte(flags);
   }
@@ -303,10 +304,6 @@ export class EVMProgram {
   requireNonzero(back = 0) {
     return this.addByte(OP_REQ_NONZERO).addByte(back);
   }
-
-  //   compare({greater = false, equal = true, less = false} = {}) {
-  //     return this.addByte(OP_COMPARE).addByte()
-  //   }
 
   pop() {
     return this.addByte(OP_POP);
@@ -330,7 +327,9 @@ export class EVMProgram {
   pushBytes(v: BytesLike) {
     return this.addByte(OP_PUSH_INPUT).addByte(this.addInputBytes(v));
   }
-  //pushCommand(cmd: EVMCommand) { return this.pushBytes(cmd.encode()); }
+  pushProgram(program: EVMProgram) {
+    return this.pushBytes(program.encode());
+  }
   pushSlot() {
     return this.addByte(OP_PUSH_SLOT);
   }
@@ -338,8 +337,8 @@ export class EVMProgram {
     return this.addByte(OP_PUSH_TARGET);
   }
 
-  concat(back: number) {
-    return this.addByte(OP_CONCAT).addByte(back);
+  concat() {
+    return this.addByte(OP_CONCAT);
   }
   keccak() {
     return this.addByte(OP_KECCAK);
@@ -436,9 +435,8 @@ export class MachineState {
     return back > 0 ? this.stack.splice(-back) : [];
   }
   peek(back: number) {
-    return back < this.stack.length
-      ? this.stack[this.stack.length - 1 - back]
-      : '0x';
+    if (back >= this.stack.length) throw new Error('stack underflow');
+    return this.stack[this.stack.length - 1 - back];
   }
   traceTarget(target: HexString, max: number) {
     // IDEA: this could incremently build the needs map
@@ -498,13 +496,13 @@ export abstract class AbstractProver {
     await this.evalCommand(reader, vm);
     return vm;
   }
-  async evalCommand(reader: ProgramReader, vm: MachineState) {
+  async evalCommand(reader: ProgramReader, vm: MachineState): Promise<void> {
     while (reader.remaining) {
       const op = reader.readByte();
       switch (op) {
         case OP_DEBUG: {
           // args: [string(label)] / stack: 0
-          console.log('DEBUG', reader.readInputStr(), {
+          console.log(`DEBUG(${reader.readInputStr()})`, {
             target: vm.target,
             slot: vm.slot,
             exitCode: vm.exitCode,
@@ -529,17 +527,6 @@ export abstract class AbstractProver {
         case OP_SLOT_ZERO: {
           // args: [] / stack: 0
           vm.slot = 0n;
-          continue;
-        }
-        case OP_COMPARE: {
-          // args: [] / stack: +1
-          const rhs = uint256FromHex(await unwrap(vm.peek(0)));
-          const lhs = uint256FromHex(await unwrap(vm.peek(1)));
-          vm.push(
-            ethers.toBeHex(
-              (lhs == rhs ? 1 : 0) + (lhs > rhs ? 2 : 0) + (lhs < rhs ? 4 : 0)
-            )
-          );
           continue;
         }
         case OP_SET_OUTPUT: {
@@ -673,28 +660,37 @@ export abstract class AbstractProver {
           }
           continue;
         }
-        case OP_EVAL: {
+        case OP_EVAL_INLINE: {
+          // args: [] / stack: -1 (program) & <program logic>
+          const program = ProgramReader.fromEncoded(await unwrap(vm.pop()));
+          const pos = reader.pos;
+          await this.evalCommand(program, vm);
+          reader.pos = pos;
+          if (vm.exitCode) return;
+          continue;
+        }
+        case OP_EVAL_LOOP: {
           // args: [back, flags] / stack: -1 (program) & -back (args)
           const back = reader.readByte();
           const flags = reader.readByte();
-          const cmd = ProgramReader.fromEncoded(await unwrap(vm.pop()));
-          const args = vm.popSlice(back).toReversed();
+          const program = ProgramReader.fromEncoded(await unwrap(vm.pop()));
+          const args = vm.popSlice(back).reverse();
           const vm2 = new MachineState(vm.outputs, vm.needs, vm.targets);
           for (const arg of args) {
             vm2.target = vm.target;
             vm2.slot = vm.slot;
             vm2.stack = [arg];
             vm2.exitCode = 0;
-            cmd.pos = 0;
-            await this.evalCommand(cmd, vm2);
-            if (flags & (vm2.exitCode ? STOP_ON_FAILURE : STOP_ON_SUCCESS))
+            program.pos = 0;
+            await this.evalCommand(program, vm2);
+            if (flags & (vm2.exitCode ? STOP_ON_FAILURE : STOP_ON_SUCCESS)) {
               break;
+            }
           }
           if (flags & ACQUIRE_STATE) {
             vm.target = vm2.target;
             vm.slot = vm2.slot;
             vm.stack = vm2.stack;
-            // question: what if we want to acquire the exitCode?
           }
           continue;
         }
@@ -709,19 +705,13 @@ export abstract class AbstractProver {
           continue;
         }
         case OP_CONCAT: {
-          // args: [back]
-          //        stack = [a, b, c]
-          // => concat(1) = unchanged
-          // => concat(2) = [a, b+c]
-          // => concat(4) = [a+b+c]
-          // => concat(0) = [a, b, c, 0x]
-          const v = vm.popSlice(reader.readByte());
+          // args: [] / stack: -1
+          const last = vm.pop();
+          const v = [vm.pop(), last];
           vm.push(
-            v.length
-              ? new Wrapped(async () =>
-                  ethers.concat(await Promise.all(v.map(unwrap)))
-                )
-              : '0x'
+            new Wrapped(async () =>
+              ethers.concat(await Promise.all(v.map(unwrap)))
+            )
           );
           continue;
         }

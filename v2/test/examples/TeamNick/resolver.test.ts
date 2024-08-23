@@ -12,6 +12,7 @@ describe('TeamNick', async () => {
 
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
+    infoLog: false,
   });
   afterAll(() => foundry.shutdown());
 
@@ -23,7 +24,7 @@ describe('TeamNick', async () => {
     config
   );
   const gateway = new Gateway(rollup);
-  const ccip = await serve(gateway, { protocol: 'raw', port: 0, log: false });
+  const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
 
   const verifier = await foundry.deploy({

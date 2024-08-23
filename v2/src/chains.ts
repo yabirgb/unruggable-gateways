@@ -25,14 +25,15 @@ export const CHAIN_LINEA: Chain = 59144n;
 export const CHAIN_LINEA_SEPOLIA: Chain = 59141n;
 
 function registerNetworkName(chain: Chain, name: string) {
-  // 20240809: ethers bug, injectCommonNetworks() only called on from()
-  const network = Network.from(chain);
   try {
     Network.register(chain, () => new Network(name, chain));
   } catch (err) {
-    console.log(`Chain(${chain}) already defined: ${name} => ${network.name}`);
+    //console.log(`Chain(${chain}) already defined: ${name} => ${Network.from(chain).name}`);
   }
 }
+
+// 20240809: ethers bug, injectCommonNetworks() only called on from()
+Network.from(1);
 
 registerNetworkName(CHAIN_SCROLL, 'scroll');
 registerNetworkName(CHAIN_SCROLL_SEPOLIA, 'scroll-sepolia');

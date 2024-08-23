@@ -17,7 +17,6 @@ describe('op', async () => {
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, {
     protocol: 'raw',
-    port: 0,
     log: false,
   });
   afterAll(() => ccip.http.close());
@@ -29,7 +28,7 @@ describe('op', async () => {
       [ccip.endpoint],
       rollup.defaultWindow,
       rollup.OptimismPortal,
-      rollup.gameTypes,
+      rollup.gameTypeBitMask,
       commit.index,
     ],
   });

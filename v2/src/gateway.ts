@@ -34,10 +34,6 @@ export class Gateway<
     this.register(GATEWAY_ABI, {
       proveRequest: async ([ctx, { ops, inputs }], _context, history) => {
         const commit = await this.getRecentCommit(BigInt(ctx));
-        // const hash = createHash('sha256')
-        //   .update(`${commit.index}:${_context.calldata.slice(74)}`)
-        //   .digest()
-        //   .toString('hex');
         const hash = ethers.solidityPackedKeccak256(
           ['uint256', 'bytes', 'bytes[]'],
           [commit.index, ops, inputs]

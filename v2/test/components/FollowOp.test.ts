@@ -4,7 +4,7 @@ import { Foundry } from '@adraffy/blocksmith';
 import { test, afterAll } from 'bun:test';
 import assert from 'node:assert/strict';
 
-test('FOLLOW === PUSH_SLOT CONCAT(2) KECCAK SLOT_ZERO SLOT_ADD', async () => {
+test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
 
@@ -31,7 +31,7 @@ test('FOLLOW === PUSH_SLOT CONCAT(2) KECCAK SLOT_ZERO SLOT_ADD', async () => {
     .setTarget(contract.target)
     .push(1)
     .pushSlot()
-    .concat(2)
+    .concat()
     .keccak()
     .zeroSlot()
     .addSlot()

@@ -12,8 +12,8 @@ uint8 constant ACQUIRE_STATE = 4;
 uint8 constant OP_DEBUG = 255;
 uint8 constant OP_TARGET = 1;
 uint8 constant OP_SET_OUTPUT = 2;
-uint8 constant OP_EVAL = 3;
-uint8 constant OP_RUN = 4;
+uint8 constant OP_EVAL_LOOP = 3;
+uint8 constant OP_EVAL_INLINE = 4;
 
 uint8 constant OP_REQ_NONZERO = 10;
 uint8 constant OP_REQ_CONTRACT = 11;

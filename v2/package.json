@@ -1,6 +1,6 @@
 {
   "name": "@unruggable/evmgateway",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "keywords": [
     "ethereum",
     "evm",
@@ -9,7 +9,6 @@
     "proof",
     "unruggable"
   ],
-  "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
     "forge": "forge build --force",
@@ -19,15 +18,17 @@
     "test-gateways": "bun test test/gateway/* --timeout 0",
     "lint": "eslint . --ext .ts",
     "clean": "rm -rf ./dist && rm -rf ./tsconfig.build.tsbuildinfo",
-    "build:esm": "tsc --project tsconfig.json --outDir ./dist/esm && echo > ./dist/esm/package.json '{\"type\":\"module\",\"sideEffects\":false}'",
-    "build:types": "tsc --project tsconfig.json --declarationDir ./dist/types --emitDeclarationOnly --declaration --declarationMap",
-    "build": "bun run clean && bun run build:esm && bun run build:types"
+    "build:esm": "tsc --outDir ./dist/esm && echo > ./dist/esm/package.json '{\"type\":\"module\",\"sideEffects\":false}'",
+    "build:cjs": "tsc --outDir ./dist/cjs --moduleResolution node16 --module node16 && echo > ./dist/cjs/package.json '{\"type\":\"commonjs\",\"sideEffects\":false}'",
+    "build:types": "tsc --declarationDir ./dist/types --emitDeclarationOnly --declaration --declarationMap",
+    "build": "bun run clean && bun run build:esm && bun run build:cjs && bun run build:types"
   },
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/esm/index.js"
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     }
   },
   "files": [
@@ -35,7 +36,7 @@
     "src/"
   ],
   "devDependencies": {
-    "@adraffy/blocksmith": "^0.0.26",
+    "@adraffy/blocksmith": "^0.0.27",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
@@ -45,7 +46,7 @@
     "prettier": "^3.3.3"
   },
   "dependencies": {
-    "@resolverworks/ezccip": "^0.0.12",
+    "@resolverworks/ezccip": "^0.0.14",
     "ethers": "^6.13.1"
   },
   "peerDependencies": {

@@ -91,8 +91,8 @@ library EVMFetcher {
 	// function follow(EVMRequest memory r, string memory s) internal pure returns (EVMRequest memory) { return r.push(s).follow(); }
 	// function follow(EVMRequest memory r, bytes memory v) internal pure returns (EVMRequest memory) { return r.push(v).follow(); }
 
-	function concat(EVMRequest memory r, uint8 n) internal pure returns (EVMRequest memory) {
-		return r.addByte(OP_CONCAT).addByte(n);
+	function concat(EVMRequest memory r) internal pure returns (EVMRequest memory) {
+		return r.addByte(OP_CONCAT);
 	}
  	function keccak(EVMRequest memory r) internal pure returns (EVMRequest memory) {
 		return r.addByte(OP_KECCAK);
@@ -101,9 +101,11 @@ library EVMFetcher {
 		return r.addByte(OP_SLICE).addShort(pos).addShort(len);
 	}
 
-	function eval(EVMRequest memory r, uint8 flags) internal pure returns (EVMRequest memory) { return r.eval(flags, 255); }
-	function eval(EVMRequest memory r, uint8 flags, uint8 back) internal pure returns (EVMRequest memory) {
-		return r.addByte(OP_EVAL).addByte(back).addByte(flags);
+	function eval(EVMRequest memory r) internal pure returns (EVMRequest memory) { return r.addByte(OP_EVAL_INLINE); }
+
+	function evalLoop(EVMRequest memory r, uint8 flags) internal pure returns (EVMRequest memory) { return r.evalLoop(flags, 255); }
+	function evalLoop(EVMRequest memory r, uint8 flags, uint8 back) internal pure returns (EVMRequest memory) {
+		return r.addByte(OP_EVAL_LOOP).addByte(back).addByte(flags);
 	}
 
 	// shorthand

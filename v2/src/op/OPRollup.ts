@@ -1,12 +1,18 @@
 import type { RollupDeployment } from '../rollup.js';
-import type { HexAddress, ProviderPair } from '../types.js';
+import type { HexAddress, HexString32, ProviderPair } from '../types.js';
 import { ethers } from 'ethers';
-import { ORACLE_ABI, type ABIOutputProposal } from './types.js';
+import { ORACLE_ABI } from './types.js';
 import { CHAIN_BASE, CHAIN_MAINNET } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
 
 export type OPConfig = {
   L2OutputOracle: HexAddress;
+};
+
+type ABIOutputProposal = {
+  outputRoot: HexString32;
+  timestamp: bigint;
+  l2BlockNumber: bigint;
 };
 
 export class OPRollup extends AbstractOPRollup {

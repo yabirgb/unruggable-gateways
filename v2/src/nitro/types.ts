@@ -33,7 +33,3 @@ export const ROLLUP_ABI = new ethers.Interface([
     uint256 inboxMaxCount
   )`,
 ]);
-
-export type ABINode = {
-  prevNum: bigint;
-};

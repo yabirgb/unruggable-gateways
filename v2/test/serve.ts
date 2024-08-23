@@ -9,6 +9,7 @@ import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { createProviderPair } from './providers.js';
 import { serve } from '@resolverworks/ezccip';
 import { Gateway } from '../src/gateway.js';
+import { LineaRollup } from '../src/linea/LineaRollup.js';
 
 const [, , name, port] = process.argv;
 let rollup: Rollup;
@@ -28,11 +29,16 @@ switch (name) {
     rollup = new OPRollup(createProviderPair(config), config);
     break;
   }
-  // case 'base-testnet': {
-  //   const config = OPFaultRollup.baseTestnetConfig;
-  //   rollup = await OPFaultRollup.create(createProviderPair(config), config);
-  //   break;
-  // }
+  case 'base-testnet': {
+    const config = OPFaultRollup.baseTestnetConfig;
+    rollup = await OPFaultRollup.create(createProviderPair(config), config);
+    break;
+  }
+  case 'linea': {
+    const config = LineaRollup.mainnetConfig;
+    rollup = new LineaRollup(createProviderPair(config), config);
+    break;
+  }
   case 'scroll': {
     const config = ScrollRollup.mainnetConfig;
     rollup = await ScrollRollup.create(createProviderPair(config), config);
@@ -48,8 +54,9 @@ switch (name) {
     rollup = new ZKSyncRollup(createProviderPair(config), config);
     break;
   }
-  default:
+  default: {
     throw new Error(`unknown gateway: ${name}`);
+  }
 }
 
 function networkName(p: Provider) {

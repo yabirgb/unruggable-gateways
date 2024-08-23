@@ -18,7 +18,6 @@ export * from './rollup.js';
 export * from './op/AbstractOPRollup.js';
 export * from './op/OPRollup.js';
 export * from './op/OPFaultRollup.js';
-export * from './op/OPFaultGameFinder.js';
 
 export * from './nitro/NitroRollup.js';
 export * from './scroll/ScrollRollup.js';

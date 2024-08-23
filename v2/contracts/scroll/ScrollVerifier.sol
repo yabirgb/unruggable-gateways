@@ -30,13 +30,13 @@ contract ScrollVerifier is OwnedVerifier {
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
-		uint256 latestBatchIndex = abi.decode(context, (uint256));
+		uint256 batchIndex1 = abi.decode(context, (uint256));
 		(
 			uint256 batchIndex,
 			bytes[] memory proofs, 
 			bytes memory order
 		) = abi.decode(proof, (uint256, bytes[], bytes));
-		_checkWindow(latestBatchIndex, batchIndex);
+		_checkWindow(batchIndex1, batchIndex);
 		bytes32 stateRoot = _commitmentVerifier.rollup().finalizedStateRoots(batchIndex);
 		require(stateRoot != bytes32(0), "Scroll: not finalized");
 		return EVMProver.evalRequest(req, ProofSequence(0,

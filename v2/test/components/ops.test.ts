@@ -1,5 +1,5 @@
 import type { BigNumberish } from '../../src/types.js';
-import { EVMRequest, solidityFollowSlot } from '../../src/vm.js';
+import { EVMProgram, EVMRequest, solidityFollowSlot } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
@@ -13,7 +13,7 @@ function uint256(x: BigNumberish) {
 }
 
 describe('ops', async () => {
-  const foundry = await Foundry.launch({ infoLog: false });
+  const foundry = await Foundry.launch({ infoLog: true });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({
     file: 'EthSelfVerifier',
@@ -97,29 +97,22 @@ describe('ops', async () => {
 
   test('concat ints', async () => {
     const req = new EVMRequest();
-    req.push(1).push(2).concat(2).addOutput();
+    req.push(1).push(2).concat().addOutput();
     const { values } = await verify(req);
     expect(values[0]).toBe(ethers.concat([uint256(1), uint256(2)]));
   });
 
   test('concat string x2', async () => {
     const req = new EVMRequest();
-    req
-      .pushStr('r')
-      .pushStr('af')
-      .pushStr('fy')
-      .concat(2)
-      .concat(2)
-      .addOutput();
+    req.pushStr('r').pushStr('af').pushStr('fy').concat().concat().addOutput();
     const { values } = await verify(req);
     expect(values[0]).toBe(hexStr('raffy'));
   });
 
-  test('concat empty', async () => {
+  test('concat nothing', async () => {
     const req = new EVMRequest();
-    req.concat(255).addOutput();
-    const { values } = await verify(req);
-    expect(values[0]).toBe('0x');
+    req.concat();
+    expect(verify(req)).rejects.toThrow('stack underflow');
   });
 
   test('dup last', async () => {
@@ -140,8 +133,7 @@ describe('ops', async () => {
   test('dup nothing', async () => {
     const req = new EVMRequest();
     req.dup().addOutput();
-    const { values } = await verify(req);
-    expect(values[0]).toBe('0x');
+    expect(verify(req)).rejects.toThrow('stack underflow');
   });
 
   test('pop', async () => {
@@ -280,29 +272,46 @@ describe('ops', async () => {
     expect(exitCode).toBe(1);
   });
 
-  test('eval requireContract', async () => {
+  test('evalLoop requireContract', async () => {
     const req = new EVMRequest();
     req.push(1);
     req.push(contract.target);
     req.push('0x51050ec063d393217B436747617aD1C2285Aeeee');
     req.push(uint256(0));
     req.begin().target().requireContract().end();
-    req.eval({ success: true, acquire: true });
+    req.evalLoop({ success: true, acquire: true });
     const { target, stack } = await verify(req);
     expect(target).toBe(contract.target.toLowerCase());
     expect(stack).toHaveLength(0);
   });
 
-  test('eval requireNonzero', async () => {
+  test('evalLoop requireNonzero', async () => {
     const req = new EVMRequest(1);
     req.push(123);
     req.push(1337);
     req.push(0);
     req.pushStr('');
-    req.begin().requireNonzero().setOutput(0).end();
-    req.eval({ success: true });
+    req.pushProgram(new EVMProgram().requireNonzero().setOutput(0));
+    req.evalLoop({ success: true });
     const { values, stack } = await verify(req);
     expect(values[0]).toBe(uint256(1337));
     expect(stack).toHaveLength(0);
+  });
+
+  test('evalLoop empty', async () => {
+    const req = new EVMRequest(1);
+    req.pushProgram(new EVMProgram().concat()); // this will throw if executed
+    req.evalLoop();
+    await verify(req);
+  });
+
+  // TODO: need more eval tests
+  test('eval', async () => {
+    const req = new EVMRequest();
+    req.pushProgram(new EVMProgram().push(1337));
+    req.eval();
+    req.addOutput();
+    const { values } = await verify(req);
+    expect(values[0]).toStrictEqual(uint256(1337));
   });
 });

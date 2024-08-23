@@ -84,7 +84,7 @@ contract SlotDataReader is EVMFetchTarget {
 		EVMRequest memory r = EVMFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(0).read().setSlot(3).follow().readBytes().setSlot(4).follow().readBytes().slice(0, 3); // "Hal"
 		r.setSlot(0).read().setSlot(2).follow().read().slice(16, 16); // uint128(12345)
-		r.concat(2).keccak().setSlot(3).follow().readBytes().setOutput(0); // highscorers[keccak("Hal"+12345)]
+		r.concat().keccak().setSlot(3).follow().readBytes().setOutput(0); // highscorers[keccak("Hal"+12345)]
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
 

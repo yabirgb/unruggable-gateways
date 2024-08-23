@@ -1,5 +1,5 @@
 import { EVMRequest } from '../../src/vm.js';
-import { EVMProver } from '../../src/evm/prover.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { test, afterAll, expect } from 'bun:test';
@@ -33,7 +33,7 @@ test('ClowesConcatSlice', async () => {
     args: [data, key, VALUE],
   });
 
-  const prover = await EVMProver.latest(foundry.provider);
+  const prover = await EthProver.latest(foundry.provider);
 
   const r = new EVMRequest(2)
     .setTarget(contract.target)
@@ -44,7 +44,7 @@ test('ClowesConcatSlice', async () => {
     .slice(0, FIRST)
     .pushOutput(0)
     .slice(SIZE - LAST, LAST)
-    .concat(2)
+    .concat()
     .setSlot(1)
     .follow()
     .read()

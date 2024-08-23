@@ -67,7 +67,7 @@ library EVMProver {
 	function readBack(Machine memory vm) internal pure returns (uint256) {
 		uint8 back = vm.readByte();
 		if (back >= vm.stackSize) revert RequestOverflow();
-		return vm.stackSize + ~back;
+		return vm.stackSize - 1 - back;
 	}
 	function checkRead(Machine memory vm, uint256 n) internal pure returns (uint256 ptr) {
 		uint256 pos = vm.pos;
@@ -197,7 +197,6 @@ library EVMProver {
 			} else if (op == OP_PUSH_TARGET) {
 				vm.push(abi.encodePacked(vm.target));
 			} else if (op == OP_DUP) {
-				//vm.push(abi.encodePacked(vm.stack(vm.readByte())));
 				vm.push(abi.encodePacked(vm.stack[vm.readBack()]));
 			} else if (op == OP_POP) {
 				if (vm.stackSize != 0) --vm.stackSize;
@@ -215,13 +214,10 @@ library EVMProver {
 			} else if (op == OP_KECCAK) {
 				vm.push(abi.encodePacked(keccak256(vm.pop())));
 			} else if (op == OP_CONCAT) {
-				uint8 back = vm.readByte();
-				bytes memory v;
-				for (; back > 0 && vm.stackSize > 0; --back) {
-					v = bytes.concat(vm.pop(), v); // TODO: optimize
-				}
-				vm.push(v);
-			} else if (op == OP_RUN) {
+				if (vm.stackSize < 2) revert RequestInvalid();
+				bytes memory last = vm.pop();
+				vm.push(bytes.concat(vm.pop(), last));
+			} else if (op == OP_EVAL_INLINE) {
 				bytes memory program = vm.pop();
 				// save program
 				uint256 pos = vm.pos;
@@ -230,14 +226,13 @@ library EVMProver {
 				// load new program
 				vm.pos = 0;
 				(vm.buf, vm.inputs) = abi.decode(program, (bytes, bytes[]));
-				bytes memory result = new bytes(1);
-				result[0] = bytes1(evalCommand(vm, outputs));
-				vm.push(result);
+				exitCode = evalCommand(vm, outputs);
+				if (exitCode != 0) return exitCode;
 				// restore program
 				vm.pos = pos;
 				vm.buf = buf;
 				vm.inputs = inputs;
-			} else if (op == OP_EVAL) {
+			} else if (op == OP_EVAL_LOOP) {
 				uint8 back = vm.readByte();
 				uint8 flags = vm.readByte();
 				Machine memory vm2;
@@ -251,8 +246,7 @@ library EVMProver {
 					vm2.pos = 0;
 					vm2.stackSize = 0;
 					vm2.push(vm.pop());
-					exitCode = evalCommand(vm2, outputs);
-					if ((flags & (exitCode != 0 ? STOP_ON_FAILURE : STOP_ON_SUCCESS)) != 0) {
+					if ((flags & (evalCommand(vm2, outputs) != 0 ? STOP_ON_FAILURE : STOP_ON_SUCCESS)) != 0) {
 						break;
 					}
 				}
@@ -266,7 +260,7 @@ library EVMProver {
 					vm.stackSize = vm.stackSize > back ? vm.stackSize - back : 0;
 				}
 			} else if (op == OP_DEBUG) {
-				console2.log(string(vm.inputs[vm.readByte()]));
+				console2.log("DEBUG(%s)", string(vm.inputs[vm.readByte()]));
 				vm.dump();
 			} else {
 				revert RequestInvalid();

@@ -17,7 +17,6 @@ describe('linea', async () => {
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, {
     protocol: 'raw',
-    port: 0,
     log: false,
   });
   afterAll(() => ccip.http.close());

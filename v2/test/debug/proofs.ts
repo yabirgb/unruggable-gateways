@@ -1,7 +1,8 @@
+import { CHAIN_MAINNET } from '../../src/chains.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { createProvider } from '../providers.js';
 
-const prover = await EthProver.latest(createProvider(1));
+const prover = await EthProver.latest(createProvider(CHAIN_MAINNET));
 
 const A = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 

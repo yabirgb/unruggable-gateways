@@ -17,7 +17,6 @@ describe('base testnet', async () => {
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, {
     protocol: 'raw',
-    port: 0,
     log: false,
   });
   afterAll(() => ccip.http.close());
@@ -28,7 +27,7 @@ describe('base testnet', async () => {
       [ccip.endpoint],
       rollup.defaultWindow,
       rollup.OptimismPortal,
-      rollup.gameTypes,
+      rollup.gameTypeBitMask,
       commit.index,
     ],
   });

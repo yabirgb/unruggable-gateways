@@ -138,7 +138,7 @@ async function resolve(name: string) {
     .requireNonzero()
     .setOutput(1) // save nonzero resolver
     .end()
-    .eval({ back: 1 })
+    .evalLoop({ back: 1 })
     .setSlot(0)
     .pushOutput(0)
     .follow()
@@ -149,10 +149,10 @@ async function resolve(name: string) {
     .requireNonzero() // check address
     .pushBytes(ethers.toBeHex(0, 12))
     .dup(1)
-    .concat(2)
+    .concat()
     .setOutput(0) // save it
     .end()
-    .eval({ failure: true }) // loop until we get a failure
+    .evalLoop({ failure: true }) // loop until we get a failure
     .pushOutput(1)
     .requireNonzero()
     .target() // set target to resolver

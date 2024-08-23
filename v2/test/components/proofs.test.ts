@@ -43,7 +43,7 @@ describe('proofs', async () => {
     expect(p0).toEqual(p1);
   });
 
-  test('reconstruction: 3 slot reversed', async () => {
+  test('reconstruction: 3 slot scrambled', async () => {
     const prover = await EthProver.latest(foundry.provider);
     const slots = [2n, 0n, 1n];
     const p0 = await prover.fetchProofs(contract.target, slots);

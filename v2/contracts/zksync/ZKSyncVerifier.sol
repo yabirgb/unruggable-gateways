@@ -39,14 +39,14 @@ contract ZKSyncVerifier is OwnedVerifier {
 	}
 
 	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
-		uint256 latestBatchIndex = abi.decode(context, (uint256));
+		uint256 batchIndex1 = abi.decode(context, (uint256));
 		(
 			bytes memory encodedBatch,
 			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (bytes, bytes[], bytes));
 		StoredBatchInfo memory batchInfo = abi.decode(encodedBatch, (StoredBatchInfo));
-		_checkWindow(latestBatchIndex, batchInfo.batchNumber);
+		_checkWindow(batchIndex1, batchInfo.batchNumber);
 		require(keccak256(encodedBatch) == _diamond.storedBatchHash(batchInfo.batchNumber), "ZKS: batchHash");
 		require(batchInfo.l2LogsTreeRoot == _diamond.l2LogsRootHash(batchInfo.batchNumber), "ZKS: l2LogsRootHash");
 		return EVMProver.evalRequest(req, ProofSequence(0,

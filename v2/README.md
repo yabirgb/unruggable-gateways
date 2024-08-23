@@ -37,6 +37,7 @@ forge install ensdomains/enschain
 	* [OP](./src/op/OPRollup.ts) &mdash; Base Mainnet
 	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; OP Mainnet, Base Testnet
 	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
+	* [Linea](./src/linea/LineaRollup.ts)
 	* [Scroll](./src/scroll/ScrollRollup.ts)
 	* [Taiko](./src/taiko/TaikoRollup.ts)
 	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
@@ -58,7 +59,7 @@ forge install ensdomains/enschain
 	* `bun test/examples/enschain/demo.ts`
 * [ENSv2](./test/examples/ENSv2/)
 	* copy [`contracts/`](https://github.com/unruggable-labs/ENS-V2/tree/main/contracts)
-	* `bun test/examples/ENSv2/storage.ts`
+	* `bun test/examples/ENSv2/demo.ts`
 * [TeamNick](./test/examples/TeamNick/)
 	* `bun test/examples/TeamNick/fetch.ts`
 		* write requests [in JS](./test/examples//TeamNick/fetch.ts) to quickly iterate
@@ -68,5 +69,5 @@ forge install ensdomains/enschain
 ## Serve
 
 * `bun run serve <chain> [port]`
-	* Supported chains: `base op arb1 scroll taiko zksync`
+	* Supported chains: `base op arb1 linea scroll taiko zksync`
 	* Default port: `8000`

@@ -1,7 +1,8 @@
 import type { HexString } from '../../../src/types.js';
 import { ethers } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
-import { EVMProver, EVMRequest } from '../../../src/vm.js';
+import { EVMRequest } from '../../../src/vm.js';
+import { EthProver } from '../../../src/eth/EthProver.js';
 import { decodeStorageArray } from '../../utils.js';
 import { test, afterAll, expect } from 'bun:test';
 
@@ -24,7 +25,7 @@ async function setup() {
     async prover() {
       // create an snapshot to prove against
       // can be invoked multiple times to observe changes
-      const prover = await EVMProver.latest(this.foundry.provider);
+      const prover = await EthProver.latest(this.foundry.provider);
       const stateRoot = await prover.fetchStateRoot();
       return {
         prover,

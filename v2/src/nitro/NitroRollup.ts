@@ -18,7 +18,7 @@ import {
   CHAIN_SEPOLIA,
 } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
-import { ROLLUP_ABI, type ABINode } from './types.js';
+import { ROLLUP_ABI } from './types.js';
 import { ABI_CODER } from '../utils.js';
 import { CachedMap } from '../cached.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
@@ -33,6 +33,10 @@ export type NitroConfig = {
 export type NitroCommit = RollupCommit<EthProver> & {
   readonly sendRoot: HexString;
   readonly rlpEncodedBlock: HexString;
+};
+
+type ABINodeTuple = {
+  prevNum: bigint;
 };
 
 export class NitroRollup extends AbstractRollupV1<NitroCommit> {
@@ -70,7 +74,7 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
   }
   override async fetchParentCommitIndex(commit: NitroCommit): Promise<bigint> {
     if (!commit.index) return -1n; // genesis
-    const node: ABINode = await this.L2Rollup.getNode(commit.index);
+    const node: ABINodeTuple = await this.L2Rollup.getNode(commit.index);
     return node.prevNum;
   }
   override async fetchCommit(index: bigint): Promise<NitroCommit> {

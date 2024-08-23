@@ -93,13 +93,13 @@ async function resolve(name: string) {
     .requireNonzero()
     .setOutput(1) // save nonzero resolver
     .end()
-    .eval({ back: 1 })
+    .evalLoop({ back: 1 })
     .offset(1)
     .read() // registry
     .requireNonzero() // require registry
     .setOutput(0) // save it
     .end()
-    .eval({ failure: true }); // loop until we get a failure
+    .evalLoop({ failure: true }); // loop until we get a failure
   req
     .pushOutput(1)
     .requireNonzero()

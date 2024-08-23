@@ -6,13 +6,8 @@ const rollup = await OPFaultRollup.create(createProviderPair(config), config);
 
 console.log({
   OptimismPortal: rollup.OptimismPortal.target,
-  supportedGames: rollup.supportedGames.map((g) => ({
-    gameType: g.gameFinder.gameType,
-    anchorRegistry: g.anchorRegistry.target,
-    gameImpl: g.gameImpl.target,
-  })),
-  disputeGameFactory: rollup.disputeGameFactory.target,
-  respectedGameType: await rollup.fetchGameType(),
+  GameFinder: rollup.GameFinder.target,
+  respectedGameType: await rollup.fetchRespectedGameType(),
   defaultWindow: rollup.defaultWindow,
 });
 
