@@ -9,7 +9,7 @@
 
 #### Suggested VSCode Extensions
 
-* [NomicFoundation.hardhat-solidity](https://marketplace.visualstudio.com/items?itemName=NomicFoundation.hardhat-solidity)
+* [JuanBlanco.solidity](https://marketplace.visualstudio.com/items?itemName=JuanBlanco.solidity)
 * [esbenp.prettier-vscode](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 * [dbaeumer.vscode-eslint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 
@@ -22,11 +22,25 @@ forge install openzeppelin-contracts-v4.9=OpenZeppelin/openzeppelin-contracts@re
 forge install ensdomains/ens-contracts
 forge install ensdomains/buffer
 forge install OpenZeppelin/openzeppelin-contracts@master # https://github.com/OpenZeppelin/openzeppelin-contracts/pull/4845
-forge install ethereum-optimism/optimism@develop # https://github.com/ethereum-optimism/optimism/pull/10819
+forge install ethereum-optimism/optimism@v1.8.0
 forge install offchainlabs/nitro-contracts
 forge install ensdomains/enschain
 # forge install taikoxyz/taiko-mono # using inline headers instead
 ```
+
+## Support
+* Provers
+	* [EthProver](./src/eth//EthProver.ts) &rarr; `eth_getProof`
+	* [LineaProver](./src/linea/LineaProver.ts) &rarr; `linea_getProof`
+	* [ZKSyncProver](./src/zksync/ZKSyncProver.ts) &rarr; `zks_getProof`
+* Rollups: 
+	* [OP](./src/op/OPRollup.ts) &mdash; Base Mainnet
+	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; OP Mainnet, Base Testnet
+	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
+	* [Linea](./src/linea/LineaRollup.ts)
+	* [Scroll](./src/scroll/ScrollRollup.ts)
+	* [Taiko](./src/taiko/TaikoRollup.ts)
+	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
 
 ## Test
 
@@ -34,7 +48,7 @@ forge install ensdomains/enschain
 	* `bun run test-components`
 		* [Supported Operations](./test/components/ops.test.ts)
 		* [Protocol Limits](./test/components/limits.test.ts)
-		* [Batched eth_getProof](./test/components/proofs.test.ts)
+		* [Batched `eth_getProof`](./test/components/proofs.test.ts)
 	* `bun run test-gateways`
 		* [Contract](./test/gateway/SlotDataContract.sol) &rarr; [Reader](./test/gateway/SlotDataReader.sol) &rarr; [Tests](./test/gateway/tests.ts)
 		* ⚠️ Scroll fails [`readZero()`](./test/gateway/tests.ts#L26) test
@@ -45,7 +59,7 @@ forge install ensdomains/enschain
 	* `bun test/examples/enschain/demo.ts`
 * [ENSv2](./test/examples/ENSv2/)
 	* copy [`contracts/`](https://github.com/unruggable-labs/ENS-V2/tree/main/contracts)
-	* `bun test/examples/ENSv2/storage.ts`
+	* `bun test/examples/ENSv2/demo.ts`
 * [TeamNick](./test/examples/TeamNick/)
 	* `bun test/examples/TeamNick/fetch.ts`
 		* write requests [in JS](./test/examples//TeamNick/fetch.ts) to quickly iterate
@@ -55,5 +69,5 @@ forge install ensdomains/enschain
 ## Serve
 
 * `bun run serve <chain> [port]`
-	* Supported chains: `base op arb1 scroll taiko utaiko`
+	* Supported chains: `base op arb1 linea scroll taiko zksync`
 	* Default port: `8000`

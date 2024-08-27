@@ -12,7 +12,8 @@ uint8 constant ACQUIRE_STATE = 4;
 uint8 constant OP_DEBUG = 255;
 uint8 constant OP_TARGET = 1;
 uint8 constant OP_SET_OUTPUT = 2;
-uint8 constant OP_EVAL = 3;
+uint8 constant OP_EVAL_LOOP = 3;
+uint8 constant OP_EVAL_INLINE = 4;
 
 uint8 constant OP_REQ_NONZERO = 10;
 uint8 constant OP_REQ_CONTRACT = 11;
@@ -32,6 +33,7 @@ uint8 constant OP_PUSH_TARGET = 43;
 
 uint8 constant OP_DUP = 50;
 uint8 constant OP_POP = 51;
+uint8 constant OP_SWAP = 52;
 
 uint8 constant OP_KECCAK = 60;
 uint8 constant OP_CONCAT = 61;
@@ -45,10 +47,10 @@ struct EVMRequest {
 struct ProofSequence {
 	uint256 index;
 	bytes32 stateRoot;
-	bytes[][] proofs;
+	bytes[] proofs;
 	bytes order;
-	function(bytes32, address, bytes[] memory) internal view returns (bytes32) proveAccountState;
-	function(bytes32, uint256, bytes[] memory) internal view returns (uint256) proveStorageValue;
+	function(bytes32, address, bytes memory) internal view returns (bytes32) proveAccountState;
+	function(bytes32, address, uint256, bytes memory) internal view returns (bytes32) proveStorageValue;
 }
 
 // the limits are very high so RequestOverflow() is unlikely
@@ -61,5 +63,5 @@ error RequestOverflow();
 // this should be unreachable with a valid EVMRequest
 error RequestInvalid();
 
-error VerifierMismatch(bytes context, bytes32 derived, bytes32 actual);
+//error VerifierMismatch(bytes context, bytes32 derived, bytes32 actual);
 //error VerifierUnsatisfiable();

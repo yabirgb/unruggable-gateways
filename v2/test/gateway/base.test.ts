@@ -1,29 +1,28 @@
-import { OPGateway } from '../../src/gateway/OPGateway.js';
+import { OPRollup } from '../../src/op/OPRollup.js';
+import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { createProvider, providerURL, CHAIN_BASE } from '../providers.js';
-import { runSlotDataTests, LOG_CCIP } from './tests.js';
+import { createProviderPair, providerURL } from '../providers.js';
+import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
 describe('base', async () => {
+  const config = OPRollup.baseMainnetConfig;
+  const rollup = new OPRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
-    fork: providerURL(1),
+    fork: providerURL(config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const gateway = OPGateway.baseMainnet({
-    provider1: foundry.provider,
-    provider2: createProvider(CHAIN_BASE),
-  });
+  const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, {
     protocol: 'raw',
-    port: 0,
-    log: LOG_CCIP,
+    log: false,
   });
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'OPVerifier',
-    args: [[ccip.endpoint], gateway.L2OutputOracle, gateway.blockDelay],
+    args: [[ccip.endpoint], rollup.defaultWindow, rollup.L2OutputOracle],
   });
   // https://basescan.org/address/0x0C49361E151BC79899A9DD31B8B0CCdE4F6fd2f6
   const reader = await foundry.deploy({

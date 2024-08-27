@@ -8,7 +8,7 @@ function wait(t: number) {
 describe('CachedMap', () => {
   // cached map with 0 cache time should clear immediately after resolves
   test('pending map', async () => {
-    const c = new CachedMap({ cacheMs: 0 });
+    const c = new CachedMap(0);
     await c.get('A', async () => 1);
     expect(c.cachedSize).toEqual(0);
     expect(
@@ -21,7 +21,7 @@ describe('CachedMap', () => {
 
   // cached map with infinite cache time should resolve once and never schedule
   test('once map', async () => {
-    const c = new CachedMap({ cacheMs: Infinity });
+    const c = new CachedMap(Infinity);
     await c.get('A', async () => 1);
     expect(c.cachedRemainingMs('A') === Infinity);
     expect(c.nextExpirationMs).toEqual(Infinity);
@@ -33,7 +33,7 @@ describe('CachedMap', () => {
   });
 
   test('cached map', async () => {
-    const c = new CachedMap({ cacheMs: 1000 });
+    const c = new CachedMap(1000);
     c.get('A', () => wait(1000).then(() => 1));
     c.get('B', () => wait(1500).then(() => 2), 2000);
     expect(

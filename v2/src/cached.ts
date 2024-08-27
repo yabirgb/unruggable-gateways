@@ -18,15 +18,12 @@ function clock() {
 }
 
 export class CachedValue<T> {
-  static once<T>(fn: () => Promise<T>, errorMs: number = 250) {
-    return new this(fn, Infinity, errorMs);
-  }
   #exp: number = 0;
   #value: Promise<T> | undefined;
+  errorMs = 250;
   constructor(
     readonly fn: () => Promise<T>,
-    readonly cacheMs: number,
-    readonly errorMs: number
+    public cacheMs: number = 60000
   ) {}
   clear() {
     this.#value = undefined;
@@ -62,30 +59,13 @@ export class CachedMap<K = unknown, V = unknown> {
   private readonly pending: Map<K, Promise<V>> = new Map();
   private timer: Timer | undefined;
   private timer_t: number = Infinity;
-  readonly cacheMs;
-  readonly errorMs;
-  readonly slopMs;
-  readonly maxCached;
-  readonly maxPending;
-  constructor({
-    cacheMs = 60000, // how long to cache a resolved promise
-    errorMs = 250, // how long to cache a rejected promise
-    slopMs = 50, // reschedule precision
-    maxCached = 10000, // overflow clears oldest items
-    maxPending = 100, // overflow causes rejections
-  }: {
-    cacheMs?: number;
-    errorMs?: number;
-    slopMs?: number;
-    maxCached?: number;
-    maxPending?: number;
-  } = {}) {
-    this.cacheMs = cacheMs;
-    this.errorMs = errorMs;
-    this.slopMs = slopMs;
-    this.maxCached = maxCached;
-    this.maxPending = maxPending;
-  }
+  errorMs = 250; // how long to cache a rejected promise
+  slopMs = 50; // reschedule precision
+  maxPending = 100; // overflow causes rejections
+  constructor(
+    public cacheMs = 60000, // how long to cache a resolved promise
+    public maxCached = 10000 // overflow clears oldest items
+  ) {}
   private schedule(exp: number) {
     const now = clock();
     const t = Math.max(now + this.slopMs, exp);
@@ -180,7 +160,7 @@ export class CachedMap<K = unknown, V = unknown> {
   get(key: K, fn: (key: K) => Promise<V>, ms?: number): Promise<V> {
     let p = this.peek(key);
     if (p) return p;
-    if (this.maxPending && this.pending.size >= this.maxPending) {
+    if (this.pending.size >= this.maxPending) {
       throw new Error('busy'); // too many in-flight
     }
     const q = fn(key); // begin

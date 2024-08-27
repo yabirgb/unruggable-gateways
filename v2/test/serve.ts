@@ -1,50 +1,62 @@
-import { OPGateway } from '../src/gateway/OPGateway.js';
-import { OPFaultGateway } from '../src/gateway/OPFaultGateway.js';
-import { NitroGateway } from '../src/gateway/NitroGateway.js';
-import { ScrollGateway } from '../src/gateway/ScrollGateway.js';
-import { TaikoGateway } from '../src/gateway/TaikoGateway.js';
-import { UnverifiedTaikoGateway } from '../src/gateway/UnverifiedTaikoGateway.js';
-import {
-  CHAIN_ARB1,
-  CHAIN_BASE,
-  CHAIN_OP,
-  CHAIN_SCROLL,
-  CHAIN_TAIKO,
-  createProviderPair,
-} from './providers.js';
-import { serve } from '@resolverworks/ezccip';
 import type { Provider } from '../src/types.js';
+import type { Rollup } from '../src/rollup.js';
+import { OPRollup } from '../src/op/OPRollup.js';
+import { OPFaultRollup } from '../src/op/OPFaultRollup.js';
+import { NitroRollup } from '../src/nitro/NitroRollup.js';
+import { ScrollRollup } from '../src/scroll/ScrollRollup.js';
+import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
+import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
+import { createProviderPair } from './providers.js';
+import { serve } from '@resolverworks/ezccip';
+import { Gateway } from '../src/gateway.js';
+import { LineaRollup } from '../src/linea/LineaRollup.js';
 
 const [, , name, port] = process.argv;
-let gateway;
+let rollup: Rollup;
 switch (name) {
   case 'op': {
-    gateway = OPFaultGateway.mainnet(createProviderPair(CHAIN_OP));
+    const config = OPFaultRollup.mainnetConfig;
+    rollup = await OPFaultRollup.create(createProviderPair(config), config);
     break;
   }
   case 'arb1': {
-    gateway = NitroGateway.arb1Mainnet(createProviderPair(CHAIN_ARB1));
+    const config = NitroRollup.arb1MainnetConfig;
+    rollup = new NitroRollup(createProviderPair(config), config);
     break;
   }
   case 'base': {
-    gateway = OPGateway.baseMainnet(createProviderPair(CHAIN_BASE));
+    const config = OPRollup.baseMainnetConfig;
+    rollup = new OPRollup(createProviderPair(config), config);
+    break;
+  }
+  case 'base-testnet': {
+    const config = OPFaultRollup.baseTestnetConfig;
+    rollup = await OPFaultRollup.create(createProviderPair(config), config);
+    break;
+  }
+  case 'linea': {
+    const config = LineaRollup.mainnetConfig;
+    rollup = new LineaRollup(createProviderPair(config), config);
     break;
   }
   case 'scroll': {
-    gateway = ScrollGateway.mainnet(createProviderPair(CHAIN_SCROLL));
+    const config = ScrollRollup.mainnetConfig;
+    rollup = await ScrollRollup.create(createProviderPair(config), config);
     break;
   }
   case 'taiko': {
-    gateway = TaikoGateway.mainnet(createProviderPair(CHAIN_TAIKO));
+    const config = TaikoRollup.mainnetConfig;
+    rollup = await TaikoRollup.create(createProviderPair(config), config);
     break;
   }
-  case 'utaiko': {
-    // better name?
-    gateway = UnverifiedTaikoGateway.default(createProviderPair(CHAIN_TAIKO));
+  case 'zksync': {
+    const config = ZKSyncRollup.mainnetConfig;
+    rollup = new ZKSyncRollup(createProviderPair(config), config);
     break;
   }
-  default:
+  default: {
     throw new Error(`unknown gateway: ${name}`);
+  }
 }
 
 function networkName(p: Provider) {
@@ -52,9 +64,10 @@ function networkName(p: Provider) {
 }
 
 console.log({
-  impl: gateway.constructor.name,
-  chain1: networkName(gateway.provider1),
-  chain2: networkName(gateway.provider2),
+  impl: rollup.constructor.name,
+  chain1: networkName(rollup.provider1),
+  chain2: networkName(rollup.provider2),
 });
 
+const gateway = new Gateway(rollup);
 await serve(gateway, { protocol: 'raw', port: parseInt(port) || 8000 });

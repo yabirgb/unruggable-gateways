@@ -1,4 +1,4 @@
-import { EVMProver } from '../../src/vm.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { describe, afterAll, test, expect } from 'bun:test';
 
@@ -29,22 +29,22 @@ describe('proofs', async () => {
   });
 
   test('reconstruction: empty', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     const p0 = await prover.fetchProofs(contract.target);
     const p1 = await prover.getProofs(contract.target);
     expect(p0).toEqual(p1);
   });
 
   test('reconstruction: 1 slot', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     const slots = [0n];
     const p0 = await prover.fetchProofs(contract.target, slots);
     const p1 = await prover.getProofs(contract.target, slots);
     expect(p0).toEqual(p1);
   });
 
-  test('reconstruction: 3 slot reversed', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+  test('reconstruction: 3 slot scrambled', async () => {
+    const prover = await EthProver.latest(foundry.provider);
     const slots = [2n, 0n, 1n];
     const p0 = await prover.fetchProofs(contract.target, slots);
     const p1 = await prover.getProofs(contract.target, slots);
@@ -52,39 +52,42 @@ describe('proofs', async () => {
   });
 
   test('reconstruction: batched', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     const slots = [0n, 1n];
     const p0 = await prover.fetchProofs(contract.target, slots);
-    const p1 = await prover.fetchProofs(contract.target, slots, 1);
+    prover.proofBatchSize = 1;
+    const p1 = await prover.fetchProofs(contract.target, slots);
     expect(p0).toEqual(p1);
   });
 
   test('reconstruction: batched cached', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     const slots = [0n, 1n];
     const p0 = await prover.getProofs(contract.target, slots);
     resetStats();
-    const p1 = await prover.getProofs(contract.target, slots, 1);
+    prover.proofBatchSize = 1;
+    const p1 = await prover.getProofs(contract.target, slots);
     expect(fetchedCalls).toBe(0);
     expect(p0).toEqual(p1);
   });
 
   test('fetchProofs() batch = 1', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     resetStats();
-    await prover.fetchProofs(contract.target, [0n, 1n], 1);
+    prover.proofBatchSize = 1;
+    await prover.fetchProofs(contract.target, [0n, 1n]);
     expect(fetchedCalls).toBe(2);
   });
 
   test('fetchProofs() batch > 1', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     resetStats();
     await prover.fetchProofs(contract.target, [0n, 1n]);
     expect(fetchedCalls).toBe(1);
   });
 
   test('getProof() 01:10', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     resetStats();
     const [p0, p1] = await Promise.all([
       prover.getProofs(contract.target, [0n, 1n]),
@@ -97,7 +100,7 @@ describe('proofs', async () => {
   });
 
   test('getProof() 01:12:02', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     resetStats();
     const [p0, p1, p2] = await Promise.all([
       prover.getProofs(contract.target, [0n, 1n]),
@@ -112,7 +115,7 @@ describe('proofs', async () => {
   });
 
   test('getProof() 012345:012:345', async () => {
-    const prover = await EVMProver.latest(foundry.provider);
+    const prover = await EthProver.latest(foundry.provider);
     resetStats();
     const [p0, p1, p2] = await Promise.all([
       prover.getProofs(contract.target, [0n, 1n, 2n, 3n, 4n, 5n]),

@@ -1,14 +1,16 @@
 import { EVMRequestV1 } from '../../src/v1.js';
-import { EVMProver, EVMRequest } from '../../src/vm.js';
+import { EVMRequest } from '../../src/vm.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 //import {Foundry} from '@adraffy/blocksmith';
 //import {ethers} from 'ethers';
 import { createProvider } from '../providers.js';
+import { CHAIN_MAINNET } from '../../src/chains.js';
 
 // this is just a worksheet
 
 //let foundry = await Foundry.launch({infoLog: false});
 
-const prover = await EVMProver.latest(createProvider(1));
+const prover = await EthProver.latest(createProvider(CHAIN_MAINNET));
 
 const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 

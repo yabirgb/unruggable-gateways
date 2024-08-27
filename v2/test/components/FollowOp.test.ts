@@ -1,9 +1,10 @@
-import { EVMRequest, EVMProver } from '../../src/vm.js';
+import { EVMRequest } from '../../src/vm.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
-import assert from 'node:assert/strict';
 import { test, afterAll } from 'bun:test';
+import assert from 'node:assert/strict';
 
-test('FOLLOW === PUSH_SLOT CONCAT(2) KECCAK SLOT_ZERO SLOT_ADD', async () => {
+test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
 
@@ -18,7 +19,7 @@ test('FOLLOW === PUSH_SLOT CONCAT(2) KECCAK SLOT_ZERO SLOT_ADD', async () => {
 	`,
   });
 
-  const prover = await EVMProver.latest(foundry.provider);
+  const prover = await EthProver.latest(foundry.provider);
 
   const r1 = new EVMRequest()
     .setTarget(contract.target)
@@ -30,7 +31,7 @@ test('FOLLOW === PUSH_SLOT CONCAT(2) KECCAK SLOT_ZERO SLOT_ADD', async () => {
     .setTarget(contract.target)
     .push(1)
     .pushSlot()
-    .concat(2)
+    .concat()
     .keccak()
     .zeroSlot()
     .addSlot()

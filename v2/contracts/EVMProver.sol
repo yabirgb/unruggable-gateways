@@ -10,15 +10,19 @@ import "forge-std/console2.sol"; // DEBUG
 
 library EVMProver {
 	
-	function dump(Machine memory vm) internal view {
+	function dump(Machine memory vm) internal pure {
 		console2.log("[pos=%s/%s]", vm.pos, vm.buf.length);
+		console2.logBytes(vm.buf);
 		console2.log("[target=%s slot=%s]", vm.target, vm.slot);
 		console2.log("[proof=%s/%s]", vm.proofs.index, vm.proofs.order.length);
-		console2.logBytes(vm.buf);
 		for (uint256 i; i < vm.stackSize; i++) {
 			console2.log("[stack=%s size=%s]", i, vm.stack[i].length);
 			console2.logBytes(vm.stack[i]);
 		}
+	}
+
+	function uint256FromBytes(bytes memory v) internal pure returns (uint256) {
+		return uint256(v.length < 32 ? bytes32(v) >> ((32 - v.length) << 3) : bytes32(v));
 	}
 	
 	// TODO this checks beyond bound
@@ -60,6 +64,11 @@ library EVMProver {
 			v = vm.stack[vm.stackSize - 1 - back];
 		}
 	}
+	function readBack(Machine memory vm) internal pure returns (uint256) {
+		uint8 back = vm.readByte();
+		if (back >= vm.stackSize) revert RequestOverflow();
+		return vm.stackSize - 1 - back;
+	}
 	function checkRead(Machine memory vm, uint256 n) internal pure returns (uint256 ptr) {
 		uint256 pos = vm.pos;
 		bytes memory buf = vm.buf;
@@ -91,14 +100,14 @@ library EVMProver {
 	}
 	*/
 
-	function readProof(Machine memory vm) internal pure returns (bytes[] memory) {
+	function readProof(Machine memory vm) internal pure returns (bytes memory) {
 		ProofSequence memory p = vm.proofs;
 		return p.proofs[uint8(p.order[p.index++])];
 	}
 	function getStorage(Machine memory vm, uint256 slot) internal view returns (uint256) {
-		bytes[] memory proof = vm.readProof();
+		bytes memory proof = vm.readProof();
 		if (vm.storageRoot == NOT_A_CONTRACT) return 0;
-		return vm.proofs.proveStorageValue(vm.storageRoot, slot, proof);
+		return uint256(vm.proofs.proveStorageValue(vm.storageRoot, vm.target, slot, proof));
 	}
 	function proveSlots(Machine memory vm, uint256 count) internal view returns (bytes memory v) {
 		v = new bytes(count << 5);
@@ -163,7 +172,7 @@ library EVMProver {
 		while (vm.pos < vm.buf.length) {
 			uint256 op = vm.readByte();
 			if (op == OP_TARGET) {
-				vm.target = address(uint160(ProofUtils.uint256FromBytes(vm.pop())));
+				vm.target = address(uint160(uint256FromBytes(vm.pop())));
 				vm.storageRoot = vm.proofs.proveAccountState(vm.proofs.stateRoot, vm.target, vm.readProof()); // TODO balance?
 				vm.slot = 0;
 			} else if (op == OP_SET_OUTPUT) {
@@ -171,7 +180,8 @@ library EVMProver {
 			} else if (op == OP_REQ_CONTRACT) {
 				if (vm.storageRoot == NOT_A_CONTRACT) return 1;
 			} else if (op == OP_REQ_NONZERO) {
-				if (isZeros(vm.peek(vm.readByte()))) return 1;
+				//if (isZeros(vm.peek(vm.readByte()))) return 1;
+				if (isZeros(vm.stack[vm.readBack()])) return 1;
 			} else if (op == OP_READ_SLOTS) {
 				vm.push(vm.proveSlots(vm.readByte()));
 			} else if (op == OP_READ_BYTES) {
@@ -187,13 +197,16 @@ library EVMProver {
 			} else if (op == OP_PUSH_TARGET) {
 				vm.push(abi.encodePacked(vm.target));
 			} else if (op == OP_DUP) {
-				vm.push(abi.encodePacked(vm.peek(vm.readByte())));
+				vm.push(abi.encodePacked(vm.stack[vm.readBack()]));
 			} else if (op == OP_POP) {
 				if (vm.stackSize != 0) --vm.stackSize;
+			} else if (op == OP_SWAP) {
+				uint256 i = vm.readBack();
+				(vm.stack[0], vm.stack[i]) = (vm.stack[i], vm.stack[0]);
 			} else if (op == OP_SLOT_ZERO) {
 				vm.slot = 0;
 			} else if (op == OP_SLOT_ADD) {
-				vm.slot += ProofUtils.uint256FromBytes(vm.pop());
+				vm.slot += uint256FromBytes(vm.pop());
 			} else if (op == OP_SLOT_FOLLOW) {
 				vm.slot = uint256(keccak256(abi.encodePacked(vm.pop(), vm.slot)));
 			} else if (op == OP_SLICE) {
@@ -201,13 +214,25 @@ library EVMProver {
 			} else if (op == OP_KECCAK) {
 				vm.push(abi.encodePacked(keccak256(vm.pop())));
 			} else if (op == OP_CONCAT) {
-				uint8 back = vm.readByte();
-				bytes memory v;
-				for (; back > 0 && vm.stackSize > 0; --back) {
-					v = bytes.concat(vm.pop(), v); // TODO: optimize
-				}
-				vm.push(v);
-			} else if (op == OP_EVAL) {
+				if (vm.stackSize < 2) revert RequestInvalid();
+				bytes memory last = vm.pop();
+				vm.push(bytes.concat(vm.pop(), last));
+			} else if (op == OP_EVAL_INLINE) {
+				bytes memory program = vm.pop();
+				// save program
+				uint256 pos = vm.pos;
+				bytes memory buf = vm.buf;
+				bytes[] memory inputs = vm.inputs; 
+				// load new program
+				vm.pos = 0;
+				(vm.buf, vm.inputs) = abi.decode(program, (bytes, bytes[]));
+				exitCode = evalCommand(vm, outputs);
+				if (exitCode != 0) return exitCode;
+				// restore program
+				vm.pos = pos;
+				vm.buf = buf;
+				vm.inputs = inputs;
+			} else if (op == OP_EVAL_LOOP) {
 				uint8 back = vm.readByte();
 				uint8 flags = vm.readByte();
 				Machine memory vm2;
@@ -221,8 +246,7 @@ library EVMProver {
 					vm2.pos = 0;
 					vm2.stackSize = 0;
 					vm2.push(vm.pop());
-					exitCode = evalCommand(vm2, outputs);
-					if ((flags & (exitCode != 0 ? STOP_ON_FAILURE : STOP_ON_SUCCESS)) != 0) {
+					if ((flags & (evalCommand(vm2, outputs) != 0 ? STOP_ON_FAILURE : STOP_ON_SUCCESS)) != 0) {
 						break;
 					}
 				}
@@ -235,6 +259,9 @@ library EVMProver {
 				} else {
 					vm.stackSize = vm.stackSize > back ? vm.stackSize - back : 0;
 				}
+			} else if (op == OP_DEBUG) {
+				console2.log("DEBUG(%s)", string(vm.inputs[vm.readByte()]));
+				vm.dump();
 			} else {
 				revert RequestInvalid();
 			}
