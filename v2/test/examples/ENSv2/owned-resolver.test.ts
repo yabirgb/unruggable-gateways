@@ -1,12 +1,6 @@
 import { Foundry } from '@adraffy/blocksmith';
-//import { serve } from '@resolverworks/ezccip';
 import {
-  //createProvider,
-  providerURL,
-  //CHAIN_OP,
-} from '../../providers.js';
-//import { OPFaultGateway } from '../../../src/gateway/OPFaultGateway.js';
-import {
+  //Contract,
   dnsEncode,
   toBeHex,
   namehash,
@@ -15,6 +9,11 @@ import {
 } from 'ethers';
 import { solidityFollowSlot } from '../../../src/vm.js';
 import { afterAll, describe, test, expect } from 'bun:test';
+import { createProviderPair, providerURL } from '../../providers.js';
+import { OPFaultRollup } from '../../../src/op/OPFaultRollup.js';
+import { Gateway } from '../../../src/gateway.js';
+//import { serve } from '@resolverworks/ezccip';
+
 import { ABI_CODER } from '../../../src/utils.js';
 
 function dns(name: string) {
@@ -22,15 +21,18 @@ function dns(name: string) {
 }
 
 const ENS = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
-const NAME = 'clowes.eth';
+const NAME = 'opdemo.eth';
 const NODE = namehash(NAME);
 const SLOT = solidityFollowSlot(0, NODE) + 1n;
 
-const MY_ADDRESS = '0xAC50cE326de14dDF9b7e9611Cd2F33a1Af8aC039';
+const MY_ADDRESS = '0x31A74F3862193636120158D71860cA72bAf7A8cA';
 
 describe('ENSv2', async () => {
+  const config = OPFaultRollup.mainnetConfig;
+  const rollup = await OPFaultRollup.create(createProviderPair(config), config);
+
   const foundry = await Foundry.launch({
-    fork: providerURL(1),
+    fork: providerURL(config.chain1),
     infoLog: true,
     procLog: true,
   });
@@ -42,31 +44,43 @@ describe('ENSv2', async () => {
    * and comment out the hardcoded values that follow.
    */
 
-  /*
-  let gateway = OPFaultGateway.mainnet({
-    provider1: foundry.provider,
-    provider2: createProvider(CHAIN_OP),
-    commitDelay: 0,
+  /*  const ccip = await serve(gateway, {
+    protocol: 'raw',
+    port: 0,
+    log: false,
   });
-
-  afterAll(() => gateway.shutdown());
-
-  let ccip = await serve(gateway, { protocol: 'raw' });
-
-  afterAll(() => ccip.shutdown());
+  afterAll(() => ccip.http.close());
 
   const gatewayUrls = [ccip.endpoint];
-  const optimismPortal = gateway.OptimismPortal;
-  const delay = gateway.commitDelay;
+  const optimismPortal = rollup.OptimismPortal;
   */
+
+  //We will instantiate a `Gateway` object to fetch the latest commit
+  //Even if we are not actually serving a local gateway
+  const gateway = new Gateway(rollup);
+  const commit = await gateway.getLatestCommit();
 
   const gatewayUrls = ['https://op-gateway.unruggable.com'];
   const optimismPortal = '0xbEb5Fc579115071764c7423A4f12eDde41f106Ed';
-  const delay = 0;
+
+  console.log('rollup.defaultWindow', rollup.defaultWindow);
+  console.log('rollup.gameTypeBitMask', rollup.gameTypeBitMask);
+
+  //Hack for returning the correct game efficiently within the testing context
+  const gameFinder = await foundry.deploy({
+    file: 'FixedOPFaultGameFinder',
+    args: [commit.index],
+  });
 
   const verifier = await foundry.deploy({
-    file: 'OwnedOPFaultVerifier',
-    args: [gatewayUrls, optimismPortal, delay],
+    file: 'OPFaultVerifier',
+    args: [
+      gatewayUrls,
+      rollup.defaultWindow,
+      optimismPortal,
+      gameFinder,
+      rollup.gameTypeBitMask,
+    ],
   });
 
   const opResolver = await foundry.deploy({
@@ -90,6 +104,21 @@ describe('ENSv2', async () => {
   test('verify resolver was hijacked', async () => {
     expect(resolver?.address).toBe(opResolver.target);
   });
+
+  /*
+  test('debug', async () => {
+
+    const target = new Contract(
+      opResolver.target,
+      ["function testExample() view returns (bytes memory)"],
+      foundry.provider
+    );
+
+    const result = await target.testExample({ enableCcipRead: true });
+    console.log('Result: ', result);
+
+  });
+  */
 
   test('get address basic', async () => {
     //Resolve the name using ethers in built resolution
