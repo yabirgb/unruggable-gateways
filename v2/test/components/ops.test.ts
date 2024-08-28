@@ -13,7 +13,7 @@ function uint256(x: BigNumberish) {
 }
 
 describe('ops', async () => {
-  const foundry = await Foundry.launch({ infoLog: true });
+  const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({
     file: 'EthSelfVerifier',

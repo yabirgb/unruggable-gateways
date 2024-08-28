@@ -102,7 +102,7 @@ export class OPFaultRollup extends AbstractOPRollup {
       callOptions
     );
     if (!game.l2BlockNumber) {
-      throw new Error(`Game(${index}) not finalized`);
+      throw new Error(`Commit(${index}) not finalized`);
     }
     return this.createCommit(index, '0x' + game.l2BlockNumber.toString(16));
   }

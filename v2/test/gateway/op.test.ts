@@ -21,15 +21,18 @@ describe('op', async () => {
   });
   afterAll(() => ccip.http.close());
   const commit = await gateway.getLatestCommit();
+  const gameFinder = await foundry.deploy({
+    file: 'FixedOPFaultGameFinder',
+    args: [commit.index],
+  });
   const verifier = await foundry.deploy({
-    // OPFaultVerifier is too slow in fork mode (30sec+)
-    file: 'FixedOPFaultVerifier',
+    file: 'OPFaultVerifier',
     args: [
       [ccip.endpoint],
       rollup.defaultWindow,
       rollup.OptimismPortal,
+      gameFinder, // official is too slow in fork mode (30sec+)
       rollup.gameTypeBitMask,
-      commit.index,
     ],
   });
   // https://optimistic.etherscan.io/address/0xf9d79d8c09d24e0C47E32778c830C545e78512CF

@@ -15,6 +15,8 @@ const OP_FOLLOW_REF = 1 << 5;
 const OP_ADD_CONST = 2 << 5;
 const OP_END = 0xff;
 
+const OPERAND_MASK = 0x1f;
+
 export class EVMRequestV1 {
   constructor(
     public target: HexString = ethers.ZeroAddress,
@@ -87,11 +89,12 @@ export class EVMRequestV1 {
     for (const cmd of this.commands) {
       try {
         const v = ethers.getBytes(cmd);
-        req.zeroSlot();
-        for (let i = 1; i < v.length; i++) {
+        // before ADD_CONST was added first op is initial slot offset
+        req.setSlot(this.constants[v[1] & OPERAND_MASK]);
+        for (let i = 2; i < v.length; i++) {
           const op = v[i];
           if (op === OP_END) break;
-          const operand = op & 0x1f;
+          const operand = op & OPERAND_MASK;
           switch (op & 0xe0) {
             case OP_ADD_CONST: {
               req.pushBytes(this.constants[operand]).addSlot();

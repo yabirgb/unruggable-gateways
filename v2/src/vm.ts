@@ -8,7 +8,7 @@ import type {
 import { ethers } from 'ethers';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
 import { ABI_CODER } from './utils.js';
-import type { CachedMap } from './cached.js';
+import { CachedMap, LRU } from './cached.js';
 
 // all addresses are lowercase
 // all values are hex-strings
@@ -19,7 +19,7 @@ type HexFuture = Unwrappable<HexString>;
 // the following should be equivalent to EVMProtocol.sol
 export const MAX_STACK = 64;
 
-// OP_EVAL flags
+// OP_EVAL_LOOP flags
 // the following should be equivalent to EVMProtocol.sol
 const STOP_ON_SUCCESS = 1;
 const STOP_ON_FAILURE = 2;
@@ -52,6 +52,7 @@ const OP_PUSH_TARGET = 43;
 
 const OP_DUP = 50;
 const OP_POP = 51;
+const OP_SWAP = 52;
 
 const OP_KECCAK = 60;
 const OP_CONCAT = 61;
@@ -162,6 +163,8 @@ export class ProgramReader {
         return { pos, op, name: 'DUP', back: this.readByte() };
       case OP_POP:
         return { pos, op, name: 'POP' };
+      case OP_SWAP:
+        return { pos, op, name: 'SWAP', back: this.readByte() };
       case OP_READ_SLOTS:
         return { pos, op, name: 'READ_SLOTS', count: this.readByte() };
       case OP_READ_BYTES:
@@ -311,6 +314,9 @@ export class EVMProgram {
   dup(back = 0) {
     return this.addByte(OP_DUP).addByte(back);
   }
+  swap(back = 0) {
+    return this.addByte(OP_SWAP).addByte(back);
+  }
 
   pushOutput(i: number) {
     return this.addByte(OP_PUSH_OUTPUT).addByte(i);
@@ -398,6 +404,10 @@ export type ProofSequence = {
   proofs: EncodedProof[];
   order: Uint8Array;
 };
+export type ProofSequenceV1 = {
+  accountProof: EncodedProof;
+  storageProofs: EncodedProof[];
+};
 
 // tracks the state of an program evaluation
 // registers: [slot, target, stack]
@@ -420,6 +430,10 @@ export class MachineState {
     if (i >= this.outputs.length) throw new Error(`invalid output index: ${i}`);
     return i;
   }
+  checkBack(back: number) {
+    if (back >= this.stack.length) throw new Error('stack underflow');
+    return this.stack.length - 1 - back;
+  }
   async resolveOutputs() {
     return Promise.all(this.outputs.map(unwrap));
   }
@@ -431,15 +445,8 @@ export class MachineState {
     if (!this.stack.length) throw new Error('stack underflow');
     return this.stack.pop()!;
   }
-  popSlice(back: number) {
-    return back > 0 ? this.stack.splice(-back) : [];
-  }
-  peek(back: number) {
-    if (back >= this.stack.length) throw new Error('stack underflow');
-    return this.stack[this.stack.length - 1 - back];
-  }
   traceTarget(target: HexString, max: number) {
-    // IDEA: this could incremently build the needs map
+    // IDEA: this could incrementally build the needs map
     // instead of doing it during prove()
     let need = this.targets.get(target);
     if (!need) {
@@ -463,6 +470,23 @@ export class MachineState {
   }
 }
 
+export function requireV1Needs(needs: Need[]) {
+  if (!needs.length) {
+    throw new Error('expected needs');
+  }
+  const [target, required] = needs[0];
+  if (typeof required !== 'boolean') {
+    throw new Error('first proof must be account');
+  }
+  const slots = needs.slice(1).map(([addr, slot]) => {
+    if (addr !== target || typeof slot !== 'bigint') {
+      throw new Error('remaining proofs must be storage');
+    }
+    return slot;
+  });
+  return { target, required, slots };
+}
+
 export abstract class AbstractProver {
   // maximum number of bytes from single read()
   // this is also constrained by proof count (1 proof per 32 bytes)
@@ -473,18 +497,43 @@ export abstract class AbstractProver {
   // maximum number of targets (accountProofs)
   maxUniqueTargets = 32; // unlimited
   proofBatchSize = 64;
-  // use getStorage() if no proof is cached yet
-  useFastCalls = true;
-  // how long to keep fast call values
-  fastCallCacheMs = 0; // never cache
+  // general proof cache
+  readonly proofLRU = new LRU<string, any>(10000);
+  // use getCode() / getStorage() if no proof is cached yet
+  fastCache: CachedMap<string, any> | undefined = new CachedMap(0);
+
   checkSize(size: bigint | number) {
-    if (size > this.maxReadBytes)
+    if (size > this.maxReadBytes) {
       throw new Error(`too many bytes: ${size} > ${this.maxReadBytes}`);
+    }
     return Number(size);
+  }
+  proofMap() {
+    const map = new Map<string, bigint[]>();
+    for (const key of this.proofLRU.keys()) {
+      const target = key.slice(0, 42);
+      let bucket = map.get(target);
+      if (!bucket) {
+        bucket = [];
+        map.set(target, bucket);
+      }
+      if (key.length > 42) {
+        bucket.push(BigInt('0x' + key.slice(42)));
+      }
+    }
+    return map;
   }
   abstract isContract(target: HexString): Promise<boolean>;
   abstract getStorage(target: HexString, slot: bigint): Promise<HexString>;
   abstract prove(needs: Need[]): Promise<ProofSequence>;
+  async proveV1(needs: Need[]): Promise<ProofSequenceV1> {
+    requireV1Needs(needs);
+    const { proofs, order } = await this.prove(needs);
+    return {
+      accountProof: proofs[order[0]],
+      storageProofs: Array.from(order.subarray(1), (i) => proofs[i]),
+    };
+  }
   async evalDecoded(ops: HexString, inputs: HexString[]) {
     return this.evalReader(new ProgramReader(ethers.getBytes(ops), inputs));
   }
@@ -555,13 +604,23 @@ export abstract class AbstractProver {
           continue;
         }
         case OP_DUP: {
-          // args: [stack(rindex)] / stack: +1
-          vm.push(vm.peek(reader.readByte()));
+          // args: [back] / stack: +1
+          const back = vm.checkBack(reader.readByte());
+          vm.push(vm.stack[back]);
           continue;
         }
         case OP_POP: {
           // args: [] / stack: upto(-1)
           vm.stack.pop();
+          continue;
+        }
+        case OP_SWAP: {
+          // args: [back] / stack: 0
+          const back = vm.checkBack(reader.readByte());
+          const last = vm.stack.length - 1;
+          const temp = vm.stack[back];
+          vm.stack[back] = vm.stack[last];
+          vm.stack[last] = temp;
           continue;
         }
         case OP_READ_SLOTS: {
@@ -653,8 +712,8 @@ export abstract class AbstractProver {
         }
         case OP_REQ_NONZERO: {
           // args: [back] / stack: 0
-          const back = reader.readByte();
-          if (/^0x0*$/.test(await unwrap(vm.peek(back)))) {
+          const back = vm.checkBack(reader.readByte());
+          if (/^0x0*$/.test(await unwrap(vm.stack[back]))) {
             vm.exitCode = 1;
             return;
           }
@@ -670,16 +729,15 @@ export abstract class AbstractProver {
           continue;
         }
         case OP_EVAL_LOOP: {
-          // args: [back, flags] / stack: -1 (program) & -back (args)
-          const back = reader.readByte();
+          // args: [count, flags] / stack: -1 (program) & -count (args)
+          let count = reader.readByte();
           const flags = reader.readByte();
           const program = ProgramReader.fromEncoded(await unwrap(vm.pop()));
-          const args = vm.popSlice(back).reverse();
           const vm2 = new MachineState(vm.outputs, vm.needs, vm.targets);
-          for (const arg of args) {
+          for (; count && vm.stack.length; count--) {
             vm2.target = vm.target;
             vm2.slot = vm.slot;
-            vm2.stack = [arg];
+            vm2.stack = [vm.pop()];
             vm2.exitCode = 0;
             program.pos = 0;
             await this.evalCommand(program, vm2);
@@ -691,6 +749,8 @@ export abstract class AbstractProver {
             vm.target = vm2.target;
             vm.slot = vm2.slot;
             vm.stack = vm2.stack;
+          } else if (count) {
+            vm.stack.splice(-count);
           }
           continue;
         }

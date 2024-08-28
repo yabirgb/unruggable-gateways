@@ -14,7 +14,6 @@ import {
   CHAIN_MAINNET,
   CHAIN_SEPOLIA,
 } from '../chains.js';
-import { CachedMap } from '../cached.js';
 import {
   type RollupDeployment,
   type RollupCommit,
@@ -28,13 +27,13 @@ import { ABI_CODER } from '../utils.js';
 // https://github.com/Consensys/linea-monorepo/blob/main/contracts/test/SparseMerkleProof.ts
 // https://github.com/Consensys/linea-ens/blob/main/packages/linea-state-verifier/contracts/LineaSparseProofVerifier.sol
 
-export type LineaCommit = RollupCommit<LineaProver> & {
-  readonly stateRoot: HexString32;
-};
-
 export type LineaConfig = {
   L1MessageService: HexAddress;
   SparseMerkleProof: HexAddress;
+};
+
+export type LineaCommit = RollupCommit<LineaProver> & {
+  readonly stateRoot: HexString32;
 };
 
 export class LineaRollup extends AbstractRollup<LineaCommit> {
@@ -94,17 +93,11 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
     if (stateRoot === ethers.ZeroHash) {
       throw new Error('not finalized');
     }
-    return {
-      index,
-      stateRoot,
-      prover: new LineaProver(
-        this.provider2,
-        '0x' + index.toString(16),
-        new CachedMap(Infinity, this.commitCacheSize)
-      ),
-    };
+    const prover = new LineaProver(this.provider2, '0x' + index.toString(16));
+    this.configureProver(prover);
+    return { index, stateRoot, prover };
   }
-  encodeWitness(
+  override encodeWitness(
     commit: LineaCommit,
     proofs: EncodedProof[],
     order: Uint8Array

@@ -6,13 +6,7 @@ import type {
   RPCEthGetBlock,
   RPCEthGetProof,
 } from './types.js';
-import {
-  AbstractProver,
-  makeStorageKey,
-  storageMapFromCache,
-  type Need,
-} from '../vm.js';
-import { CachedMap } from '../cached.js';
+import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
 import { ethers } from 'ethers';
 import { ABI_CODER, NULL_CODE_HASH } from '../utils.js';
 
@@ -33,13 +27,9 @@ export class EthProver extends AbstractProver {
   }
   constructor(
     readonly provider: Provider,
-    readonly block: HexString,
-    readonly cache: CachedMap<string, any> = new CachedMap()
+    readonly block: HexString
   ) {
     super();
-  }
-  storageMap() {
-    return storageMapFromCache(this.cache);
   }
   async fetchStateRoot() {
     // this is just a convenience
@@ -81,10 +71,10 @@ export class EthProver extends AbstractProver {
     const { promise, resolve, reject } = Promise.withResolvers(); // create a blocker
     // 20240708: must setup blocks before await
     let accountProof: Promise<EthAccountProof> | EthAccountProof | undefined =
-      this.cache.peek(target);
+      this.proofLRU.touch(target);
     if (!accountProof) {
       // missing account proof, so block it
-      this.cache.set(
+      this.proofLRU.setPending(
         target,
         promise.then(() => accountProof) // block
       );
@@ -96,10 +86,10 @@ export class EthProver extends AbstractProver {
       | undefined
     )[] = slots.map((slot, i) => {
       const key = makeStorageKey(target, slot);
-      const p = this.cache.peek(key);
+      const p = this.proofLRU.touch(key);
       if (!p) {
         // missing storage proof, so block it
-        this.cache.set(
+        this.proofLRU.setPending(
           key,
           promise.then(() => storageProofs[i])
         );
@@ -122,47 +112,51 @@ export class EthProver extends AbstractProver {
         reject(err);
         throw err;
       }
-    } else {
-      accountProof = await accountProof;
     }
     // reassemble
-    return {
-      storageProof: (await Promise.all(storageProofs)) as EthStorageProof[],
-      ...accountProof,
-    };
+    const [a, v] = await Promise.all([
+      accountProof,
+      Promise.all(storageProofs),
+    ]);
+    return { storageProof: v as EthStorageProof[], ...a };
   }
   override async getStorage(
     target: HexString,
     slot: bigint
   ): Promise<HexString> {
+    target = target.toLowerCase();
     // check to see if we know this target isn't a contract without invoking provider
     // this is almost equivalent to: await isContract(target)
     const accountProof: EthAccountProof | undefined =
-      await this.cache.peek(target);
+      await this.proofLRU.touch(target);
     if (accountProof && !isContract(accountProof)) {
       return ethers.ZeroHash;
     }
     // check to see if we've already have a proof for this value
     const storageKey = makeStorageKey(target, slot);
-    const storageProof: EthStorageProof | undefined = await (this.useFastCalls
-      ? this.cache.peek(storageKey)
-      : this.cache.get(storageKey, async () => {
-          const proofs = await this.getProofs(target, [slot]);
-          return proofs.storageProof[0];
-        }));
+    const storageProof: EthStorageProof | undefined =
+      await this.proofLRU.touch(storageKey);
     if (storageProof) {
       return ethers.toBeHex(storageProof.value, 32);
     }
-    // we didn't have the proof
-    // lets just get the value for now and prove it later
-    return this.cache.get(
-      storageKey + '!',
-      () => this.provider.getStorage(target, slot),
-      this.fastCallCacheMs
-    );
+    if (this.fastCache) {
+      return this.fastCache.get(storageKey, () =>
+        this.provider.getStorage(target, slot, this.block)
+      );
+    }
+    const proofs = await this.getProofs(target, [slot]);
+    return proofs.storageProof[0].value;
   }
   override async isContract(target: HexString) {
-    return isContract(await this.getProofs(target, []));
+    target = target.toLowerCase();
+    if (this.fastCache) {
+      return this.fastCache.get(target, async () => {
+        const code = await this.provider.getCode(target, this.block);
+        return code.length > 2;
+      });
+    } else {
+      return isContract(await this.getProofs(target, []));
+    }
   }
   override async prove(needs: Need[]) {
     // reduce an ordered list of needs into a deduplicated list of proofs
@@ -206,7 +200,7 @@ export class EthProver extends AbstractProver {
         let m = [...bucket.map];
         try {
           const accountProof: EthAccountProof | undefined =
-            await this.cache.cachedValue(target);
+            await this.proofLRU.touch(target);
           if (accountProof && !isContract(accountProof)) {
             m = []; // if we know target isn't a contract, we only need accountProof
           }

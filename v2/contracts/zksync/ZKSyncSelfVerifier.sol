@@ -3,7 +3,8 @@ pragma solidity ^0.8.23;
 
 import {EVMRequest, EVMProver, ProofSequence, NOT_A_CONTRACT} from "../EVMProver.sol";
 import {IZKSyncSMT, TreeEntry, ACCOUNT_CODE_HASH} from "./IZKSyncSMT.sol";
-import "forge-std/console2.sol";
+
+//import "forge-std/console2.sol";
 
 contract ZKSyncSelfVerifier {
 
@@ -31,10 +32,10 @@ contract ZKSyncSelfVerifier {
 	}
 
 	function _proveValue(bytes32 root, address target, uint256 slot, bytes memory proof) internal view returns (bytes32) {
-		uint256 g = gasleft();
+		//uint256 g = gasleft();
 		(bytes32 value, uint64 leafIndex, bytes32[] memory path) = abi.decode(proof, (bytes32, uint64, bytes32[]));
 		require(root == _smt.getRootHash(path, TreeEntry(slot, value, leafIndex), target), "ZKS: proof");
-		console2.log("Gas: %s", g - gasleft());
+		//console2.log("Gas: %s", g - gasleft());
 		return value;
 	}
 

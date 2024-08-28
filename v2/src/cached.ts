@@ -54,6 +54,10 @@ export class CachedValue<T> {
 
 type CacheRow<T> = [exp: number, promise: Promise<T>];
 
+export interface CacheMap<K, V> {
+  cache(key: K, fn: (key: K) => Promise<V>): Promise<V>;
+}
+
 export class CachedMap<K = unknown, V = unknown> {
   private readonly cached: Map<K, CacheRow<V>> = new Map();
   private readonly pending: Map<K, Promise<V>> = new Map();
@@ -61,7 +65,6 @@ export class CachedMap<K = unknown, V = unknown> {
   private timer_t: number = Infinity;
   errorMs = 250; // how long to cache a rejected promise
   slopMs = 50; // reschedule precision
-  maxPending = 100; // overflow causes rejections
   constructor(
     public cacheMs = 60000, // how long to cache a resolved promise
     public maxCached = 10000 // overflow clears oldest items
@@ -110,9 +113,9 @@ export class CachedMap<K = unknown, V = unknown> {
   // 	await Promise.all(Array.from(this.pending.values()));
   // }
   set(key: K, value: V | Promise<V>, ms?: number) {
-    if (!this.maxCached) return; // don't cache anything
+    this.delete(key);
     ms ??= this.cacheMs;
-    if (ms > 0) {
+    if (this.maxCached > 0 && ms > 0) {
       if (this.cached.size >= this.maxCached) {
         // we need room
         // TODO: this needs a heap
@@ -126,8 +129,6 @@ export class CachedMap<K = unknown, V = unknown> {
       const exp = clock() + ms;
       this.cached.set(key, [exp, Promise.resolve(value)]); // add cache entry
       this.schedule(exp);
-    } else {
-      this.cached.delete(key);
     }
   }
   delete(key: K) {
@@ -157,24 +158,78 @@ export class CachedMap<K = unknown, V = unknown> {
   peek(key: K): Promise<V> | undefined {
     return this.cachedValue(key) ?? this.pending.get(key);
   }
-  get(key: K, fn: (key: K) => Promise<V>, ms?: number): Promise<V> {
-    let p = this.peek(key);
-    if (p) return p;
-    if (this.pending.size >= this.maxPending) {
-      throw new Error('busy'); // too many in-flight
-    }
-    const q = fn(key); // begin
-    p = q
+  setPending(key: K, value: Promise<V>, ms?: number): Promise<V> {
+    const p = value
       .catch(() => ERR)
       .then((x) => {
         // we got an answer
-        if (this.pending.delete(key)) {
+        if (this.pending.get(key) === p) {
           // remove from pending
-          this.set(key, q, x === ERR ? this.errorMs : ms); // add original to cache if existed
+          this.set(key, value, x === ERR ? this.errorMs : ms); // add original to cache if existed
         }
-        return q; // resolve to original
+        return value; // resolve to original
       });
     this.pending.set(key, p); // remember in-flight
     return p;
+  }
+  get(key: K, fn: (key: K) => Promise<V>, ms?: number): Promise<V> {
+    return this.peek(key) ?? this.setPending(key, fn(key), ms);
+  }
+}
+
+export class LRU<K, V> {
+  private readonly cached: Map<K, Promise<V>> = new Map();
+  constructor(public maxCached = 8192) {}
+  keys(): IterableIterator<K> {
+    return this.cached.keys();
+  }
+  clear() {
+    this.cached.clear();
+  }
+  delete(key: K) {
+    this.cached.delete(key);
+  }
+  private ensureRoom() {
+    let extra = 1 + this.cached.size - this.maxCached;
+    if (extra > 0) {
+      const iter = this.cached.keys();
+      while (extra--) {
+        this.cached.delete(iter.next().value);
+      }
+    }
+  }
+  private set(key: K, promise: Promise<V>) {
+    this.cached.delete(key);
+    this.ensureRoom();
+    this.cached.set(key, promise);
+  }
+  setValue(key: K, value: V) {
+    this.set(key, Promise.resolve(value));
+  }
+  setPending(key: K, promise: Promise<V>) {
+    const p = promise.then(
+      (x) => {
+        if (this.cached.get(key) === p) {
+          this.setValue(key, x);
+        }
+        return x;
+      },
+      (x) => {
+        if (this.cached.get(key) === p) {
+          this.cached.delete(key);
+        }
+        throw x;
+      }
+    );
+    this.set(key, p);
+    return p;
+  }
+  touch(key: K): Promise<V> | undefined {
+    const p = this.cached.get(key);
+    if (p) this.set(key, p);
+    return p;
+  }
+  cache(key: K, fn: (key: K) => Promise<V>) {
+    return this.touch(key) ?? this.setPending(key, fn(key));
   }
 }

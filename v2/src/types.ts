@@ -1,9 +1,4 @@
-import type {
-  JsonRpcApiProvider,
-  WebSocketProvider,
-  BigNumberish,
-  BytesLike,
-} from 'ethers';
+import type { JsonRpcApiProvider, BigNumberish, BytesLike } from 'ethers';
 
 export type { BigNumberish, BytesLike };
 export type HexString = string;
@@ -11,7 +6,7 @@ export type HexString32 = HexString;
 export type HexAddress = HexString;
 export type EncodedProof = HexString;
 
-export type Provider = JsonRpcApiProvider | WebSocketProvider;
+export type Provider = JsonRpcApiProvider;
 export type ProviderPair = {
   provider1: Provider;
   provider2: Provider;

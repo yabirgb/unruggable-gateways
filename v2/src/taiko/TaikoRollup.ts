@@ -19,7 +19,6 @@ import {
   type ABITaikoLastSyncedBlock,
 } from './types.js';
 import { ABI_CODER } from '../utils.js';
-import { CachedMap } from '../cached.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
 
 // https://github.com/taikoxyz/taiko-mono/tree/main/packages/protocol/contracts
@@ -94,15 +93,9 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
       'eth_getBlockByNumber',
       [block, false]
     );
-    return {
-      index,
-      prover: new EthProver(
-        this.provider2,
-        block,
-        new CachedMap(Infinity, this.commitCacheSize)
-      ),
-      parentHash,
-    };
+    const prover = new EthProver(this.provider2, block);
+    this.configureProver(prover);
+    return { index, prover, parentHash };
   }
   override encodeWitness(
     commit: TaikoCommit,

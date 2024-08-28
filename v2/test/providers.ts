@@ -11,8 +11,8 @@ import {
   CHAIN_TAIKO,
   CHAIN_ZKSYNC,
   CHAIN_ZKSYNC_SEPOLIA,
-  CHAIN_ZKEVM,
-  CHAIN_ZKEVM_CARDONA,
+  CHAIN_POLYGON_ZKEVM,
+  CHAIN_POLYGON_ZKEVM_CARDONA,
   CHAIN_ARB1,
   CHAIN_ARB_NOVA,
   CHAIN_ARB_SEPOLIA,
@@ -82,10 +82,10 @@ export function providerURL(chain: Chain): string {
     case CHAIN_ZKSYNC_SEPOLIA:
       // https://docs.zksync.io/build/connect-to-zksync#sepolia-testnet-network-details
       return 'https://sepolia.era.zksync.dev';
-    case CHAIN_ZKEVM:
+    case CHAIN_POLYGON_ZKEVM:
       // https://docs.polygon.technology/zkEVM/get-started/quick-start/#manually-add-network-to-wallet
       return 'https://zkevm.polygonscan.com';
-    case CHAIN_ZKEVM_CARDONA:
+    case CHAIN_POLYGON_ZKEVM_CARDONA:
       //return 'https://cardona-zkevm.polygonscan.com/';
       return 'https://rpc.cardona.zkevm-rpc.com';
     case CHAIN_LINEA:

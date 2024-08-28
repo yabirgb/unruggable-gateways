@@ -15,4 +15,12 @@ contract EthSelfVerifier {
 		));
 	}
 
+	function proveAccountState(bytes32 stateRoot, address target, bytes memory encodedProof) external pure returns (bytes32) {
+		return EthTrieHooks.proveAccountState(stateRoot, target, encodedProof);
+	}
+
+	function proveStorageValue(bytes32 storageRoot, address target, uint256 slot, bytes memory encodedProof) external pure returns (bytes32) {
+		return EthTrieHooks.proveStorageValue(storageRoot, target, slot, encodedProof);
+	}
+
 }

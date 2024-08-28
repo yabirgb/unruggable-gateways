@@ -7,6 +7,7 @@ import type {
   EncodedProof,
   HexAddress,
   HexString,
+  HexString32,
   ProviderPair,
 } from '../types.js';
 import { ethers } from 'ethers';
@@ -19,7 +20,6 @@ import {
 import { EthProver } from '../eth/EthProver.js';
 import { POSEIDON_ABI, ROLLUP_ABI, VERIFIER_ABI } from './types.js';
 import { ABI_CODER } from '../utils.js';
-import { CachedMap } from '../cached.js';
 
 // https://github.com/scroll-tech/scroll-contracts/
 // https://docs.scroll.io/en/developers/ethereum-and-scroll-differences/
@@ -28,15 +28,17 @@ import { CachedMap } from '../cached.js';
 export type ScrollConfig = {
   ScrollChainCommitmentVerifier: HexAddress;
   apiURL: string;
-  commitStep: number;
 };
 
-export type ScrollCommit = RollupCommit<EthProver>;
+export type ScrollCommit = RollupCommit<EthProver> & {
+  readonly finalTxHash: HexString32;
+};
 
 // 20240815: commits are approximately every minute
 // to make caching useful, we align to a step
 // note: use 1 to disable the alignment
-const commitStep = 15; // effectively minutes
+//const commitStep = 15; // effectively minutes
+// 20240827: finalization is only every ~15
 
 export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
   // https://docs.scroll.io/en/developers/scroll-contracts/
@@ -45,14 +47,12 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
     chain2: CHAIN_SCROLL,
     ScrollChainCommitmentVerifier: '0xC4362457a91B2E55934bDCb7DaaF6b1aB3dDf203',
     apiURL: 'https://mainnet-api-re.scroll.io/api/',
-    commitStep,
   } as const;
   static readonly testnetConfig: RollupDeployment<ScrollConfig> = {
     chain1: CHAIN_SEPOLIA,
     chain2: CHAIN_SCROLL_SEPOLIA,
     ScrollChainCommitmentVerifier: '0x64cb3A0Dcf43Ae0EE35C1C15edDF5F46D48Fa570',
     apiURL: 'https://sepolia-api-re.scroll.io/api/',
-    commitStep,
   } as const;
 
   static async create(providers: ProviderPair, config: ScrollConfig) {
@@ -61,9 +61,9 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
       VERIFIER_ABI,
       providers.provider1
     );
-    const [rollupAddress, poseidonAddress] = await Promise.all([
-      CommitmentVerifier.rollup() as Promise<HexAddress>,
-      CommitmentVerifier.poseidon() as Promise<HexAddress>,
+    const [rollupAddress, poseidonAddress]: HexAddress[] = await Promise.all([
+      CommitmentVerifier.rollup(),
+      CommitmentVerifier.poseidon(),
     ]);
     const rollup = new ethers.Contract(
       rollupAddress,
@@ -79,7 +79,6 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
       providers,
       CommitmentVerifier,
       config.apiURL,
-      BigInt(config.commitStep),
       rollup,
       poseidon
     );
@@ -88,14 +87,13 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
     providers: ProviderPair,
     readonly CommitmentVerifier: ethers.Contract,
     readonly apiURL: string,
-    readonly commitStep: bigint,
     readonly rollup: ethers.Contract,
     readonly poseidon: ethers.Contract
   ) {
     super(providers);
   }
 
-  async fetchAPILatestCommitIndex(): Promise<bigint> {
+  async fetchAPILatestBatchIndex(): Promise<bigint> {
     // we require the offchain indexer to map commit index to block
     // so we can use the same indexer to get the latest commit
     const res = await fetch(new URL('./last_batch_indexes', this.apiURL));
@@ -103,44 +101,66 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
     const json = await res.json();
     return BigInt(json.finalized_index);
   }
-  async fetchAPIBlockFromCommitIndex(index: bigint) {
-    // TODO: determine how to this w/o relying on indexer
+  async fetchAPIBatchIndexInfo(batchIndex: bigint) {
     const url = new URL('./batch', this.apiURL);
-    url.searchParams.set('index', index.toString());
+    url.searchParams.set('index', batchIndex.toString());
     const res = await fetch(url);
     if (!res.ok) throw new Error(`${res.url}: HTTP(${res.status})`);
     const json = await res.json();
-    const {
-      batch: { rollup_status, end_block_number },
-    } = json;
-    if (rollup_status !== 'finalized') {
-      throw new Error(
-        `Batch(${index}) not finalized: Status(${rollup_status})`
+    const status: string = json.batch.rollup_status;
+    const finalTxHash: HexString32 = json.batch.finalize_tx_hash;
+    const l2BlockNumber = BigInt(json.batch.end_block_number);
+    return { status, l2BlockNumber, finalTxHash };
+  }
+  async findFinalizedBatchIndexBefore(l1BlockNumber: number) {
+    const step = 1000; // ~3 hours (1000*12/3600)
+    for (; l1BlockNumber > 0; l1BlockNumber -= step) {
+      const logs = await this.rollup.queryFilter(
+        this.rollup.filters.FinalizeBatch(),
+        Math.max(0, l1BlockNumber - step),
+        l1BlockNumber - 1
       );
+      if (logs.length) {
+        return BigInt(logs[logs.length - 1].topics[1]); // batchIndex
+      }
     }
-    return '0x' + end_block_number.toString(16);
+    throw new Error(`unable to find earlier batch`);
   }
   override async fetchLatestCommitIndex(): Promise<bigint> {
-    const index = await this.fetchAPILatestCommitIndex();
-    return index - (index % this.commitStep); // align to commit step
+    // TODO: determine how to this w/o relying on indexer
+    return this.fetchAPILatestBatchIndex();
   }
   override async fetchParentCommitIndex(commit: ScrollCommit): Promise<bigint> {
+    // 20240826: this kinda sucks but it's the most efficient so far
+    // alternative: helper contract, eg. loop finalizedStateRoots()
+    // alternative: multicall, finalizedStateRoots looking for nonzero
     // [0, index] is finalized
     // https://github.com/scroll-tech/scroll/blob/738c85759d0248c005469972a49fc983b031ff1c/contracts/src/L1/rollup/ScrollChain.sol#L228
-    const rem = commit.index % this.commitStep;
-    if (rem) return commit.index - rem; // if not aligned, align to step
-    return commit.index - this.commitStep; // else, use previous step
+    // but not every state root is recorded
+    // Differences[{310900, 310887, 310873, 310855}] => {13, 14, 18}
+    const receipt = await this.provider1.getTransactionReceipt(
+      commit.finalTxHash
+    );
+    if (!receipt) {
+      throw new Error(`Commit(${commit.index}) no tx: ${commit.finalTxHash}`);
+    }
+    //return this.findFinalizedBatchIndexBefore(receipt.blockNumber);
+    return this.rollup.lastFinalizedBatchIndex({
+      blockTag: receipt.blockNumber - 1,
+    });
   }
   override async fetchCommit(index: bigint): Promise<ScrollCommit> {
-    const block = await this.fetchAPIBlockFromCommitIndex(index);
-    return {
-      index,
-      prover: new EthProver(
-        this.provider2,
-        block,
-        new CachedMap(Infinity, this.commitCacheSize)
-      ),
-    };
+    const { status, l2BlockNumber, finalTxHash } =
+      await this.fetchAPIBatchIndexInfo(index);
+    if (status !== 'finalized') {
+      throw new Error(`Commit(${index}) not finalized: Status(${status})`);
+    }
+    const prover = new EthProver(
+      this.provider2,
+      '0x' + l2BlockNumber.toString(16)
+    );
+    this.configureProver(prover);
+    return { index, prover, finalTxHash };
   }
   override encodeWitness(
     commit: ScrollCommit,
@@ -173,8 +193,9 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
 
   override windowFromSec(sec: number): number {
     // finalization time is not on-chain
-    const step = Number(this.commitStep);
-    const count = sec / 60; // every minute (see above: "commitStep")
-    return step * Math.ceil(count / step); // units of commit index
+    // https://etherscan.io/advanced-filter?eladd=0xa13baf47339d63b743e7da8741db5456dac1e556&eltpc=0x26ba82f907317eedc97d0cbef23de76a43dd6edb563bdb6e9407645b950a7a2d
+    const span = 20; // every 10-20 batches
+    const freq = 3600; // every hour?
+    return span * Math.ceil(sec / freq); // units of batchIndex
   }
 }

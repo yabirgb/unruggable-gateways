@@ -9,7 +9,13 @@ export const VERIFIER_ABI = new ethers.Interface([
 
 export const ROLLUP_ABI = new ethers.Interface([
   `function lastFinalizedBatchIndex() view returns (uint256)`,
-  //`function finalizedStateRoots(uint256 batchIndex) view returns (bytes32)`,
+  `function finalizedStateRoots(uint256 batchIndex) view returns (bytes32)`,
+  `event FinalizeBatch(
+    uint256 indexed batchIndex,
+    bytes32 indexed batchHash,
+    bytes32 stateRoot,
+    bytes32 withdrawRoot
+  )`,
 ]);
 
 export const POSEIDON_ABI = new ethers.Interface([

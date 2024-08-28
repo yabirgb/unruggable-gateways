@@ -13,8 +13,8 @@
     "check": "tsc --noEmit",
     "forge": "forge build --force",
     "serve": "bun test/serve.ts",
-    "test": "bun test --timeout 15000",
-    "test-components": "bun test test/components/* --timeout 15000",
+    "test": "bun test --timeout 0",
+    "test-components": "bun test test/components/* --timeout 0",
     "test-gateways": "bun test test/gateway/* --timeout 0",
     "lint": "eslint . --ext .ts",
     "clean": "rm -rf ./dist && rm -rf ./tsconfig.build.tsbuildinfo",
@@ -36,7 +36,7 @@
     "src/"
   ],
   "devDependencies": {
-    "@adraffy/blocksmith": "^0.0.27",
+    "@adraffy/blocksmith": "^0.0.28",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",

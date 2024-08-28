@@ -8,12 +8,10 @@ import type {
 import {
   AbstractProver,
   makeStorageKey,
-  storageMapFromCache,
   type Need,
   type ProofSequence,
 } from '../vm.js';
 import { ethers } from 'ethers';
-import { CachedMap } from '../cached.js';
 import { ABI_CODER } from '../utils.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
@@ -37,17 +35,13 @@ export class ZKSyncProver extends AbstractProver {
   }
   constructor(
     readonly provider: Provider,
-    readonly batchIndex: number,
-    readonly cache: CachedMap<string, any> = new CachedMap()
+    readonly batchIndex: number
   ) {
     super();
   }
-  storageMap() {
-    return storageMapFromCache(this.cache);
-  }
   override async isContract(target: HexAddress): Promise<boolean> {
     const storageProof: ZKSyncStorageProof | undefined =
-      await this.cache.peek(target);
+      await this.proofLRU.touch(target.toLowerCase());
     const codeHash = storageProof
       ? storageProof.value
       : await this.getStorage(ZKSYNC_ACCOUNT_CODEHASH, BigInt(target));
@@ -57,22 +51,20 @@ export class ZKSyncProver extends AbstractProver {
     target: HexAddress,
     slot: bigint
   ): Promise<HexString> {
+    target = target.toLowerCase();
     const storageKey = makeStorageKey(target, slot);
-    const storageProof: ZKSyncStorageProof | undefined = await (this
-      .useFastCalls
-      ? this.cache.peek(storageKey)
-      : this.cache.get(storageKey, async () => {
-          const vs = await this.getStorageProofs(target, [slot]);
-          return vs[0];
-        }));
+    const storageProof: ZKSyncStorageProof | undefined =
+      await this.proofLRU.touch(storageKey);
     if (storageProof) {
       return storageProof.value;
     }
-    return this.cache.get(
-      storageKey + '!',
-      () => this.provider.getStorage(target, slot),
-      this.fastCallCacheMs
-    );
+    if (this.fastCache) {
+      return this.fastCache.get(storageKey, () =>
+        this.provider.getStorage(target, slot)
+      );
+    }
+    const vs = await this.getStorageProofs(target, [slot]);
+    return vs[0].value;
   }
   override async prove(needs: Need[]): Promise<ProofSequence> {
     type Ref = { id: number; proof: EncodedProof };
@@ -123,6 +115,7 @@ export class ZKSyncProver extends AbstractProver {
     };
   }
   async getStorageProofs(target: HexString, slots: bigint[]) {
+    target = target.toLowerCase();
     const missing: number[] = [];
     const { promise, resolve, reject } = Promise.withResolvers();
     const storageProofs: (
@@ -131,9 +124,9 @@ export class ZKSyncProver extends AbstractProver {
       | undefined
     )[] = slots.map((slot, i) => {
       const key = makeStorageKey(target, slot);
-      const p = this.cache.peek(key);
+      const p = this.proofLRU.touch(key);
       if (!p) {
-        this.cache.set(
+        this.proofLRU.setPending(
           key,
           promise.then(() => storageProofs[i])
         );

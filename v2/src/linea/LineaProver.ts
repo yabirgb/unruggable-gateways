@@ -1,20 +1,14 @@
 import type { EncodedProof, HexString, Provider } from '../types.js';
-import {
-  AbstractProver,
-  makeStorageKey,
-  storageMapFromCache,
-  type Need,
-} from '../vm.js';
-import { CachedMap } from '../cached.js';
+import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
 import { ethers } from 'ethers';
-import { ABI_CODER, NULL_CODE_HASH } from '../utils.js';
-import type { LineaProof, RPCLineaGetProof } from './types.js';
+import { ABI_CODER, NULL_CODE_HASH, sendImmediate } from '../utils.js';
+import {
+  isExistanceProof,
+  type LineaProof,
+  type RPCLineaGetProof,
+} from './types.js';
 
 //const NULL_CODE_HASH = '0x0134373b65f439c874734ff51ea349327c140cde2e47a933146e6f9f2ad8eb17'; // mimc(ZeroHash)
-
-function isExistanceProof(proof: LineaProof) {
-  return 'leafIndex' in proof;
-}
 
 function isContract(accountProof: LineaProof) {
   return (
@@ -49,50 +43,52 @@ function encodeProof(proof: LineaProof) {
 export class LineaProver extends AbstractProver {
   constructor(
     readonly provider: Provider,
-    readonly block: HexString,
-    readonly cache: CachedMap<string, any> = new CachedMap()
+    readonly block: HexString
   ) {
     super();
-  }
-  storageMap() {
-    return storageMapFromCache(this.cache);
   }
   override async getStorage(
     target: HexString,
     slot: bigint
   ): Promise<HexString> {
+    target = target.toLowerCase();
     // check to see if we know this target isn't a contract
-    const accountProof: LineaProof | undefined = await this.cache.peek(target);
+    const accountProof: LineaProof | undefined =
+      await this.proofLRU.touch(target);
     if (accountProof && !isContract(accountProof)) {
       return ethers.ZeroHash;
     }
     // check to see if we've already have a proof for this value
     const storageKey = makeStorageKey(target, slot);
     const storageProof: LineaProof | undefined =
-      await this.cache.peek(storageKey);
+      await this.proofLRU.touch(storageKey);
     if (storageProof) {
       return isExistanceProof(storageProof)
         ? storageProof.proof.value
         : ethers.ZeroHash;
     }
     // we didn't have the proof
-    if (this.useFastCalls) {
-      return this.cache.get(
-        storageKey + '!',
-        () => this.provider.getStorage(target, slot),
-        this.fastCallCacheMs
+    if (this.fastCache) {
+      return this.fastCache.get(storageKey, () =>
+        this.provider.getStorage(target, slot, this.block)
       );
-    } else {
-      const proof = await this.getProofs(target, [slot]);
-      return isContract(proof.accountProof) &&
-        isExistanceProof(proof.storageProofs[0])
-        ? proof.storageProofs[0].proof.value
-        : ethers.ZeroHash;
     }
+    const proof = await this.getProofs(target, [slot]);
+    return isContract(proof.accountProof) &&
+      isExistanceProof(proof.storageProofs[0])
+      ? proof.storageProofs[0].proof.value
+      : ethers.ZeroHash;
   }
   override async isContract(target: HexString) {
-    const { accountProof } = await this.getProofs(target);
-    return isContract(accountProof);
+    if (this.fastCache) {
+      return this.fastCache.get(target, async () => {
+        const code = await this.provider.getCode(target, this.block);
+        return code.length > 2;
+      });
+    } else {
+      const { accountProof } = await this.getProofs(target);
+      return isContract(accountProof);
+    }
   }
   override async prove(needs: Need[]) {
     // reduce an ordered list of needs into a deduplicated list of proofs
@@ -136,7 +132,7 @@ export class LineaProver extends AbstractProver {
         let m = [...bucket.map];
         try {
           const accountProof: LineaProof | undefined =
-            await this.cache.cachedValue(target);
+            await this.proofLRU.touch(target);
           if (accountProof && !isContract(accountProof)) {
             m = []; // if we know target isn't a contract, we only need accountProof
           }
@@ -173,26 +169,24 @@ export class LineaProver extends AbstractProver {
     const { promise, resolve, reject } = Promise.withResolvers();
     // check if we have an account proof
     let accountProof: Promise<LineaProof> | LineaProof | undefined =
-      this.cache.peek(target);
+      this.proofLRU.touch(target);
     if (!accountProof) {
       // missing account proof, so block it
-      this.cache.set(
+      this.proofLRU.setPending(
         target,
-        promise.then(() => accountProof),
-        0
+        promise.then(() => accountProof)
       );
     }
     // check if we're missing any slots
     const storageProofs: (Promise<LineaProof> | LineaProof | undefined)[] =
       slots.map((slot, i) => {
         const key = makeStorageKey(target, slot);
-        const p = this.cache.peek(key);
+        const p = this.proofLRU.touch(key);
         if (!p) {
           // missing storage proof, so block it
-          this.cache.set(
+          this.proofLRU.setPending(
             key,
-            promise.then(() => storageProofs[i]),
-            0
+            promise.then(() => storageProofs[i])
           );
           missing.push(i);
         }
@@ -209,13 +203,6 @@ export class LineaProver extends AbstractProver {
         accountProof = a;
         missing.forEach((x, i) => (storageProofs[x] = v[i]));
         resolve();
-        // refresh all cache expirations
-        this.cache.set(target, a);
-        if (isContract(accountProof)) {
-          slots.forEach((slot, i) => {
-            this.cache.set(makeStorageKey(target, slot), storageProofs[i]);
-          });
-        }
       } catch (err) {
         reject(err);
         throw err; // must throw because accountProof is undefined
@@ -237,7 +224,10 @@ export class LineaProver extends AbstractProver {
     const ps: Promise<RPCLineaGetProof>[] = [];
     for (let i = 0; ; ) {
       ps.push(
-        this.provider.send('linea_getProof', [
+        // 20240825: most cloud providers seem to reject batched getProof
+        // since we aren't in control of provider construction (ie. batchMaxSize)
+        // sendImmediate is a temporary hack to avoid this issue
+        sendImmediate(this.provider, 'linea_getProof', [
           target,
           slots
             .slice(i, (i += this.proofBatchSize))

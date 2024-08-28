@@ -5,8 +5,6 @@ import "../OwnedVerifier.sol";
 import {EVMProver, ProofSequence, NOT_A_CONTRACT} from "../EVMProver.sol";
 import {IZKSyncSMT, TreeEntry, ACCOUNT_CODE_HASH} from "./IZKSyncSMT.sol";
 
-import "forge-std/console2.sol";
-
 interface IZKSyncDiamond {	
 	function storedBatchHash(uint256 batchNumber) external view returns (bytes32);
 	function l2LogsRootHash(uint256 batchNumber) external view returns (bytes32);

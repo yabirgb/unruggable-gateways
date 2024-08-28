@@ -25,3 +25,12 @@ export function decodeStorageArray(step: number, data: BytesLike): HexString[] {
     });
   }
 }
+
+export function encodeShortString(s: string): HexString {
+  const v = ethers.toUtf8Bytes(s);
+  if (v.length > 31) throw new Error('too big');
+  const u = new Uint8Array(32);
+  u.set(v);
+  u[31] = v.length << 1;
+  return ethers.hexlify(u);
+}

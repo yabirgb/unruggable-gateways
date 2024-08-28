@@ -18,7 +18,6 @@ import {
   CHAIN_ZKSYNC,
   CHAIN_ZKSYNC_SEPOLIA,
 } from '../chains.js';
-import { CachedMap } from '../cached.js';
 import {
   type RollupDeployment,
   type RollupCommit,
@@ -31,13 +30,13 @@ import { ABI_CODER } from '../utils.js';
 // https://github.com/getclave/zksync-storage-proofs
 // https://uptime.com/statuspage/era
 
+export type ZKSyncConfig = {
+  DiamondProxy: HexAddress;
+};
+
 export type ZKSyncCommit = RollupCommit<ZKSyncProver> & {
   readonly stateRoot: HexString32;
   readonly abiEncodedBatch: HexString;
-};
-
-export type ZKSyncConfig = {
-  DiamondProxy: HexAddress;
 };
 
 export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
@@ -84,7 +83,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     // }
     const { rootHash, commitTxHash } = details;
     if (!rootHash || !commitTxHash) {
-      throw new Error(`Batch(${index}) not finalized`);
+      throw new Error(`Commit(${index}) not finalized`);
     }
     const [tx, [log], l2LogsTreeRoot] = await Promise.all([
       this.provider1.getTransaction(commitTxHash),
@@ -94,7 +93,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
       this.DiamondProxy.l2LogsRootHash(index) as Promise<HexString32>,
     ]);
     if (!tx || !(log instanceof ethers.EventLog)) {
-      throw new Error(`unable to find commit tx: ${commitTxHash}`);
+      throw new Error(`Commit(${index}) no tx: ${commitTxHash}`);
     }
     const commits: ABIZKSyncCommitBatchInfo[] = DIAMOND_ABI.decodeFunctionData(
       'commitBatchesSharedBridge',
@@ -102,7 +101,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     ).newBatchesData;
     const batchInfo = commits.find((x) => x.batchNumber == index);
     if (!batchInfo) {
-      throw new Error(`expected batch in commit`);
+      throw new Error(`Commit(${index}) not member`);
     }
     const abiEncodedBatch = ABI_CODER.encode(
       [
@@ -126,13 +125,11 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
         log.args.commitment,
       ]
     );
+    const prover = new ZKSyncProver(this.provider2, batchIndex);
+    this.configureProver(prover);
     return {
       index,
-      prover: new ZKSyncProver(
-        this.provider2,
-        batchIndex,
-        new CachedMap(Infinity, this.commitCacheSize)
-      ),
+      prover,
       stateRoot: rootHash,
       abiEncodedBatch,
     };

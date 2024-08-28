@@ -37,6 +37,10 @@ export type LineaProofExistance = {
 
 export type LineaProof = LineaProofAbsence | LineaProofExistance;
 
+export function isExistanceProof(proof: LineaProof) {
+  return 'leafIndex' in proof;
+}
+
 export type RPCLineaGetProof = {
   accountProof: LineaProof;
   storageProofs: LineaProof[]; // note: this is plural

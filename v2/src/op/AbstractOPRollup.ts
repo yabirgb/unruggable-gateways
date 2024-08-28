@@ -3,7 +3,6 @@ import type { RPCEthGetBlock, RPCEthGetProof } from '../eth/types.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
 import { ethers } from 'ethers';
-import { CachedMap } from '../cached.js';
 import { ABI_CODER } from '../utils.js';
 
 const OutputRootProofType = `tuple(
@@ -44,16 +43,14 @@ export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
           false,
         ]) as Promise<RPCEthGetBlock>,
       ]);
+    const prover = new EthProver(this.provider2, block);
+    this.configureProver(prover);
     return {
       index,
       blockHash,
       stateRoot,
       passerRoot,
-      prover: new EthProver(
-        this.provider2,
-        block,
-        new CachedMap(Infinity, this.commitCacheSize)
-      ),
+      prover,
     };
   }
   override encodeWitness(

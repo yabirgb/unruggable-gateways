@@ -16,8 +16,16 @@ export type RollupCommit<P extends AbstractProver> = {
 
 export type Rollup = AbstractRollup<RollupCommit<AbstractProver>>;
 
+export type RollupCommitType<R extends Rollup> = Parameters<
+  R['fetchParentCommitIndex']
+>[0];
+
 export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
-  commitCacheSize = 10000;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  configureProver: (prover: AbstractProver) => void = (_prover) => {
+    //prover.proofLRU.maxCached;
+    //prover.fastCache = undefined
+  };
   readonly provider1: Provider;
   readonly provider2: Provider;
   constructor(providers: ProviderPair) {
@@ -34,6 +42,9 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   ): HexString;
   async fetchLatestCommit() {
     return this.fetchCommit(await this.fetchLatestCommitIndex());
+  }
+  async fetchParentCommit(commit: C) {
+    return this.fetchCommit(await this.fetchParentCommitIndex(commit));
   }
   async fetchRecentCommits(count: number): Promise<C[]> {
     if (count < 1) return [];

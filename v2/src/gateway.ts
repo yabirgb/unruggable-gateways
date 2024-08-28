@@ -1,11 +1,11 @@
-import type { AbstractProver } from './vm.js';
 import {
-  type RollupCommit,
-  type AbstractRollup,
   AbstractRollupV1,
+  type RollupCommitType,
+  type Rollup,
 } from './rollup.js';
+import type { HexString } from './types.js';
 import { ethers } from 'ethers';
-import { CachedMap, CachedValue } from './cached.js';
+import { CachedMap, CachedValue, LRU } from './cached.js';
 import { ABI_CODER } from './utils.js';
 import { EVMRequestV1 } from './v1.js';
 import { EZCCIP } from '@resolverworks/ezccip';
@@ -15,31 +15,40 @@ export const GATEWAY_ABI = new ethers.Interface([
   `function getStorageSlots(address target, bytes32[] commands, bytes[] constants) returns (bytes)`,
 ]);
 
-export class Gateway<
-  P extends AbstractProver,
-  C extends RollupCommit<P>,
-  R extends AbstractRollup<C>,
-> extends EZCCIP {
-  commitDepth = 3;
+// shorten the request hash for less spam and easier comparision
+function shortHash(x: string): string {
+  return x.slice(-8);
+}
+
+export class Gateway<R extends Rollup> extends EZCCIP {
+  // the max number of commitments to keep in memory
+  commitDepth = 2;
+  // if true, requests beyond the commit depth are still supported
   allowHistorical = false;
-  private readonly latestCache = new CachedValue(
-    () => this.rollup.fetchLatestCommitIndex(),
-    60000
+  private readonly latestCache = new CachedValue(() =>
+    this.rollup.fetchLatestCommitIndex()
   );
-  private readonly commitCacheMap = new CachedMap<bigint, C>(Infinity);
+  private readonly commitCacheMap = new CachedMap<bigint, RollupCommitType<R>>(
+    Infinity
+  );
   private readonly parentCacheMap = new CachedMap<bigint, bigint>(Infinity);
-  readonly callCacheMap = new CachedMap<string, Uint8Array>(Infinity, 1000);
+  readonly callCacheMap = new LRU<string, Uint8Array>(1000);
   constructor(readonly rollup: R) {
     super();
     this.register(GATEWAY_ABI, {
       proveRequest: async ([ctx, { ops, inputs }], _context, history) => {
-        const commit = await this.getRecentCommit(BigInt(ctx));
+        // given the requested commitment, we answer: min(requested, latest)
+        const commit = await this.getRecentCommit(BigInt(ctx.slice(0, 66)));
+        // we cannot hash the context.calldata directly because the requested
+        // commit might be different, so we hash using the determined commit
         const hash = ethers.solidityPackedKeccak256(
           ['uint256', 'bytes', 'bytes[]'],
           [commit.index, ops, inputs]
         );
-        history.show = [commit.index, ethers.hexlify(ops), hash];
-        return this.callCacheMap.get(hash, async () => {
+        // TODO: ops could be hashed like a selector...
+        history.show = [commit.index, ethers.hexlify(ops), shortHash(hash)];
+        // NOTE: for a given commit + request, calls are pure
+        return this.callCacheMap.cache(hash, async () => {
           const state = await commit.prover.evalDecoded(ops, inputs);
           const { proofs, order } = await commit.prover.prove(state.needs);
           return ethers.getBytes(
@@ -48,6 +57,7 @@ export class Gateway<
         });
       },
     });
+    // NOTE: this only works if V1 and V2 share same proof encoding!
     if (rollup instanceof AbstractRollupV1) {
       const rollupV1 = rollup; // 20240815: tsc bug https://github.com/microsoft/TypeScript/issues/30625
       this.register(GATEWAY_ABI, {
@@ -58,15 +68,17 @@ export class Gateway<
         ) => {
           const commit = await this.getLatestCommit();
           const hash = ethers.id(`${commit.index}:${context.calldata}`);
-          history.show = [commit.index, hash];
-          return this.callCacheMap.get(hash, async () => {
+          history.show = [commit.index, shortHash(hash)];
+          return this.callCacheMap.cache(hash, async () => {
             const req = new EVMRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
             const state = await commit.prover.evalRequest(req);
-            const { proofs, order } = await commit.prover.prove(state.needs);
+            const { accountProof, storageProofs } = await commit.prover.proveV1(
+              state.needs
+            );
             const witness = rollupV1.encodeWitnessV1(
               commit,
-              proofs[order[0]],
-              Array.from(order.subarray(1), (i) => proofs[i])
+              accountProof,
+              storageProofs
             );
             return ethers.getBytes(ABI_CODER.encode(['bytes'], [witness]));
           });
@@ -106,7 +118,9 @@ export class Gateway<
     }
     throw new Error(`too old: ${index}`);
   }
-  private async cachedParentCommitIndex(commit: C): Promise<bigint> {
+  private async cachedParentCommitIndex(
+    commit: RollupCommitType<R>
+  ): Promise<bigint> {
     return this.parentCacheMap.get(commit.index, async () => {
       const index = await this.rollup.fetchParentCommitIndex(commit);
       if (index < 0) throw new Error(`no parent commit: ${commit.index}`);
@@ -116,4 +130,44 @@ export class Gateway<
   private async cachedCommit(index: bigint) {
     return this.commitCacheMap.get(index, (i) => this.rollup.fetchCommit(i));
   }
+}
+
+// assumption: serves latest finalized commit
+export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
+  private latestCommit: RollupCommitType<R> | undefined;
+  private readonly latestCache = new CachedValue(() =>
+    this.rollup.fetchLatestCommitIndex()
+  );
+  readonly callCacheMap = new LRU<string, Uint8Array>();
+  constructor(readonly rollup: R) {
+    super();
+    this.register(GATEWAY_ABI, {
+      getStorageSlots: async (
+        [target, commands, constants],
+        context,
+        history
+      ) => {
+        const commit = await this.getLatestCommit();
+        const hash = ethers.id(`${commit.index}:${context.calldata}`);
+        history.show = [commit.index, shortHash(hash)];
+        return this.callCacheMap.cache(hash, async () => {
+          const req = new EVMRequestV1(target, commands, constants);
+          return ethers.getBytes(await this.handleRequest(commit, req));
+        });
+      },
+    });
+  }
+  async getLatestCommit() {
+    const index = await this.latestCache.get();
+    if (!this.latestCommit || index != this.latestCommit.index) {
+      this.latestCommit = await this.rollup.fetchCommit(index);
+    }
+    return this.latestCommit;
+  }
+  // since every legacy gateway does "its own thing"
+  // we forward the responsibility of generating a response
+  abstract handleRequest(
+    commit: RollupCommitType<R>,
+    request: EVMRequestV1
+  ): Promise<HexString>;
 }

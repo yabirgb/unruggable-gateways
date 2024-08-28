@@ -20,7 +20,6 @@ import {
 import { EthProver } from '../eth/EthProver.js';
 import { ROLLUP_ABI } from './types.js';
 import { ABI_CODER } from '../utils.js';
-import { CachedMap } from '../cached.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
 import { encodeRlpBlock } from '../rlp.js';
 
@@ -92,16 +91,9 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
       [blockHash, false]
     );
     const rlpEncodedBlock = encodeRlpBlock(json);
-    return {
-      index,
-      prover: new EthProver(
-        this.provider2,
-        json.number,
-        new CachedMap(Infinity, this.commitCacheSize)
-      ),
-      sendRoot,
-      rlpEncodedBlock,
-    };
+    const prover = new EthProver(this.provider2, json.number);
+    this.configureProver(prover);
+    return { index, prover, sendRoot, rlpEncodedBlock };
   }
   override encodeWitness(
     commit: NitroCommit,

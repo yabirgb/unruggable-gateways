@@ -74,7 +74,7 @@ export function proveMerkleTrieValue(
     );
     if (keyRemainder.length) {
       if (!final) new Error('key remainder');
-      return '';
+      return;
     }
     const { decoded } = nodes[pathLength - 1];
     return decoded[decoded.length - 1];
@@ -120,7 +120,7 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
         case 0: // PREFIX_EXTENSION_EVEN
         case 1: {
           // PREFIX_EXTENSION_ODD
-          if (pathRemainder.length != keyRemainder.length) {
+          if (shared != pathRemainder.length) {
             nodeID = RLP_NULL;
             break outer;
           } else {
