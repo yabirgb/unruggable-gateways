@@ -16,8 +16,8 @@ async function setup() {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({
-    file: 'SelfVerifier',
-    args: [ethers.ZeroAddress], // only using merkle, not scroll
+    file: 'EthSelfVerifier',
+    args: [], // only using merkle, not scroll
   });
   return {
     foundry,
@@ -37,7 +37,7 @@ async function setup() {
           // console.log('ops', req.ops);
           // console.log('inputs', req.inputs);
           // console.log('outputs', values);
-          const res = await verifier.verifyMerkle(
+          const res = await verifier.verify(
             [Uint8Array.from(req.ops), req.inputs],
             stateRoot,
             proofs,
