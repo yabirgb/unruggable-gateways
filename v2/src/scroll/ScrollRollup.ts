@@ -4,13 +4,13 @@ import {
   type RollupDeployment,
 } from '../rollup.js';
 import type {
-  EncodedProof,
   HexAddress,
   HexString,
   HexString32,
   ProviderPair,
 } from '../types.js';
-import { ethers } from 'ethers';
+import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
+import { Contract, concat, toBeHex } from 'ethers';
 import {
   CHAIN_MAINNET,
   CHAIN_SCROLL,
@@ -19,7 +19,7 @@ import {
 } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import { POSEIDON_ABI, ROLLUP_ABI, VERIFIER_ABI } from './types.js';
-import { ABI_CODER } from '../utils.js';
+import { ABI_CODER, toString16 } from '../utils.js';
 
 // https://github.com/scroll-tech/scroll-contracts/
 // https://docs.scroll.io/en/developers/ethereum-and-scroll-differences/
@@ -56,7 +56,7 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
   } as const;
 
   static async create(providers: ProviderPair, config: ScrollConfig) {
-    const CommitmentVerifier = new ethers.Contract(
+    const CommitmentVerifier = new Contract(
       config.ScrollChainCommitmentVerifier,
       VERIFIER_ABI,
       providers.provider1
@@ -65,12 +65,8 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
       CommitmentVerifier.rollup(),
       CommitmentVerifier.poseidon(),
     ]);
-    const rollup = new ethers.Contract(
-      rollupAddress,
-      ROLLUP_ABI,
-      providers.provider1
-    );
-    const poseidon = new ethers.Contract(
+    const rollup = new Contract(rollupAddress, ROLLUP_ABI, providers.provider1);
+    const poseidon = new Contract(
       poseidonAddress,
       POSEIDON_ABI,
       providers.provider1
@@ -85,15 +81,15 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
   }
   private constructor(
     providers: ProviderPair,
-    readonly CommitmentVerifier: ethers.Contract,
+    readonly CommitmentVerifier: Contract,
     readonly apiURL: string,
-    readonly rollup: ethers.Contract,
-    readonly poseidon: ethers.Contract
+    readonly rollup: Contract,
+    readonly poseidon: Contract
   ) {
     super(providers);
   }
 
-  async fetchAPILatestBatchIndex(): Promise<bigint> {
+  async fetchAPILatestBatchIndex() {
     // we require the offchain indexer to map commit index to block
     // so we can use the same indexer to get the latest commit
     const res = await fetch(new URL('./last_batch_indexes', this.apiURL));
@@ -149,39 +145,33 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
       blockTag: receipt.blockNumber - 1,
     });
   }
-  override async fetchCommit(index: bigint): Promise<ScrollCommit> {
+  protected override async _fetchCommit(index: bigint): Promise<ScrollCommit> {
     const { status, l2BlockNumber, finalTxHash } =
       await this.fetchAPIBatchIndexInfo(index);
     if (status !== 'finalized') {
       throw new Error(`Commit(${index}) not finalized: Status(${status})`);
     }
-    const prover = new EthProver(
-      this.provider2,
-      '0x' + l2BlockNumber.toString(16)
-    );
-    this.configureProver(prover);
+    const prover = new EthProver(this.provider2, toString16(l2BlockNumber));
     return { index, prover, finalTxHash };
   }
   override encodeWitness(
     commit: ScrollCommit,
-    proofs: EncodedProof[],
-    order: Uint8Array
+    proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
       ['uint256', 'bytes[]', 'bytes'],
-      [commit.index, proofs, order]
+      [commit.index, proofSeq.proofs, proofSeq.order]
     );
   }
   override encodeWitnessV1(
     commit: ScrollCommit,
-    accountProof: EncodedProof,
-    storageProofs: EncodedProof[]
+    proofSeq: ProofSequenceV1
   ): HexString {
-    const compressed = storageProofs.map((storageProof) =>
-      ethers.concat([
-        ethers.toBeHex(accountProof.length, 1),
-        ...accountProof,
-        ethers.toBeHex(storageProof.length, 1),
+    const compressed = proofSeq.storageProofs.map((storageProof) =>
+      concat([
+        toBeHex(proofSeq.accountProof.length, 1),
+        ...proofSeq.accountProof,
+        toBeHex(storageProof.length, 1),
         ...storageProof,
       ])
     );

@@ -5,7 +5,7 @@ const config = NitroRollup.arb1MainnetConfig;
 const rollup = new NitroRollup(createProviderPair(config), config);
 
 console.log({
-  L2Rollup: rollup.L2Rollup,
+  L2Rollup: rollup.L2Rollup.target,
   defaultWindow: rollup.defaultWindow,
 });
 

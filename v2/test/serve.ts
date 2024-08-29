@@ -10,6 +10,7 @@ import { createProviderPair } from './providers.js';
 import { serve } from '@resolverworks/ezccip';
 import { Gateway } from '../src/gateway.js';
 import { LineaRollup } from '../src/linea/LineaRollup.js';
+import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 
 const [, , name, port] = process.argv;
 let rollup: Rollup;
@@ -37,6 +38,11 @@ switch (name) {
   case 'linea': {
     const config = LineaRollup.mainnetConfig;
     rollup = new LineaRollup(createProviderPair(config), config);
+    break;
+  }
+  case 'polygon-pos': {
+    const config = PolygonPoSRollup.mainnetConfig;
+    rollup = new PolygonPoSRollup(createProviderPair(config), config);
     break;
   }
   case 'scroll': {

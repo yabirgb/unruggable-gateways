@@ -11,7 +11,7 @@ import {
   type Need,
   type ProofSequence,
 } from '../vm.js';
-import { ethers } from 'ethers';
+import { toBeHex } from 'ethers';
 import { ABI_CODER } from '../utils.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
@@ -160,7 +160,7 @@ export class ZKSyncProver extends AbstractProver {
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
-            .map((slot) => ethers.toBeHex(slot, 32)),
+            .map((slot) => toBeHex(slot, 32)),
           this.batchIndex,
         ])
       );

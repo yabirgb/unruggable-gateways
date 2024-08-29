@@ -1,18 +1,13 @@
 import type { RollupDeployment } from '../rollup.js';
-import type { HexAddress, HexString32, ProviderPair } from '../types.js';
-import { ethers } from 'ethers';
-import { ORACLE_ABI } from './types.js';
+import type { HexAddress, ProviderPair } from '../types.js';
+import { Contract } from 'ethers';
+import { type ABIOutputProposal, ORACLE_ABI } from './types.js';
 import { CHAIN_BASE, CHAIN_MAINNET } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
+import { toString16 } from '../utils.js';
 
 export type OPConfig = {
   L2OutputOracle: HexAddress;
-};
-
-type ABIOutputProposal = {
-  outputRoot: HexString32;
-  timestamp: bigint;
-  l2BlockNumber: bigint;
 };
 
 export class OPRollup extends AbstractOPRollup {
@@ -25,7 +20,7 @@ export class OPRollup extends AbstractOPRollup {
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {
     super(providers);
-    this.L2OutputOracle = new ethers.Contract(
+    this.L2OutputOracle = new Contract(
       config.L2OutputOracle,
       ORACLE_ABI,
       providers.provider1
@@ -38,10 +33,10 @@ export class OPRollup extends AbstractOPRollup {
   override async fetchParentCommitIndex(commit: OPCommit): Promise<bigint> {
     return commit.index - 1n;
   }
-  override async fetchCommit(index: bigint): Promise<OPCommit> {
+  protected override async _fetchCommit(index: bigint) {
     const output: ABIOutputProposal =
       await this.L2OutputOracle.getL2Output(index);
-    return this.createCommit(index, '0x' + output.l2BlockNumber.toString(16));
+    return this.createCommit(index, toString16(output.l2BlockNumber));
   }
 
   override windowFromSec(sec: number): number {

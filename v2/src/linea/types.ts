@@ -1,7 +1,7 @@
-import { ethers } from 'ethers';
+import { Interface } from 'ethers';
 import type { HexString, HexString32 } from '../types.js';
 
-export const ROLLUP_ABI = new ethers.Interface([
+export const ROLLUP_ABI = new Interface([
   // ZkEvmV2.sol
   `function currentL2BlockNumber() view returns (uint256)`,
   `function stateRootHashes(uint256 l2BlockNumber) view returns (bytes32)`,

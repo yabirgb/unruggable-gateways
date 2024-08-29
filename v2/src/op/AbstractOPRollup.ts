@@ -1,8 +1,9 @@
-import type { EncodedProof, HexAddress, HexString } from '../types.js';
+import type { HexAddress, HexString } from '../types.js';
 import type { RPCEthGetBlock, RPCEthGetProof } from '../eth/types.js';
+import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
-import { ethers } from 'ethers';
+import { ZeroHash } from 'ethers';
 import { ABI_CODER } from '../utils.js';
 
 const OutputRootProofType = `tuple(
@@ -19,12 +20,7 @@ export type OPCommit = RollupCommit<EthProver> & {
 };
 
 function outputRootProofTuple(commit: OPCommit) {
-  return [
-    ethers.ZeroHash,
-    commit.stateRoot,
-    commit.passerRoot,
-    commit.blockHash,
-  ];
+  return [ZeroHash, commit.stateRoot, commit.passerRoot, commit.blockHash];
 }
 
 export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
@@ -44,7 +40,6 @@ export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
         ]) as Promise<RPCEthGetBlock>,
       ]);
     const prover = new EthProver(this.provider2, block);
-    this.configureProver(prover);
     return {
       index,
       blockHash,
@@ -53,26 +48,23 @@ export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
       prover,
     };
   }
-  override encodeWitness(
-    commit: OPCommit,
-    proofs: EncodedProof[],
-    order: Uint8Array
-  ): HexString {
+  override encodeWitness(commit: OPCommit, proofSeq: ProofSequence) {
     return ABI_CODER.encode(
       ['uint256', OutputRootProofType, 'bytes[]', 'bytes'],
-      [commit.index, outputRootProofTuple(commit), proofs, order]
+      [
+        commit.index,
+        outputRootProofTuple(commit),
+        proofSeq.proofs,
+        proofSeq.order,
+      ]
     );
   }
-  override encodeWitnessV1(
-    commit: OPCommit,
-    accountProof: EncodedProof,
-    storageProofs: EncodedProof[]
-  ): HexString {
+  override encodeWitnessV1(commit: OPCommit, proofSeq: ProofSequenceV1) {
     return ABI_CODER.encode(
       [`tuple(uint256, ${OutputRootProofType})`, 'tuple(bytes, bytes[])'],
       [
         [commit.index, outputRootProofTuple(commit)],
-        [accountProof, storageProofs],
+        [proofSeq.accountProof, proofSeq.storageProofs],
       ]
     );
   }

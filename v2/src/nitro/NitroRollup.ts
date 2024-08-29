@@ -3,13 +3,10 @@ import {
   type RollupCommit,
   type RollupDeployment,
 } from '../rollup.js';
-import type {
-  EncodedProof,
-  HexAddress,
-  HexString,
-  ProviderPair,
-} from '../types.js';
-import { ethers } from 'ethers';
+import type { HexAddress, HexString, ProviderPair } from '../types.js';
+import type { RPCEthGetBlock } from '../eth/types.js';
+import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
+import { ZeroHash, Contract, EventLog } from 'ethers';
 import {
   CHAIN_MAINNET,
   CHAIN_ARB1,
@@ -18,9 +15,8 @@ import {
   CHAIN_SEPOLIA,
 } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
-import { ROLLUP_ABI } from './types.js';
+import { type ABINodeTuple, ROLLUP_ABI } from './types.js';
 import { ABI_CODER } from '../utils.js';
-import type { RPCEthGetBlock } from '../eth/types.js';
 import { encodeRlpBlock } from '../rlp.js';
 
 // https://docs.arbitrum.io/how-arbitrum-works/inside-arbitrum-nitro#the-rollup-chain
@@ -32,10 +28,6 @@ export type NitroConfig = {
 export type NitroCommit = RollupCommit<EthProver> & {
   readonly sendRoot: HexString;
   readonly rlpEncodedBlock: HexString;
-};
-
-type ABINodeTuple = {
-  prevNum: bigint;
 };
 
 export class NitroRollup extends AbstractRollupV1<NitroCommit> {
@@ -56,14 +48,10 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
     L2Rollup: '0xFb209827c58283535b744575e11953DCC4bEAD88',
   } as const;
 
-  readonly L2Rollup: ethers.Contract;
+  readonly L2Rollup: Contract;
   constructor(providers: ProviderPair, config: NitroConfig) {
     super(providers);
-    this.L2Rollup = new ethers.Contract(
-      config.L2Rollup,
-      ROLLUP_ABI,
-      this.provider1
-    );
+    this.L2Rollup = new Contract(config.L2Rollup, ROLLUP_ABI, this.provider1);
   }
 
   override async fetchLatestCommitIndex(): Promise<bigint> {
@@ -76,39 +64,42 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
     const node: ABINodeTuple = await this.L2Rollup.getNode(commit.index);
     return node.prevNum;
   }
-  override async fetchCommit(index: bigint): Promise<NitroCommit> {
+  protected override async _fetchCommit(index: bigint): Promise<NitroCommit> {
     const [event] = await this.L2Rollup.queryFilter(
       this.L2Rollup.filters.NodeCreated(index)
     );
-    if (!(event instanceof ethers.EventLog)) {
+    if (!(event instanceof EventLog)) {
       throw new Error(`unknown node index: ${index}`);
     }
     // ethers bug: named abi parsing doesn't propagate through event tuples
     // [4][1][0][0] == event.args.afterState.globalState.bytes32Vals[0];
     const [blockHash, sendRoot] = event.args[4][1][0][0];
-    const json: RPCEthGetBlock = await this.provider2.send(
+    const block: RPCEthGetBlock = await this.provider2.send(
       'eth_getBlockByHash',
       [blockHash, false]
     );
-    const rlpEncodedBlock = encodeRlpBlock(json);
-    const prover = new EthProver(this.provider2, json.number);
-    this.configureProver(prover);
+    const rlpEncodedBlock = encodeRlpBlock(block);
+    const prover = new EthProver(this.provider2, block.number);
     return { index, prover, sendRoot, rlpEncodedBlock };
   }
   override encodeWitness(
     commit: NitroCommit,
-    proofs: EncodedProof[],
-    order: Uint8Array
+    proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
       ['uint256', 'bytes32', 'bytes', 'bytes[]', 'bytes'],
-      [commit.index, commit.sendRoot, commit.rlpEncodedBlock, proofs, order]
+      [
+        commit.index,
+        commit.sendRoot,
+        commit.rlpEncodedBlock,
+        proofSeq.proofs,
+        proofSeq.order,
+      ]
     );
   }
   override encodeWitnessV1(
     commit: NitroCommit,
-    accountProof: EncodedProof,
-    storageProofs: EncodedProof[]
+    proofSeq: ProofSequenceV1
   ): HexString {
     return ABI_CODER.encode(
       [
@@ -116,14 +107,8 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
         'tuple(bytes, bytes[])',
       ],
       [
-        [
-          ethers.ZeroHash,
-          commit.sendRoot,
-          commit.index,
-          commit.rlpEncodedBlock,
-        ],
-        accountProof,
-        storageProofs,
+        [ZeroHash, commit.sendRoot, commit.index, commit.rlpEncodedBlock],
+        [proofSeq.accountProof, proofSeq.storageProofs],
       ]
     );
   }

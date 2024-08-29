@@ -1,11 +1,5 @@
-import type {
-  ChainPair,
-  EncodedProof,
-  HexString,
-  Provider,
-  ProviderPair,
-} from './types.js';
-import type { AbstractProver } from './vm.js';
+import type { ChainPair, HexString, Provider, ProviderPair } from './types.js';
+import type { AbstractProver, ProofSequence, ProofSequenceV1 } from './vm.js';
 
 export type RollupDeployment<Config> = ChainPair & Config;
 
@@ -21,11 +15,12 @@ export type RollupCommitType<R extends Rollup> = Parameters<
 >[0];
 
 export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  configureProver: (prover: AbstractProver) => void = (_prover) => {
-    //prover.proofLRU.maxCached;
-    //prover.fastCache = undefined
-  };
+  // allows configuration of commit and prover
+  // "expand LRU cache" => prover.proofLRU.maxCached = 1_000_000
+  // "disable fast cache" => prover.fastCache = undefined
+  // "keep fast cache around longer" => prover.fastCache?.cacheMs = Infinity
+  // "limit targets" => prover.maxUniqueTargets = 1
+  configure: (<T extends C>(commit: T) => void) | undefined;
   readonly provider1: Provider;
   readonly provider2: Provider;
   constructor(providers: ProviderPair) {
@@ -34,12 +29,13 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   }
   abstract fetchLatestCommitIndex(): Promise<bigint>;
   abstract fetchParentCommitIndex(commit: C): Promise<bigint>;
-  abstract fetchCommit(index: bigint): Promise<C>;
-  abstract encodeWitness(
-    commit: C,
-    proofs: EncodedProof[],
-    order: Uint8Array
-  ): HexString;
+  protected abstract _fetchCommit(index: bigint): Promise<C>;
+  async fetchCommit(index: bigint): Promise<C> {
+    const commit = await this._fetchCommit(index);
+    this.configure?.(commit);
+    return commit;
+  }
+  abstract encodeWitness(commit: C, proofSeq: ProofSequence): HexString;
   async fetchLatestCommit() {
     return this.fetchCommit(await this.fetchLatestCommitIndex());
   }
@@ -67,9 +63,5 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
 export abstract class AbstractRollupV1<
   C extends RollupCommit<AbstractProver>,
 > extends AbstractRollup<C> {
-  abstract encodeWitnessV1(
-    commit: C,
-    accountProof: EncodedProof,
-    storageProofs: EncodedProof[]
-  ): HexString;
+  abstract encodeWitnessV1(commit: C, proofSeq: ProofSequenceV1): HexString;
 }

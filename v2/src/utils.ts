@@ -1,11 +1,20 @@
-import { ethers } from 'ethers';
-import { Provider } from './types';
+import {
+  type JsonRpcPayload,
+  makeError,
+  AbiCoder,
+  id as keccakStr,
+} from 'ethers';
+import { Provider, BigNumberish, HexString } from './types';
 
-export const ABI_CODER = ethers.AbiCoder.defaultAbiCoder();
+export const ABI_CODER = AbiCoder.defaultAbiCoder();
 
 // https://adraffy.github.io/keccak.js/test/demo.html#algo=keccak-256&s=&escape=1&encoding=utf8
 // "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
-export const NULL_CODE_HASH = ethers.id('');
+export const NULL_CODE_HASH = keccakStr('');
+
+export function toString16(x: BigNumberish): HexString {
+  return '0x' + BigInt(x).toString(16);
+}
 
 export async function sendImmediate(
   provider: Provider,
@@ -17,7 +26,7 @@ export async function sendImmediate(
   }
   // https://github.com/ethers-io/ethers.js/issues/4819
   const id = ((Math.random() * 0x7fffffff) | 0x80000000) >>> 0;
-  const payload: ethers.JsonRpcPayload = {
+  const payload: JsonRpcPayload = {
     method,
     params,
     id,
@@ -32,14 +41,10 @@ export async function sendImmediate(
     provider.emit('debug', { action: 'receiveRpcResult', result });
     resp = result.find((x) => x.id === id);
     if (!resp) {
-      const error = ethers.makeError(
-        'missing response for request',
-        'BAD_DATA',
-        {
-          value: result,
-          info: { payload },
-        }
-      );
+      const error = makeError('missing response for request', 'BAD_DATA', {
+        value: result,
+        info: { payload },
+      });
       provider.emit('error', error);
       throw error;
     }

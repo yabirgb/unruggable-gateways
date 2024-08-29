@@ -38,6 +38,8 @@ forge install ensdomains/enschain
 	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; OP Mainnet, Base Testnet
 	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
 	* [Linea](./src/linea/LineaRollup.ts)
+	* [Polygon PoS](./src/polygon/PolygonPoSRollup.ts)
+	* [Polygon ZK](./src/polygon/PolygonZKRollup.ts) &mdash; *WIP*
 	* [Scroll](./src/scroll/ScrollRollup.ts)
 	* [Taiko](./src/taiko/TaikoRollup.ts)
 	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
@@ -65,9 +67,11 @@ forge install ensdomains/enschain
 		* write requests [in JS](./test/examples//TeamNick/fetch.ts) to quickly iterate
 	* `bun test test/examples/TeamNick/resolver.test.ts`
 		* [port to Solidity](./test/examples/TeamNick/TeamNick.sol) and write tests [in JS](./test/examples/TeamNick/resolver.test.ts) to validate
+* [linea-ens](./test/v1/linea-ens.ts)
+	* Replacement backend for https://names.linea.build/
 
 ## Serve
 
 * `bun run serve <chain> [port]`
-	* Supported chains: `base op arb1 linea scroll taiko zksync`
+	* Supported chains: `base op arb1 linea polygon-pos scroll taiko zksync`
 	* Default port: `8000`

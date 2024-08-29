@@ -19,6 +19,7 @@ import {
   CHAIN_LINEA_SEPOLIA,
   CHAIN_LINEA,
   CHAIN_SCROLL_SEPOLIA,
+  CHAIN_POLYGON_POS,
 } from '../src/chains.js';
 
 export function providerURL(chain: Chain): string {
@@ -82,6 +83,9 @@ export function providerURL(chain: Chain): string {
     case CHAIN_ZKSYNC_SEPOLIA:
       // https://docs.zksync.io/build/connect-to-zksync#sepolia-testnet-network-details
       return 'https://sepolia.era.zksync.dev';
+    case CHAIN_POLYGON_POS:
+      // https://docs.polygon.technology/pos/reference/rpc-endpoints/#mainnet
+      return 'https://polygon-rpc.com/';
     case CHAIN_POLYGON_ZKEVM:
       // https://docs.polygon.technology/zkEVM/get-started/quick-start/#manually-add-network-to-wallet
       return 'https://zkevm.polygonscan.com';
@@ -94,11 +98,14 @@ export function providerURL(chain: Chain): string {
     case CHAIN_LINEA_SEPOLIA:
       return 'https://rpc.sepolia.linea.build';
   }
-  throw Object.assign(new Error('unknown provider'), { chain });
+  throw new Error(`unknown provider: ${chain}`);
 }
 
 export function createProvider(chain: Chain): Provider {
-  return new ethers.JsonRpcProvider(providerURL(chain), chain, {
+  const fr = new ethers.FetchRequest(providerURL(chain));
+  fr.timeout = 10000;
+  //fr.setThrottleParams({ maxAttempts: 5 });
+  return new ethers.JsonRpcProvider(fr, chain, {
     staticNetwork: true,
   });
 }

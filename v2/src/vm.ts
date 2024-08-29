@@ -5,7 +5,18 @@ import type {
   EncodedProof,
   HexAddress,
 } from './types.js';
-import { ethers } from 'ethers';
+import {
+  ZeroAddress,
+  hexlify,
+  toBeHex,
+  dataSlice,
+  concat,
+  getBytes,
+  toUtf8Bytes,
+  toUtf8String,
+  keccak256,
+  solidityPackedKeccak256,
+} from 'ethers';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
 import { ABI_CODER } from './utils.js';
 import { CachedMap, LRU } from './cached.js';
@@ -77,17 +88,12 @@ function bigintRange(start: bigint, length: number) {
 }
 function solidityArraySlots(slot: BigNumberish, length: number) {
   return length
-    ? bigintRange(
-        BigInt(ethers.solidityPackedKeccak256(['uint256'], [slot])),
-        length
-      )
+    ? bigintRange(BigInt(solidityPackedKeccak256(['uint256'], [slot])), length)
     : [];
 }
 export function solidityFollowSlot(slot: BigNumberish, key: BytesLike) {
   // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
-  return BigInt(
-    ethers.keccak256(ethers.concat([key, ethers.toBeHex(slot, 32)]))
-  );
+  return BigInt(keccak256(concat([key, toBeHex(slot, 32)])));
 }
 
 type ProgramAction = {
@@ -104,7 +110,7 @@ export class ProgramReader {
   }
   static fromEncoded(hex: HexString) {
     const [ops, inputs] = ABI_CODER.decode(['bytes', 'bytes[]'], hex);
-    return new this(ethers.getBytes(ops), [...inputs]);
+    return new this(getBytes(ops), [...inputs]);
   }
   pos: number = 0;
   constructor(
@@ -127,7 +133,7 @@ export class ProgramReader {
   readBytes() {
     const n = this.readShort();
     this.checkRead(n);
-    return ethers.hexlify(this.ops.subarray(this.pos, (this.pos += n)));
+    return hexlify(this.ops.subarray(this.pos, (this.pos += n)));
   }
   readInput() {
     const i = this.readByte();
@@ -135,7 +141,7 @@ export class ProgramReader {
     return this.inputs[i];
   }
   readInputStr() {
-    return ethers.toUtf8String(this.readInput());
+    return toUtf8String(this.readInput());
   }
   readAction(): ProgramAction {
     const { pos } = this;
@@ -234,22 +240,22 @@ export class EVMProgram {
     return this;
   }
   addInput(x: BigNumberish) {
-    return this.addInputBytes(ethers.toBeHex(x, 32));
+    return this.addInputBytes(toBeHex(x, 32));
   }
   addInputStr(s: string) {
-    return this.addInputBytes(ethers.toUtf8Bytes(s));
+    return this.addInputBytes(toUtf8Bytes(s));
   }
   addInputBytes(v: BytesLike) {
-    const hex = ethers.hexlify(v);
+    const hex = hexlify(v);
     const i = this.inputs.length;
     this.inputs.push(hex); // note: no check, but blows up at 256
     return i;
   }
+  toTuple() {
+    return [Uint8Array.from(this.ops), this.inputs] as const;
+  }
   encode() {
-    return ABI_CODER.encode(
-      ['bytes', 'bytes[]'],
-      [Uint8Array.from(this.ops), this.inputs]
-    );
+    return ABI_CODER.encode(['bytes', 'bytes[]'], this.toTuple());
   }
   debug(label = '') {
     return this.addByte(OP_DEBUG).addByte(this.addInputStr(label));
@@ -314,7 +320,7 @@ export class EVMProgram {
   dup(back = 0) {
     return this.addByte(OP_DUP).addByte(back);
   }
-  swap(back = 0) {
+  swap(back = 1) {
     return this.addByte(OP_SWAP).addByte(back);
   }
 
@@ -401,12 +407,12 @@ export class EVMRequest extends EVMProgram {
 export type Need = [target: HexString, slot: bigint | boolean];
 
 export type ProofSequence = {
-  proofs: EncodedProof[];
-  order: Uint8Array;
+  readonly proofs: EncodedProof[];
+  readonly order: Uint8Array;
 };
 export type ProofSequenceV1 = {
-  accountProof: EncodedProof;
-  storageProofs: EncodedProof[];
+  readonly accountProof: EncodedProof;
+  readonly storageProofs: EncodedProof[];
 };
 
 // tracks the state of an program evaluation
@@ -417,7 +423,7 @@ export class MachineState {
   static create(outputCount: number) {
     return new this(Array(outputCount).fill('0x'));
   }
-  target = ethers.ZeroAddress;
+  target = ZeroAddress;
   slot = 0n;
   stack: HexFuture[] = [];
   exitCode = 0;
@@ -535,7 +541,7 @@ export abstract class AbstractProver {
     };
   }
   async evalDecoded(ops: HexString, inputs: HexString[]) {
-    return this.evalReader(new ProgramReader(ethers.getBytes(ops), inputs));
+    return this.evalReader(new ProgramReader(getBytes(ops), inputs));
   }
   async evalRequest(req: EVMRequest) {
     return this.evalReader(ProgramReader.fromProgram(req));
@@ -595,7 +601,7 @@ export abstract class AbstractProver {
         }
         case OP_PUSH_SLOT: {
           // args: [] / stack: +1
-          vm.push(ethers.toBeHex(vm.slot, 32)); // current slot register
+          vm.push(toBeHex(vm.slot, 32)); // current slot register
           continue;
         }
         case OP_PUSH_TARGET: {
@@ -633,7 +639,7 @@ export abstract class AbstractProver {
           vm.push(
             slots.length
               ? new Wrapped(async () =>
-                  ethers.concat(
+                  concat(
                     await Promise.all(
                       slots.map((x) => this.getStorage(target, x))
                     )
@@ -652,15 +658,15 @@ export abstract class AbstractProver {
           let size = parseInt(first.slice(64), 16); // last byte
           if ((size & 1) == 0) {
             // small
-            vm.push(ethers.dataSlice(first, 0, size >> 1));
+            vm.push(dataSlice(first, 0, size >> 1));
           } else {
             size = this.checkSize(BigInt(first) >> 1n);
             const slots = solidityArraySlots(slot, (size + 31) >> 5);
             vm.traceSlots(target, slots);
             vm.push(
               new Wrapped(async () =>
-                ethers.dataSlice(
-                  ethers.concat(
+                dataSlice(
+                  concat(
                     await Promise.all(
                       slots.map((x) => this.getStorage(target, x))
                     )
@@ -693,7 +699,7 @@ export abstract class AbstractProver {
           slots.unshift(slot);
           vm.push(
             new Wrapped(async () =>
-              ethers.concat(
+              concat(
                 await Promise.all(slots.map((x) => this.getStorage(target, x)))
               )
             )
@@ -761,7 +767,7 @@ export abstract class AbstractProver {
         }
         case OP_KECCAK: {
           // args: [] / stack: 0
-          vm.push(ethers.keccak256(await unwrap(vm.pop())));
+          vm.push(keccak256(await unwrap(vm.pop())));
           continue;
         }
         case OP_CONCAT: {
@@ -769,9 +775,7 @@ export abstract class AbstractProver {
           const last = vm.pop();
           const v = [vm.pop(), last];
           vm.push(
-            new Wrapped(async () =>
-              ethers.concat(await Promise.all(v.map(unwrap)))
-            )
+            new Wrapped(async () => concat(await Promise.all(v.map(unwrap))))
           );
           continue;
         }
@@ -781,7 +785,7 @@ export abstract class AbstractProver {
           const n = reader.readShort();
           const v = await unwrap(vm.pop());
           if (x + n > (v.length - 2) >> 1) throw new Error('slice overflow');
-          vm.push(ethers.dataSlice(v, x, x + n));
+          vm.push(dataSlice(v, x, x + n));
           continue;
         }
         default: {
@@ -798,20 +802,4 @@ export abstract class AbstractProver {
 
 export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}${slot.toString(16)}`;
-}
-
-export function storageMapFromCache(cache: CachedMap<string, any>) {
-  const map = new Map<HexString, bigint[]>();
-  for (const key of cache.cachedKeys()) {
-    const target = key.slice(0, 42);
-    let bucket = map.get(target);
-    if (!bucket) {
-      bucket = [];
-      map.set(target, bucket);
-    }
-    if (key.length > 42) {
-      bucket.push(BigInt('0x' + key.slice(42)));
-    }
-  }
-  return map;
 }

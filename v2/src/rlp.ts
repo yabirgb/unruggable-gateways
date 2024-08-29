@@ -8,6 +8,7 @@ export function encodeRlpUint(x?: BigNumberish): HexString | undefined {
   if (x === undefined) return x;
   const s = BigInt(x).toString(16);
   return s === '0' ? '0x' : s.length & 1 ? `0x0${s}` : `0x${s}`;
+  // same as: return hexlify(toBeArray(x));
 }
 
 export function encodeRlpOptionalList(

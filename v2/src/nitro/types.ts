@@ -1,7 +1,7 @@
-import { ethers } from 'ethers';
+import { Interface } from 'ethers';
 
 // https://github.com/OffchainLabs/nitro-contracts/blob/main/src/rollup/RollupCore.sol
-export const ROLLUP_ABI = new ethers.Interface([
+export const ROLLUP_ABI = new Interface([
   `function latestConfirmed() view returns (uint64)`,
   `function getNode(uint64 nodeNum) view returns (tuple(
     bytes32 stateHash,
@@ -33,3 +33,7 @@ export const ROLLUP_ABI = new ethers.Interface([
     uint256 inboxMaxCount
   )`,
 ]);
+
+export type ABINodeTuple = {
+  readonly prevNum: bigint;
+};

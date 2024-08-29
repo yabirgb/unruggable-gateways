@@ -7,9 +7,8 @@ import { describe, test, expect, afterAll } from 'bun:test';
 
 describe('ZKSyncProver', async () => {
   const config = ZKSyncRollup.mainnetConfig;
-  const gateway = new ZKSyncRollup(createProviderPair(config), config);
-  const commit = await gateway.fetchLatestCommit();
-
+  const rollup = new ZKSyncRollup(createProviderPair(config), config);
+  const commit = await rollup.fetchLatestCommit();
   const foundry = await Foundry.launch({
     fork: providerURL(CHAIN_MAINNET),
     infoLog: true,

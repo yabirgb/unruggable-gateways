@@ -202,7 +202,8 @@ library EVMProver {
 				if (vm.stackSize != 0) --vm.stackSize;
 			} else if (op == OP_SWAP) {
 				uint256 i = vm.readBack();
-				(vm.stack[0], vm.stack[i]) = (vm.stack[i], vm.stack[0]);
+				uint256 j = vm.stackSize - 1;
+				(vm.stack[i], vm.stack[j]) = (vm.stack[j], vm.stack[i]);
 			} else if (op == OP_SLOT_ZERO) {
 				vm.slot = 0;
 			} else if (op == OP_SLOT_ADD) {

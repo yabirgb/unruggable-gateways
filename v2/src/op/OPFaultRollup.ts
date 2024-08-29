@@ -1,5 +1,5 @@
 import type { RollupDeployment } from '../rollup.js';
-import { ethers } from 'ethers';
+import { Contract } from 'ethers';
 import type { HexAddress, ProviderPair } from '../types.js';
 import { PORTAL_ABI, GAME_FINDER_ABI } from './types.js';
 import {
@@ -9,6 +9,7 @@ import {
   CHAIN_SEPOLIA,
 } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
+import { toString16 } from '../utils.js';
 
 // https://docs.optimism.io/chain/differences
 // https://specs.optimism.io/fault-proof/stage-one/bridge-integration.html
@@ -44,12 +45,12 @@ export class OPFaultRollup extends AbstractOPRollup {
   } as const;
 
   static async create(providers: ProviderPair, config: OPFaultConfig) {
-    const optimismPortal = new ethers.Contract(
+    const optimismPortal = new Contract(
       config.OptimismPortal,
       PORTAL_ABI,
       providers.provider1
     );
-    const gameFinder = new ethers.Contract(
+    const gameFinder = new Contract(
       config.GameFinder,
       GAME_FINDER_ABI,
       providers.provider1
@@ -59,8 +60,8 @@ export class OPFaultRollup extends AbstractOPRollup {
   }
   private constructor(
     providers: ProviderPair,
-    readonly OptimismPortal: ethers.Contract,
-    readonly GameFinder: ethers.Contract,
+    readonly OptimismPortal: Contract,
+    readonly GameFinder: Contract,
     readonly gameTypeBitMask: number
   ) {
     super(providers);
@@ -86,7 +87,7 @@ export class OPFaultRollup extends AbstractOPRollup {
       callOptions
     );
   }
-  override async fetchParentCommitIndex(commit: OPCommit) {
+  override async fetchParentCommitIndex(commit: OPCommit): Promise<bigint> {
     return this.GameFinder.findFinalizedGameIndex(
       this.OptimismPortal.target,
       this.gameTypeBitMask,
@@ -94,7 +95,7 @@ export class OPFaultRollup extends AbstractOPRollup {
       callOptions
     );
   }
-  override async fetchCommit(index: bigint) {
+  protected override async _fetchCommit(index: bigint) {
     const game: ABIFinalizedGame = await this.GameFinder.getFinalizedGame(
       this.OptimismPortal.target,
       this.gameTypeBitMask,
@@ -104,7 +105,7 @@ export class OPFaultRollup extends AbstractOPRollup {
     if (!game.l2BlockNumber) {
       throw new Error(`Commit(${index}) not finalized`);
     }
-    return this.createCommit(index, '0x' + game.l2BlockNumber.toString(16));
+    return this.createCommit(index, toString16(game.l2BlockNumber));
   }
 
   override windowFromSec(sec: number): number {

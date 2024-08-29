@@ -1,8 +1,8 @@
-import { ethers } from 'ethers';
+import { Interface } from 'ethers';
 import type { HexString32 } from '../types.js';
 
 // https://github.com/taikoxyz/taiko-mono/blob/main/packages/protocol/contracts/L1/TaikoL1.sol
-export const TAIKO_ABI = new ethers.Interface([
+export const TAIKO_ABI = new Interface([
   `function getLastSyncedBlock() view returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot)`, //, uint64 verifiedAt
   `function getConfig() view returns (tuple(
      uint64 chainId,

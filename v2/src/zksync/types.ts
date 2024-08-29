@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { Interface } from 'ethers';
 import type { HexAddress, HexString32, HexString } from '../types.js';
 
 export type ZKSyncStorageProof = {
@@ -110,7 +110,7 @@ export type ABIZKSyncCommitBatchInfo = {
 
 // https://github.com/matter-labs/era-contracts/blob/main/l1-contracts/contracts/state-transition/chain-interfaces/IGetters.sol
 // https://github.com/matter-labs/era-contracts/blob/main/l1-contracts/contracts/state-transition/chain-interfaces/IExecutor.sol
-export const DIAMOND_ABI = new ethers.Interface([
+export const DIAMOND_ABI = new Interface([
   `function storedBatchHash(uint256 batchNumber) view returns (bytes32)`,
   `function l2LogsRootHash(uint256 batchNumber) external view returns (bytes32)`,
   //`function getTotalBatchesCommitted() view returns (uint256)`,

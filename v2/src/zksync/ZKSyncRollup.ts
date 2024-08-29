@@ -1,6 +1,4 @@
-import { ethers } from 'ethers';
 import type {
-  EncodedProof,
   HexAddress,
   HexString,
   HexString32,
@@ -12,6 +10,7 @@ import {
   type ABIZKSyncCommitBatchInfo,
   type RPCZKSyncL1BatchDetails,
 } from './types.js';
+import { Contract, EventLog } from 'ethers';
 import {
   CHAIN_MAINNET,
   CHAIN_SEPOLIA,
@@ -24,6 +23,7 @@ import {
   AbstractRollup,
 } from '../rollup.js';
 import { ABI_CODER } from '../utils.js';
+import { ProofSequence } from '../vm.js';
 
 // https://docs.zksync.io/zk-stack/concepts/finality
 // https://github.com/matter-labs/era-contracts/tree/main/
@@ -52,10 +52,10 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     DiamondProxy: '0x9a6de0f62Aa270A8bCB1e2610078650D539B1Ef9',
   } as const;
 
-  readonly DiamondProxy: ethers.Contract;
+  readonly DiamondProxy: Contract;
   constructor(providers: ProviderPair, config: ZKSyncConfig) {
     super(providers);
-    this.DiamondProxy = new ethers.Contract(
+    this.DiamondProxy = new Contract(
       config.DiamondProxy,
       DIAMOND_ABI,
       this.provider1
@@ -71,7 +71,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
   override async fetchParentCommitIndex(commit: ZKSyncCommit): Promise<bigint> {
     return commit.index - 1n;
   }
-  override async fetchCommit(index: bigint): Promise<ZKSyncCommit> {
+  protected override async _fetchCommit(index: bigint): Promise<ZKSyncCommit> {
     const batchIndex = Number(index);
     const details: RPCZKSyncL1BatchDetails = await this.provider2.send(
       'zks_getL1BatchDetails',
@@ -92,7 +92,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
       ),
       this.DiamondProxy.l2LogsRootHash(index) as Promise<HexString32>,
     ]);
-    if (!tx || !(log instanceof ethers.EventLog)) {
+    if (!tx || !(log instanceof EventLog)) {
       throw new Error(`Commit(${index}) no tx: ${commitTxHash}`);
     }
     const commits: ABIZKSyncCommitBatchInfo[] = DIAMOND_ABI.decodeFunctionData(
@@ -126,7 +126,6 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
       ]
     );
     const prover = new ZKSyncProver(this.provider2, batchIndex);
-    this.configureProver(prover);
     return {
       index,
       prover,
@@ -136,12 +135,11 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
   }
   override encodeWitness(
     commit: ZKSyncCommit,
-    proofs: EncodedProof[],
-    order: Uint8Array
+    proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
       ['bytes', 'bytes[]', 'bytes'],
-      [commit.abiEncodedBatch, proofs, order]
+      [commit.abiEncodedBatch, proofSeq.proofs, proofSeq.order]
     );
   }
 

@@ -4,13 +4,19 @@ import {
   type Rollup,
 } from './rollup.js';
 import type { HexString } from './types.js';
-import { ethers } from 'ethers';
+import {
+  Interface,
+  solidityPackedKeccak256,
+  getBytes,
+  hexlify,
+  id as keccakStr,
+} from 'ethers';
 import { CachedMap, CachedValue, LRU } from './cached.js';
 import { ABI_CODER } from './utils.js';
 import { EVMRequestV1 } from './v1.js';
 import { EZCCIP } from '@resolverworks/ezccip';
 
-export const GATEWAY_ABI = new ethers.Interface([
+export const GATEWAY_ABI = new Interface([
   `function proveRequest(bytes context, tuple(bytes ops, bytes[] inputs)) returns (bytes)`,
   `function getStorageSlots(address target, bytes32[] commands, bytes[] constants) returns (bytes)`,
 ]);
@@ -21,7 +27,7 @@ function shortHash(x: string): string {
 }
 
 export class Gateway<R extends Rollup> extends EZCCIP {
-  // the max number of commitments to keep in memory
+  // the max number of non-latest commitments to keep in memory
   commitDepth = 2;
   // if true, requests beyond the commit depth are still supported
   allowHistorical = false;
@@ -41,19 +47,17 @@ export class Gateway<R extends Rollup> extends EZCCIP {
         const commit = await this.getRecentCommit(BigInt(ctx.slice(0, 66)));
         // we cannot hash the context.calldata directly because the requested
         // commit might be different, so we hash using the determined commit
-        const hash = ethers.solidityPackedKeccak256(
+        const hash = solidityPackedKeccak256(
           ['uint256', 'bytes', 'bytes[]'],
           [commit.index, ops, inputs]
         );
         // TODO: ops could be hashed like a selector...
-        history.show = [commit.index, ethers.hexlify(ops), shortHash(hash)];
+        history.show = [commit.index, hexlify(ops), shortHash(hash)];
         // NOTE: for a given commit + request, calls are pure
         return this.callCacheMap.cache(hash, async () => {
           const state = await commit.prover.evalDecoded(ops, inputs);
-          const { proofs, order } = await commit.prover.prove(state.needs);
-          return ethers.getBytes(
-            this.rollup.encodeWitness(commit, proofs, order)
-          );
+          const proofSeq = await commit.prover.prove(state.needs);
+          return getBytes(this.rollup.encodeWitness(commit, proofSeq));
         });
       },
     });
@@ -67,20 +71,14 @@ export class Gateway<R extends Rollup> extends EZCCIP {
           history
         ) => {
           const commit = await this.getLatestCommit();
-          const hash = ethers.id(`${commit.index}:${context.calldata}`);
+          const hash = keccakStr(`${commit.index}:${context.calldata}`);
           history.show = [commit.index, shortHash(hash)];
           return this.callCacheMap.cache(hash, async () => {
             const req = new EVMRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
             const state = await commit.prover.evalRequest(req);
-            const { accountProof, storageProofs } = await commit.prover.proveV1(
-              state.needs
-            );
-            const witness = rollupV1.encodeWitnessV1(
-              commit,
-              accountProof,
-              storageProofs
-            );
-            return ethers.getBytes(ABI_CODER.encode(['bytes'], [witness]));
+            const proofSeq = await commit.prover.proveV1(state.needs);
+            const witness = rollupV1.encodeWitnessV1(commit, proofSeq);
+            return getBytes(ABI_CODER.encode(['bytes'], [witness]));
           });
         },
       });
@@ -148,11 +146,11 @@ export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
         history
       ) => {
         const commit = await this.getLatestCommit();
-        const hash = ethers.id(`${commit.index}:${context.calldata}`);
+        const hash = keccakStr(`${commit.index}:${context.calldata}`);
         history.show = [commit.index, shortHash(hash)];
         return this.callCacheMap.cache(hash, async () => {
           const req = new EVMRequestV1(target, commands, constants);
-          return ethers.getBytes(await this.handleRequest(commit, req));
+          return getBytes(await this.handleRequest(commit, req));
         });
       },
     });

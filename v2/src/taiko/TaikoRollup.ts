@@ -4,13 +4,12 @@ import {
   type RollupDeployment,
 } from '../rollup.js';
 import type {
-  EncodedProof,
   HexAddress,
   HexString,
   HexString32,
   ProviderPair,
 } from '../types.js';
-import { ethers } from 'ethers';
+import { Contract } from 'ethers';
 import { CHAIN_MAINNET, CHAIN_TAIKO } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import {
@@ -18,8 +17,9 @@ import {
   type ABITaikoConfig,
   type ABITaikoLastSyncedBlock,
 } from './types.js';
-import { ABI_CODER } from '../utils.js';
+import { ABI_CODER, toString16 } from '../utils.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
+import type { ProofSequence } from '../vm.js';
 
 // https://github.com/taikoxyz/taiko-mono/tree/main/packages/protocol/contracts
 // https://docs.taiko.xyz/network-reference/differences-from-ethereum
@@ -47,7 +47,7 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
   } as const;
 
   static async create(providers: ProviderPair, config: TaikoConfig) {
-    const TaikoL1 = new ethers.Contract(
+    const TaikoL1 = new Contract(
       config.TaikoL1,
       TAIKO_ABI,
       providers.provider1
@@ -63,7 +63,7 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
   }
   private constructor(
     providers: ProviderPair,
-    readonly TaikoL1: ethers.Contract,
+    readonly TaikoL1: Contract,
     readonly commitStep: bigint
   ) {
     super(providers);
@@ -87,28 +87,26 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     }
     return commit.index - this.commitStep;
   }
-  override async fetchCommit(index: bigint): Promise<TaikoCommit> {
-    const block = '0x' + index.toString(16);
+  protected override async _fetchCommit(index: bigint): Promise<TaikoCommit> {
+    const block = toString16(index);
     const { parentHash }: RPCEthGetBlock = await this.provider2.send(
       'eth_getBlockByNumber',
       [block, false]
     );
     const prover = new EthProver(this.provider2, block);
-    this.configureProver(prover);
     return { index, prover, parentHash };
   }
   override encodeWitness(
     commit: TaikoCommit,
-    proofs: EncodedProof[],
-    order: Uint8Array
+    proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
       ['uint256', 'bytes32', 'bytes[]', 'bytes'],
-      [commit.index, commit.parentHash, proofs, order]
+      [commit.index, commit.parentHash, proofSeq.proofs, proofSeq.order]
     );
   }
 
-  override windowFromSec(sec: number) {
+  override windowFromSec(sec: number): number {
     // taiko is a based rollup
     const avgBlockSec = 16; // block every block 12-20 sec
     const avgCommitSec = avgBlockSec * Number(this.commitStep); // time between syncs

@@ -1,5 +1,5 @@
 import type { HexString, BigNumberish, BytesLike } from './types.js';
-import { ethers } from 'ethers';
+import { ZeroAddress, hexlify, toBeHex, toUtf8Bytes, getBytes } from 'ethers';
 import { EVMRequest } from './vm.js';
 
 // export const GATEWAY_ABI = new ethers.Interface([
@@ -19,7 +19,7 @@ const OPERAND_MASK = 0x1f;
 
 export class EVMRequestV1 {
   constructor(
-    public target: HexString = ethers.ZeroAddress,
+    public target: HexString = ZeroAddress,
     readonly commands: HexString[] = [],
     readonly constants: HexString[] = [],
     private readonly buf: number[] = []
@@ -35,7 +35,7 @@ export class EVMRequestV1 {
   private addConst(x: BytesLike) {
     if (this.constants.length >= MAX_CONSTS)
       throw new Error('constants overflow');
-    this.constants.push(ethers.hexlify(x));
+    this.constants.push(hexlify(x));
     return this.constants.length - 1;
   }
   private start(flags: number, slot: BigNumberish) {
@@ -49,7 +49,7 @@ export class EVMRequestV1 {
     if (buf.length < 32 && buf[buf.length - 1] != OP_END) buf.push(OP_END);
     const bytes32 = new Uint8Array(32);
     bytes32.set(buf);
-    this.commands.push(ethers.hexlify(bytes32));
+    this.commands.push(hexlify(bytes32));
     buf.length = 0;
   }
   getStatic(slot: BigNumberish) {
@@ -65,17 +65,17 @@ export class EVMRequestV1 {
     return this;
   }
   element(x: BigNumberish) {
-    return this.elementBytes(ethers.toBeHex(x, 32));
+    return this.elementBytes(toBeHex(x, 32));
   }
   elementStr(s: string) {
-    return this.elementBytes(ethers.toUtf8Bytes(s));
+    return this.elementBytes(toUtf8Bytes(s));
   }
   elementBytes(x: BytesLike) {
     this.buf.push(OP_FOLLOW_CONST | this.addConst(x));
     return this;
   }
   offset(x: BigNumberish) {
-    this.buf.push(OP_ADD_CONST | this.addConst(ethers.toBeHex(x, 32)));
+    this.buf.push(OP_ADD_CONST | this.addConst(toBeHex(x, 32)));
     return this;
   }
   // encodeCall() {
@@ -88,7 +88,7 @@ export class EVMRequestV1 {
     req.setTarget(this.target);
     for (const cmd of this.commands) {
       try {
-        const v = ethers.getBytes(cmd);
+        const v = getBytes(cmd);
         // before ADD_CONST was added first op is initial slot offset
         req.setSlot(this.constants[v[1] & OPERAND_MASK]);
         for (let i = 2; i < v.length; i++) {

@@ -136,6 +136,14 @@ describe('ops', async () => {
     expect(verify(req)).rejects.toThrow('stack underflow');
   });
 
+  test('swap', async () => {
+    const req = new EVMRequest();
+    req.push(1).push(2).swap().addOutput().addOutput();
+    const { values } = await verify(req);
+    expect(values[0]).toBe(uint256(1));
+    expect(values[1]).toBe(uint256(2));
+  });
+
   test('pop', async () => {
     const req = new EVMRequest();
     req.push(1).push(2).pop().addOutput();

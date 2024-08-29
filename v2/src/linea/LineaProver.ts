@@ -1,6 +1,6 @@
 import type { EncodedProof, HexString, Provider } from '../types.js';
 import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
-import { ethers } from 'ethers';
+import { ZeroHash, dataSlice, toBeHex } from 'ethers';
 import { ABI_CODER, NULL_CODE_HASH, sendImmediate } from '../utils.js';
 import {
   isExistanceProof,
@@ -14,7 +14,7 @@ function isContract(accountProof: LineaProof) {
   return (
     isExistanceProof(accountProof) &&
     // https://github.com/Consensys/linea-monorepo/blob/a001342170768a22988a29b2dca8601199c6e205/contracts/contracts/lib/SparseMerkleProof.sol#L23
-    ethers.dataSlice(accountProof.proof.value, 128, 160) !== NULL_CODE_HASH
+    dataSlice(accountProof.proof.value, 128, 160) !== NULL_CODE_HASH
   );
 }
 
@@ -56,7 +56,7 @@ export class LineaProver extends AbstractProver {
     const accountProof: LineaProof | undefined =
       await this.proofLRU.touch(target);
     if (accountProof && !isContract(accountProof)) {
-      return ethers.ZeroHash;
+      return ZeroHash;
     }
     // check to see if we've already have a proof for this value
     const storageKey = makeStorageKey(target, slot);
@@ -65,7 +65,7 @@ export class LineaProver extends AbstractProver {
     if (storageProof) {
       return isExistanceProof(storageProof)
         ? storageProof.proof.value
-        : ethers.ZeroHash;
+        : ZeroHash;
     }
     // we didn't have the proof
     if (this.fastCache) {
@@ -77,7 +77,7 @@ export class LineaProver extends AbstractProver {
     return isContract(proof.accountProof) &&
       isExistanceProof(proof.storageProofs[0])
       ? proof.storageProofs[0].proof.value
-      : ethers.ZeroHash;
+      : ZeroHash;
   }
   override async isContract(target: HexString) {
     if (this.fastCache) {
@@ -231,7 +231,7 @@ export class LineaProver extends AbstractProver {
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
-            .map((slot) => ethers.toBeHex(slot, 32)),
+            .map((slot) => toBeHex(slot, 32)),
           this.block,
         ])
       );

@@ -7,8 +7,8 @@ import type {
   RPCEthGetProof,
 } from './types.js';
 import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
-import { ethers } from 'ethers';
-import { ABI_CODER, NULL_CODE_HASH } from '../utils.js';
+import { ZeroHash, toBeHex } from 'ethers';
+import { ABI_CODER, NULL_CODE_HASH, toString16 } from '../utils.js';
 
 function isContract(proof: EthAccountProof) {
   return (
@@ -23,7 +23,7 @@ function encodeProof(proof: EthProof): EncodedProof {
 export class EthProver extends AbstractProver {
   static async latest(provider: Provider) {
     const block = await provider.getBlockNumber();
-    return new this(provider, '0x' + block.toString(16));
+    return new this(provider, toString16(block));
   }
   constructor(
     readonly provider: Provider,
@@ -50,7 +50,7 @@ export class EthProver extends AbstractProver {
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
-            .map((slot) => ethers.toBeHex(slot, 32)),
+            .map((slot) => toBeHex(slot, 32)),
           this.block,
         ])
       );
@@ -76,7 +76,7 @@ export class EthProver extends AbstractProver {
       // missing account proof, so block it
       this.proofLRU.setPending(
         target,
-        promise.then(() => accountProof) // block
+        promise.then(() => accountProof)
       );
     }
     // check if we're missing any slots
@@ -130,14 +130,14 @@ export class EthProver extends AbstractProver {
     const accountProof: EthAccountProof | undefined =
       await this.proofLRU.touch(target);
     if (accountProof && !isContract(accountProof)) {
-      return ethers.ZeroHash;
+      return ZeroHash;
     }
     // check to see if we've already have a proof for this value
     const storageKey = makeStorageKey(target, slot);
     const storageProof: EthStorageProof | undefined =
       await this.proofLRU.touch(storageKey);
     if (storageProof) {
-      return ethers.toBeHex(storageProof.value, 32);
+      return toBeHex(storageProof.value, 32);
     }
     if (this.fastCache) {
       return this.fastCache.get(storageKey, () =>
