@@ -58,7 +58,7 @@ export interface CacheMap<K, V> {
   cache(key: K, fn: (key: K) => Promise<V>): Promise<V>;
 }
 
-export class CachedMap<K = unknown, V = unknown> {
+export class CachedMap<K, V> {
   private readonly cached: Map<K, CacheRow<V>> = new Map();
   private readonly pending: Map<K, Promise<V>> = new Map();
   private timer: Timer | undefined;
@@ -178,30 +178,42 @@ export class CachedMap<K = unknown, V = unknown> {
 }
 
 export class LRU<K, V> {
-  private readonly cached: Map<K, Promise<V>> = new Map();
-  constructor(public maxCached = 8192) {}
-  keys(): IterableIterator<K> {
-    return this.cached.keys();
+  #map: Map<K, Promise<V>> = new Map();
+  #max!: number;
+  constructor(max = 8192) {
+    this.max = max;
   }
-  clear() {
-    this.cached.clear();
+  get size() {
+    return this.#map.size;
   }
-  delete(key: K) {
-    this.cached.delete(key);
+  get max() {
+    return this.#max;
   }
-  private ensureRoom() {
-    let extra = 1 + this.cached.size - this.maxCached;
-    if (extra > 0) {
-      const iter = this.cached.keys();
-      while (extra--) {
-        this.cached.delete(iter.next().value);
-      }
-    }
+  set max(n: number) {
+    if (!Number.isSafeInteger(n) || n < 0) throw new TypeError('expected size');
+    this.#max = n;
+    const over = this.#map.size - n;
+    if (over > 0) this.deleteOldest(over);
   }
   private set(key: K, promise: Promise<V>) {
-    this.cached.delete(key);
-    this.ensureRoom();
-    this.cached.set(key, promise);
+    if (this.#max) {
+      this.#map.delete(key);
+      if (this.#map.size == this.#max) this.deleteOldest(1);
+      this.#map.set(key, promise);
+    }
+  }
+  private deleteOldest(n: number) {
+    const iter = this.#map.keys();
+    while (n--) this.#map.delete(iter.next().value);
+  }
+  keys(): IterableIterator<K> {
+    return this.#map.keys();
+  }
+  clear() {
+    this.#map.clear();
+  }
+  delete(key: K) {
+    this.#map.delete(key);
   }
   setValue(key: K, value: V) {
     this.set(key, Promise.resolve(value));
@@ -209,23 +221,22 @@ export class LRU<K, V> {
   setPending(key: K, promise: Promise<V>) {
     const p = promise.then(
       (x) => {
-        if (this.cached.get(key) === p) {
-          this.setValue(key, x);
-        }
+        if (this.#map.get(key) === p) this.setValue(key, x);
         return x;
       },
       (x) => {
-        if (this.cached.get(key) === p) {
-          this.cached.delete(key);
-        }
+        if (this.#map.get(key) === p) this.#map.delete(key);
         throw x;
       }
     );
     this.set(key, p);
     return p;
   }
+  peek(key: K): Promise<V> | undefined {
+    return this.#map.get(key);
+  }
   touch(key: K): Promise<V> | undefined {
-    const p = this.cached.get(key);
+    const p = this.#map.get(key);
     if (p) this.set(key, p);
     return p;
   }

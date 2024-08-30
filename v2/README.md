@@ -54,6 +54,7 @@ forge install ensdomains/enschain
 	* `bun run test-gateways`
 		* [Contract](./test/gateway/SlotDataContract.sol) &rarr; [Reader](./test/gateway/SlotDataReader.sol) &rarr; [Tests](./test/gateway/tests.ts)
 		* ⚠️ Scroll fails [`readZero()`](./test/gateway/tests.ts#L26) test
+		* ⚠️ Polygon has poor `eth_getProof` support
 
 ## Examples
 

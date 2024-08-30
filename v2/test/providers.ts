@@ -1,5 +1,12 @@
 import type { Chain, ChainPair, Provider, ProviderPair } from '../src/types.js';
-import { ethers } from 'ethers';
+import {
+  Network,
+  FetchRequest,
+  JsonRpcProvider,
+  AlchemyProvider,
+  InfuraProvider,
+  AnkrProvider,
+} from 'ethers';
 import {
   CHAIN_MAINNET,
   CHAIN_SEPOLIA,
@@ -24,14 +31,16 @@ import {
 
 export function providerURL(chain: Chain): string {
   type ProviderClass = {
-    getRequest(network: ethers.Network, key: string): ethers.FetchRequest;
+    getRequest(network: Network, key: string): FetchRequest;
   };
   const ordering: [string, ProviderClass][] = [
-    ['INFURA_KEY', ethers.InfuraProvider],
-    ['ALCHEMY_KEY', ethers.AlchemyProvider],
-    ['ANKR_KEY', ethers.AnkrProvider],
+    // 20240830: so far, alchemy has the best support
+    // although the ethers chain => subdomain mappings are lacking
+    ['ALCHEMY_KEY', AlchemyProvider],
+    ['INFURA_KEY', InfuraProvider],
+    ['ANKR_KEY', AnkrProvider],
   ];
-  const network = ethers.Network.from(chain);
+  const network = Network.from(chain);
   for (const [env, cls] of ordering) {
     const key = process.env[env];
     if (!key) continue;
@@ -45,7 +54,7 @@ export function providerURL(chain: Chain): string {
     case CHAIN_MAINNET:
       // https://developers.cloudflare.com/web3/ethereum-gateway/
       //return 'https://cloudflare-eth.com';
-      // 20240713: might be better to use the ankr public rpcs
+      // 20240713: change to ankr public for better support
       return `https://rpc.ankr.com/eth`;
     case CHAIN_SEPOLIA:
       return `https://rpc.ankr.com/eth_sepolia`;
@@ -102,10 +111,10 @@ export function providerURL(chain: Chain): string {
 }
 
 export function createProvider(chain: Chain): Provider {
-  const fr = new ethers.FetchRequest(providerURL(chain));
+  const fr = new FetchRequest(providerURL(chain));
   fr.timeout = 15000; // 5 minutes is too long
   //fr.setThrottleParams({ maxAttempts: 20 });
-  return new ethers.JsonRpcProvider(fr, chain, {
+  return new JsonRpcProvider(fr, chain, {
     staticNetwork: true,
   });
 }
@@ -117,8 +126,7 @@ export function createProviderPair(
   if (typeof a !== 'bigint') {
     b = a.chain2;
     a = a.chain1;
-  }
-  if (!b) {
+  } else if (!b) {
     // if only 1 chain is provided => (mainnet, chain)
     b = a;
     a = CHAIN_MAINNET;
