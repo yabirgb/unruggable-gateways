@@ -8,7 +8,7 @@ import type {
 } from './types.js';
 import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
 import { ZeroHash, toBeHex } from 'ethers';
-import { ABI_CODER, NULL_CODE_HASH, toString16 } from '../utils.js';
+import { ABI_CODER, NULL_CODE_HASH, sendRetry, toString16 } from '../utils.js';
 
 function isContract(proof: EthAccountProof) {
   return (
@@ -22,9 +22,9 @@ function encodeProof(proof: EthProof): EncodedProof {
 
 export class EthProver extends AbstractProver {
   static async latest(provider: Provider) {
-    const block = await provider.getBlockNumber();
-    return new this(provider, toString16(block));
+    return new this(provider, toString16(await provider.getBlockNumber()));
   }
+  proofRetryCount = 0;
   constructor(
     readonly provider: Provider,
     readonly block: HexString
@@ -43,16 +43,21 @@ export class EthProver extends AbstractProver {
     target: HexString,
     slots: bigint[] = []
   ): Promise<RPCEthGetProof> {
-    const ps: Promise<RPCEthGetProof>[] = [];
+    const ps = [];
     for (let i = 0; ; ) {
       ps.push(
-        this.provider.send('eth_getProof', [
-          target,
-          slots
-            .slice(i, (i += this.proofBatchSize))
-            .map((slot) => toBeHex(slot, 32)),
-          this.block,
-        ])
+        sendRetry<RPCEthGetProof>(
+          this.provider,
+          'eth_getProof',
+          [
+            target,
+            slots
+              .slice(i, (i += this.proofBatchSize))
+              .map((slot) => toBeHex(slot, 32)),
+            this.block,
+          ],
+          this.proofRetryCount
+        )
       );
       if (i >= slots.length) break;
     }
@@ -160,7 +165,6 @@ export class EthProver extends AbstractProver {
   }
   override async prove(needs: Need[]) {
     // reduce an ordered list of needs into a deduplicated list of proofs
-    // minimize calls to eth_getProof
     // provide empty proofs for non-contract slots
     type Ref = { id: number; proof: EncodedProof };
     type RefMap = Ref & { map: Map<bigint, Ref> };

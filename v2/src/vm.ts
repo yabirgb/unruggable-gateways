@@ -496,16 +496,17 @@ export function requireV1Needs(needs: Need[]) {
 export abstract class AbstractProver {
   // maximum number of bytes from single read()
   // this is also constrained by proof count (1 proof per 32 bytes)
-  maxReadBytes = 32 * 32; // unlimited
-  // maximum number of proofs (M account + N storage, max 256)
-  // if this number is too small, protocol can be changed to uint16
-  maxUniqueProofs = 128; // max(256)
+  maxReadBytes = 32 * 32; // max = unlimited
+  // maximum number of proofs (M account + N storage)
+  // note: if this number is too small, protocol can be changed to uint16
+  maxUniqueProofs = 128; // max = 256
   // maximum number of targets (accountProofs)
-  maxUniqueTargets = 32; // unlimited
-  proofBatchSize = 64;
+  maxUniqueTargets = 32; // max = unlimited
+  proofBatchSize = 64; // max = unlimited
   // general proof cache
   readonly proofLRU = new LRU<string, any>(10000);
   // use getCode() / getStorage() if no proof is cached yet
+  // default: deduplicate in-flight, do not cache
   fastCache: CachedMap<string, any> | undefined = new CachedMap(0);
 
   checkSize(size: bigint | number) {

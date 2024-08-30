@@ -103,8 +103,8 @@ export function providerURL(chain: Chain): string {
 
 export function createProvider(chain: Chain): Provider {
   const fr = new ethers.FetchRequest(providerURL(chain));
-  fr.timeout = 10000;
-  //fr.setThrottleParams({ maxAttempts: 5 });
+  fr.timeout = 15000; // 5 minutes is too long
+  //fr.setThrottleParams({ maxAttempts: 20 });
   return new ethers.JsonRpcProvider(fr, chain, {
     staticNetwork: true,
   });

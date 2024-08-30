@@ -16,11 +16,37 @@ export function toString16(x: BigNumberish): HexString {
   return '0x' + BigInt(x).toString(16);
 }
 
-export async function sendImmediate(
+export async function sendRetry<T>(
+  provider: Provider,
+  method: string,
+  params: any[],
+  retryCount: number
+): Promise<T> {
+  for (;;) {
+    try {
+      return await provider.send(method, params);
+    } catch (err) {
+      if (
+        retryCount > 0 &&
+        err instanceof Error &&
+        'shortMessage' in err &&
+        err.shortMessage === 'could not coalesce error'
+      ) {
+        // 20240829: workaround for bad polygon rpcs
+        //console.log(`Retries remaining: ${retryCount}`);
+        --retryCount;
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+export async function sendImmediate<T>(
   provider: Provider,
   method: string,
   params: any[]
-): Promise<any> {
+): Promise<T> {
   if (provider._getOption('batchMaxCount') == 1) {
     return provider.send(method, params);
   }

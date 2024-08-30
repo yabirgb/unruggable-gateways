@@ -1,1 +1,4 @@
-lib
+lib/
+dist/
+junk/
+test/debug/

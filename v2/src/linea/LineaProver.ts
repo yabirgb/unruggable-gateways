@@ -92,7 +92,6 @@ export class LineaProver extends AbstractProver {
   }
   override async prove(needs: Need[]) {
     // reduce an ordered list of needs into a deduplicated list of proofs
-    // minimize calls to eth_getProof
     // provide empty proofs for non-contract slots
     type Ref = { id: number; proof: EncodedProof };
     type RefMap = Ref & { map: Map<bigint, Ref> };
@@ -221,13 +220,13 @@ export class LineaProver extends AbstractProver {
     };
   }
   async fetchProofs(target: HexString, slots: bigint[] = []) {
-    const ps: Promise<RPCLineaGetProof>[] = [];
+    const ps = [];
     for (let i = 0; ; ) {
       ps.push(
         // 20240825: most cloud providers seem to reject batched getProof
         // since we aren't in control of provider construction (ie. batchMaxSize)
         // sendImmediate is a temporary hack to avoid this issue
-        sendImmediate(this.provider, 'linea_getProof', [
+        sendImmediate<RPCLineaGetProof>(this.provider, 'linea_getProof', [
           target,
           slots
             .slice(i, (i += this.proofBatchSize))

@@ -9,6 +9,9 @@ import { describe, afterAll } from 'bun:test';
 describe('polygon-pos', async () => {
   const config = PolygonPoSRollup.mainnetConfig;
   const rollup = new PolygonPoSRollup(createProviderPair(config), config);
+  rollup.configure = (c) => {
+    c.prover.proofRetryCount = 5; // hack for failing eth_getProof
+  };
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
     infoLog: false,
