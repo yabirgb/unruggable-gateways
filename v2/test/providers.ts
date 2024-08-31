@@ -183,7 +183,8 @@ export const CHAIN_MAP = new Map(
 export function chainName(chain: Chain): string {
   const info = CHAIN_MAP.get(chain);
   if (!info) return 'unknown';
-  return info.alchemy ?? info.infura ?? info.ankr ?? info.rpc;
+  const name = info.alchemy ?? info.infura ?? info.ankr ?? info.rpc;
+  return `${name}<${chain}>`;
 }
 
 export function providerURL(chain: Chain): string {

@@ -28,7 +28,7 @@
 ## Serve
 
 * `bun run serve <chain> [port]`
-	* Supported chains: `base op arb1 linea polygon-pos scroll taiko zksync`
+	* Chain names: `base op arb1 linea polygon scroll taiko zksync blast fraxtal zora`
 	* Default port: `8000`
 
 ## Test
@@ -56,8 +56,8 @@
 	* `bun test test/examples/TeamNick/resolver.test.ts`
 		* [port to Solidity](./test/examples/TeamNick/TeamNick.sol) and write tests [in JS](./test/examples/TeamNick/resolver.test.ts) to validate
 * [linea-ens](./test/v1/linea-ens.ts)
-	* Replacement backend for https://names.linea.build/
-
+	* Replacement backend demo for https://names.linea.build/
+	* `bun serve lineaV1`
 
 ## Notes
 
