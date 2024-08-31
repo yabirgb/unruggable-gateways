@@ -10,7 +10,7 @@ import type {
   ProviderPair,
 } from '../types.js';
 import { Contract } from 'ethers';
-import { CHAIN_MAINNET, CHAIN_TAIKO } from '../chains.js';
+import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import {
   TAIKO_ABI,
@@ -37,14 +37,13 @@ export type TaikoCommit = RollupCommit<EthProver> & {
 };
 
 export class TaikoRollup extends AbstractRollup<TaikoCommit> {
-  static readonly mainnetConfig: RollupDeployment<TaikoConfig> = {
-    chain1: CHAIN_MAINNET,
-    chain2: CHAIN_TAIKO,
-    // https://docs.taiko.xyz/network-reference/mainnet-addresses
-    // https://etherscan.io/address/based.taiko.eth
-    TaikoL1: '0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a',
+  // https://docs.taiko.xyz/network-reference/mainnet-addresses
+  static readonly mainnetConfig = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.TAIKO,
+    TaikoL1: '0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a', // based.taiko.eth
     commitBatchSpan: 1,
-  } as const;
+  } as const satisfies RollupDeployment<TaikoConfig>;
 
   static async create(providers: ProviderPair, config: TaikoConfig) {
     const TaikoL1 = new Contract(
@@ -74,13 +73,14 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     // by definition this is shouldSyncStateRoot()
     // eg. (block % 16) == 15
     const res: ABITaikoLastSyncedBlock = await this.TaikoL1.getLastSyncedBlock({
-      blockTag: 'finalized',
+      blockTag: this.latestBlockTag,
     });
     return res.blockId;
   }
-  override async fetchParentCommitIndex(commit: TaikoCommit): Promise<bigint> {
+  protected override async _fetchParentCommitIndex(
+    commit: TaikoCommit
+  ): Promise<bigint> {
     if (this.commitStep > 1) {
-      if (commit.index < this.commitStep) return 0n; // genesis is not aligned
       // remove any unaligned remainder (see above)
       const rem = (commit.index + 1n) % this.commitStep;
       if (rem) return commit.index - rem;

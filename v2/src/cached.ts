@@ -177,6 +177,10 @@ export class CachedMap<K, V> {
   }
 }
 
+// keep the last n promises
+// setValue(), setPending(), cache(), touch() refresh the key
+// awaited pending that are still in the cache refresh the key
+// replaced/removed pending values do not overwrite new values
 export class LRU<K, V> {
   #map: Map<K, Promise<V>> = new Map();
   #max!: number;
@@ -193,21 +197,24 @@ export class LRU<K, V> {
     if (!Number.isSafeInteger(n) || n < 0) throw new TypeError('expected size');
     this.#max = n;
     const over = this.#map.size - n;
-    if (over > 0) this.deleteOldest(over);
+    if (over > 0) this.#deleteOldest(over);
   }
-  private set(key: K, promise: Promise<V>) {
+  #set(key: K, promise: Promise<V>) {
     if (this.#max) {
       this.#map.delete(key);
-      if (this.#map.size == this.#max) this.deleteOldest(1);
+      if (this.#map.size == this.#max) this.#deleteOldest(1);
       this.#map.set(key, promise);
     }
   }
-  private deleteOldest(n: number) {
+  #deleteOldest(n: number) {
     const iter = this.#map.keys();
     while (n--) this.#map.delete(iter.next().value);
   }
-  keys(): IterableIterator<K> {
+  keys() {
     return this.#map.keys();
+  }
+  entries() {
+    return this.#map.entries();
   }
   clear() {
     this.#map.clear();
@@ -216,7 +223,7 @@ export class LRU<K, V> {
     this.#map.delete(key);
   }
   setValue(key: K, value: V) {
-    this.set(key, Promise.resolve(value));
+    this.#set(key, Promise.resolve(value));
   }
   setPending(key: K, promise: Promise<V>) {
     const p = promise.then(
@@ -229,15 +236,15 @@ export class LRU<K, V> {
         throw x;
       }
     );
-    this.set(key, p);
+    this.#set(key, p);
     return p;
   }
-  peek(key: K): Promise<V> | undefined {
+  peek(key: K) {
     return this.#map.get(key);
   }
-  touch(key: K): Promise<V> | undefined {
+  touch(key: K) {
     const p = this.#map.get(key);
-    if (p) this.set(key, p);
+    if (p) this.#set(key, p);
     return p;
   }
   cache(key: K, fn: (key: K) => Promise<V>) {

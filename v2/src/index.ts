@@ -3,6 +3,7 @@ export * from './wrap.js';
 export * from './cached.js';
 export * from './vm.js';
 export * from './v1.js';
+export * from './utils.js';
 export * from './chains.js';
 
 export * from './chains.js';
@@ -18,9 +19,10 @@ export * from './rollup.js';
 export * from './op/AbstractOPRollup.js';
 export * from './op/OPRollup.js';
 export * from './op/OPFaultRollup.js';
-
 export * from './nitro/NitroRollup.js';
-export * from './scroll/ScrollRollup.js';
+export * from './linea/LineaRollup.js';
+export * from './polygon/PolygonPoSRollup.js';
+export * from './polygon/PolygonZKRollup.js';
 export * from './taiko/TaikoRollup.js';
 export * from './scroll/ScrollRollup.js';
 export * from './zksync/ZKSyncRollup.js';

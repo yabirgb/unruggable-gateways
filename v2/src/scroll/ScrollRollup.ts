@@ -11,12 +11,7 @@ import type {
 } from '../types.js';
 import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
 import { Contract, concat, toBeHex } from 'ethers';
-import {
-  CHAIN_MAINNET,
-  CHAIN_SCROLL,
-  CHAIN_SCROLL_SEPOLIA,
-  CHAIN_SEPOLIA,
-} from '../chains.js';
+import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import { POSEIDON_ABI, ROLLUP_ABI, VERIFIER_ABI } from './types.js';
 import { ABI_CODER, toString16 } from '../utils.js';
@@ -42,18 +37,19 @@ export type ScrollCommit = RollupCommit<EthProver> & {
 
 export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
   // https://docs.scroll.io/en/developers/scroll-contracts/
-  static readonly mainnetConfig: RollupDeployment<ScrollConfig> = {
-    chain1: CHAIN_MAINNET,
-    chain2: CHAIN_SCROLL,
+  static readonly mainnetConfig = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.SCROLL,
     ScrollChainCommitmentVerifier: '0xC4362457a91B2E55934bDCb7DaaF6b1aB3dDf203',
     apiURL: 'https://mainnet-api-re.scroll.io/api/',
-  } as const;
-  static readonly testnetConfig: RollupDeployment<ScrollConfig> = {
-    chain1: CHAIN_SEPOLIA,
-    chain2: CHAIN_SCROLL_SEPOLIA,
+  } as const satisfies RollupDeployment<ScrollConfig>;
+
+  static readonly testnetConfig = {
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.SCROLL_SEPOLIA,
     ScrollChainCommitmentVerifier: '0x64cb3A0Dcf43Ae0EE35C1C15edDF5F46D48Fa570',
     apiURL: 'https://sepolia-api-re.scroll.io/api/',
-  } as const;
+  } as const satisfies RollupDeployment<ScrollConfig>;
 
   static async create(providers: ProviderPair, config: ScrollConfig) {
     const CommitmentVerifier = new Contract(
@@ -108,25 +104,37 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
     const l2BlockNumber = BigInt(json.batch.end_block_number);
     return { status, l2BlockNumber, finalTxHash };
   }
-  async findFinalizedBatchIndexBefore(l1BlockNumber: number) {
-    const step = 1000; // ~3 hours (1000*12/3600)
-    for (; l1BlockNumber > 0; l1BlockNumber -= step) {
-      const logs = await this.rollup.queryFilter(
-        this.rollup.filters.FinalizeBatch(),
-        Math.max(0, l1BlockNumber - step),
-        l1BlockNumber - 1
-      );
-      if (logs.length) {
-        return BigInt(logs[logs.length - 1].topics[1]); // batchIndex
-      }
-    }
-    throw new Error(`unable to find earlier batch`);
+  async findFinalizedBatchIndexBefore(l1BlockNumber: bigint) {
+    // for (let i = l1BlockNumber; i > 0; i -= this.getLogsStepSize) {
+    //   const logs = await this.rollup.queryFilter(
+    //     this.rollup.filters.FinalizeBatch(),
+    //     i < this.getLogsStepSize ? 0n : i - this.getLogsStepSize,
+    //     i - 1n
+    //   );
+    //   if (logs.length) {
+    //     return BigInt(logs[logs.length - 1].topics[1]); // batchIndex
+    //   }
+    // }
+    // throw new Error(`unable to find earlier batch: ${l1BlockNumber}`);
+    // 20240830: this is more efficient
+    return this.rollup.lastFinalizedBatchIndex({
+      blockTag: l1BlockNumber - 1n,
+    });
   }
   override async fetchLatestCommitIndex(): Promise<bigint> {
     // TODO: determine how to this w/o relying on indexer
-    return this.fetchAPILatestBatchIndex();
+    // note: this doesn't use latestBlockTag
+    const [rpc, api] = await Promise.all([
+      this.rollup.lastFinalizedBatchIndex({
+        blockTag: this.latestBlockTag,
+      }) as Promise<bigint>,
+      this.fetchAPILatestBatchIndex(),
+    ]);
+    return rpc > api ? api : rpc;
   }
-  override async fetchParentCommitIndex(commit: ScrollCommit): Promise<bigint> {
+  protected override async _fetchParentCommitIndex(
+    commit: ScrollCommit
+  ): Promise<bigint> {
     // 20240826: this kinda sucks but it's the most efficient so far
     // alternative: helper contract, eg. loop finalizedStateRoots()
     // alternative: multicall, finalizedStateRoots looking for nonzero
@@ -138,18 +146,15 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
       commit.finalTxHash
     );
     if (!receipt) {
-      throw new Error(`Commit(${commit.index}) no tx: ${commit.finalTxHash}`);
+      throw new Error(`missing commit tx: ${commit.finalTxHash}`);
     }
-    //return this.findFinalizedBatchIndexBefore(receipt.blockNumber);
-    return this.rollup.lastFinalizedBatchIndex({
-      blockTag: receipt.blockNumber - 1,
-    });
+    return this.findFinalizedBatchIndexBefore(BigInt(receipt.blockNumber));
   }
   protected override async _fetchCommit(index: bigint): Promise<ScrollCommit> {
     const { status, l2BlockNumber, finalTxHash } =
       await this.fetchAPIBatchIndexInfo(index);
     if (status !== 'finalized') {
-      throw new Error(`Commit(${index}) not finalized: Status(${status})`);
+      throw new Error(`not finalized: ${status}`);
     }
     const prover = new EthProver(this.provider2, toString16(l2BlockNumber));
     return { index, prover, finalTxHash };

@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { Contract } from 'ethers';
 import { expect, test } from 'bun:test';
 
 // run tests twice to check cache
@@ -8,10 +8,7 @@ function testTwice(name: string, fn: () => void) {
   }
 }
 
-export function runSlotDataTests(
-  reader: ethers.Contract,
-  ignoreCi: boolean = false
-) {
+export function runSlotDataTests(reader: Contract, ignoreCi: boolean = false) {
   testTwice('latest = 49', () => {
     expect(reader.readLatest({ enableCcipRead: true })).resolves.toStrictEqual(
       49n
