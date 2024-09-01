@@ -1,10 +1,3 @@
-// https://github.com/scroll-tech/scroll/blob/738c85759d0248c005469972a49fc983b031ff1c/contracts/src/libraries/verifier/ZkTrieVerifier.sol#L259
-
-// https://github.com/scroll-tech/go-ethereum/blob/staging/trie/zk_trie.go#L176
-// https://github.com/scroll-tech/zktrie/blob/main/trie/zk_trie_proof.go#L30
-// https://github.com/ethereum/go-ethereum/blob/master/trie/proof.go#L114
-// https://github.com/scroll-tech/mpt-circuit/blob/v0.7/spec/mpt-proof.md#storage-segmenttypes
- 
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -17,7 +10,13 @@ interface IPoseidon {
 }
 
 library ScrollTrieHooks {
-	
+
+	// https://github.com/scroll-tech/scroll/blob/738c85759d0248c005469972a49fc983b031ff1c/contracts/src/libraries/verifier/ZkTrieVerifier.sol#L259
+	// https://github.com/scroll-tech/go-ethereum/blob/staging/trie/zk_trie.go#L176
+	// https://github.com/scroll-tech/zktrie/blob/main/trie/zk_trie_proof.go#L30
+	// https://github.com/ethereum/go-ethereum/blob/master/trie/proof.go#L114
+	// https://github.com/scroll-tech/mpt-circuit/blob/v0.7/spec/mpt-proof.md#storage-segmenttypes
+
 	// 20240622
 	// we no longer care (verify or require) about the magic bytes, as it doesn't do anything
 	// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_proof.go#L13

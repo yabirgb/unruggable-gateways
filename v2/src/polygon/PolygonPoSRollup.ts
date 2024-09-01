@@ -27,7 +27,7 @@ import { encodeRlpBlock } from '../rlp.js';
 
 export type PolygonPoSPoster = {
   readonly address: HexAddress;
-  readonly topic1Hash: HexString32;
+  readonly topicHash: HexString32;
   readonly blockNumberStart: bigint;
 };
 
@@ -49,7 +49,7 @@ function extractPrevBlockHash(event: Log): HexString32 {
 
 export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
   // // https://docs.polygon.technology/pos/reference/contracts/genesis-contracts/
-  static readonly mainnetConfig = {
+  static readonly mainnetConfig: RollupDeployment<PolygonPoSConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.POLYGON_POS,
     RootChain: '0x86E4Dc95c7FBdBf52e33D563BbDB00823894C287',
@@ -58,9 +58,9 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
       // https://polygonscan.com/tx/0x092f9929973fee6a4fa101e9ed45c2b6ce072ac6e2f338f49cac70b41cacbc73
       address: '0x591663413423Dcf7c7806930E642951E0dDdf10B',
       blockNumberStart: 61150865n,
-      topic1Hash: keccakStr('NewRoot(bytes32)'),
+      topicHash: keccakStr('NewRoot(bytes32)'),
     },
-  } as const satisfies RollupDeployment<PolygonPoSConfig>;
+  };
 
   readonly apiURL: string;
   readonly RootChain: Contract;
@@ -87,7 +87,7 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
     ) {
       const logs = await this.provider2.getLogs({
         address: this.poster.address,
-        topics: [this.poster.topic1Hash],
+        topics: [this.poster.topicHash],
         fromBlock: i < this.getLogsStepSize ? 0n : i - this.getLogsStepSize,
         toBlock: i - 1n,
       });
@@ -141,7 +141,7 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
   // }
   async fetchAPIReceiptProof(txHash: HexString32) {
     const url = new URL(
-      `./exit-payload/${txHash}?eventSignature=${this.poster.topic1Hash}`,
+      `./exit-payload/${txHash}?eventSignature=${this.poster.topicHash}`,
       this.apiURL
     );
     const json = await this.fetchJSON(url);
@@ -175,7 +175,7 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
     // ensure checkpoint contains post
     const events = await this.provider2.getLogs({
       address: this.poster.address,
-      topics: [this.poster.topic1Hash],
+      topics: [this.poster.topicHash],
       fromBlock: l2BlockNumberStart,
       toBlock: l2BlockNumberEnd,
     });
@@ -199,7 +199,7 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
     ]);
     const rlpEncodedBlock = getBytes(encodeRlpBlock(prevBlock));
     // if (ethers.keccak256(rlpEncodedBlock) !== prevBlockHash) {
-    //   throw new Error(`Commit(${index}) hash mismatch`);
+    //   throw new Error('block hash mismatch`);
     // }
     const prover = new EthProver(this.provider2, prevBlock.number);
     return {

@@ -1,4 +1,4 @@
-import type { HexAddress } from '../../src/types';
+import type { HexAddress } from '../../src/types.js';
 import type { RollupDeployment } from '../../src/rollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { createProviderPair, providerURL, chainName } from '../providers.js';

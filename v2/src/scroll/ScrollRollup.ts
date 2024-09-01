@@ -37,19 +37,19 @@ export type ScrollCommit = RollupCommit<EthProver> & {
 
 export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
   // https://docs.scroll.io/en/developers/scroll-contracts/
-  static readonly mainnetConfig = {
+  static readonly mainnetConfig: RollupDeployment<ScrollConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.SCROLL,
     ScrollChainCommitmentVerifier: '0xC4362457a91B2E55934bDCb7DaaF6b1aB3dDf203',
     apiURL: 'https://mainnet-api-re.scroll.io/api/',
-  } as const satisfies RollupDeployment<ScrollConfig>;
+  };
 
-  static readonly testnetConfig = {
+  static readonly testnetConfig: RollupDeployment<ScrollConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.SCROLL_SEPOLIA,
     ScrollChainCommitmentVerifier: '0x64cb3A0Dcf43Ae0EE35C1C15edDF5F46D48Fa570',
     apiURL: 'https://sepolia-api-re.scroll.io/api/',
-  } as const satisfies RollupDeployment<ScrollConfig>;
+  };
 
   static async create(providers: ProviderPair, config: ScrollConfig) {
     const CommitmentVerifier = new Contract(

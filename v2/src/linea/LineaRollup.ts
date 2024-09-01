@@ -33,21 +33,20 @@ export type LineaCommit = RollupCommit<LineaProver> & {
 
 export class LineaRollup extends AbstractRollup<LineaCommit> {
   // https://docs.linea.build/developers/quickstart/info-contracts
-  static readonly mainnetConfig = {
+  static readonly mainnetConfig: RollupDeployment<LineaConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.LINEA,
     L1MessageService: '0xd19d4B5d358258f05D7B411E21A1460D11B0876F',
     // https://github.com/Consensys/linea-ens/blob/main/packages/linea-ens-resolver/deployments/mainnet/SparseMerkleProof.json
     SparseMerkleProof: '0xBf8C454Af2f08fDD90bB7B029b0C2c07c2a7b4A3',
-  } as const satisfies RollupDeployment<LineaConfig>;
-
-  static readonly testnetConfig = {
+  };
+  static readonly testnetConfig: RollupDeployment<LineaConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.LINEA_SEPOLIA,
     L1MessageService: '0xB218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5',
     // https://github.com/Consensys/linea-ens/blob/main/packages/linea-ens-resolver/deployments/sepolia/SparseMerkleProof.json
     SparseMerkleProof: '0x718D20736A637CDB15b6B586D8f1BF081080837f',
-  } as const satisfies RollupDeployment<LineaConfig>;
+  };
 
   readonly L1MessageService: Contract;
   constructor(providers: ProviderPair, config: LineaConfig) {

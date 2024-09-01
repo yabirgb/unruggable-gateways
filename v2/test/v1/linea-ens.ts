@@ -34,7 +34,7 @@ console.log('Hijacked:', await verifier.gatewayURLs());
 await resolve('raffy.linea.eth');
 // await resolve('premm.linea.eth');
 // await resolve('tom.linea.eth');
-await resolve('dnenotexist123456.linea.eth');
+await resolve('_dne123.linea.eth');
 
 async function resolve(name: string) {
   console.log();

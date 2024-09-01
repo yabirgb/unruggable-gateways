@@ -12,32 +12,32 @@ export type OPConfig = {
 
 export class OPRollup extends AbstractOPRollup {
   // https://docs.base.org/docs/base-contracts#base-mainnet
-  static readonly baseMainnetConfig = {
+  static readonly baseMainnetConfig: RollupDeployment<OPConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.BASE,
     L2OutputOracle: '0x56315b90c40730925ec5485cf004d835058518A0',
-  } as const satisfies RollupDeployment<OPConfig>;
+  };
 
   // https://docs.blast.io/building/contracts#mainnet
-  static readonly blastMainnnetConfig = {
+  static readonly blastMainnnetConfig: RollupDeployment<OPConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.BLAST,
     L2OutputOracle: '0x826D1B0D4111Ad9146Eb8941D7Ca2B6a44215c76',
-  } as const satisfies RollupDeployment<OPConfig>;
+  };
 
   // https://docs.frax.com/fraxtal/addresses/fraxtal-contracts#mainnet
-  static readonly fraxtalMainnetConfig = {
+  static readonly fraxtalMainnetConfig: RollupDeployment<OPConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.FRAXTAL,
     L2OutputOracle: '0x66CC916Ed5C6C2FA97014f7D1cD141528Ae171e4',
-  } as const satisfies RollupDeployment<OPConfig>;
+  };
 
   // https://docs.zora.co/zora-network/network#zora-network-mainnet-1
-  static readonly zoraMainnetConfig = {
+  static readonly zoraMainnetConfig: RollupDeployment<OPConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.ZORA,
     L2OutputOracle: '0x9E6204F750cD866b299594e2aC9eA824E2e5f95c',
-  } as const satisfies RollupDeployment<OPConfig>;
+  };
 
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {

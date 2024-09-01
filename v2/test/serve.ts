@@ -1,19 +1,19 @@
 import type { Rollup } from '../src/rollup.js';
 import { createProviderPair, chainName } from './providers.js';
 import { EZCCIP, serve } from '@resolverworks/ezccip';
-import { Gateway, GatewayV1 } from '../src/gateway.js';
+import { Gateway } from '../src/gateway.js';
 import { OPRollup } from '../src/op/OPRollup.js';
 import { OPFaultRollup } from '../src/op/OPFaultRollup.js';
 import { NitroRollup } from '../src/nitro/NitroRollup.js';
 import { ScrollRollup } from '../src/scroll/ScrollRollup.js';
 import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
 import { LineaRollup } from '../src/linea/LineaRollup.js';
+import { LineaGatewayV1 } from '../src/linea/LineaGatewayV1.js';
 import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
-import { LineaGatewayV1 } from '../src/linea/LineaGatewayV1.js';
 
 const [, , name, port] = process.argv;
-let gateway: EZCCIP & { rollup: Rollup };
+let gateway: EZCCIP & { readonly rollup: Rollup };
 switch (name) {
   case 'op': {
     const config = OPFaultRollup.mainnetConfig;

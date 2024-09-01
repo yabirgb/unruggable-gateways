@@ -1,6 +1,5 @@
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
-import { CHAIN_MAINNET } from '../../src/chains.js';
 import { ZKSyncRollup } from '../../src/zksync/ZKSyncRollup.js';
 import { ethers } from 'ethers';
 import { describe, test, expect, afterAll } from 'bun:test';
@@ -10,7 +9,7 @@ describe('ZKSyncProver', async () => {
   const rollup = new ZKSyncRollup(createProviderPair(config), config);
   const commit = await rollup.fetchLatestCommit();
   const foundry = await Foundry.launch({
-    fork: providerURL(CHAIN_MAINNET),
+    fork: providerURL(config.chain1),
     infoLog: true,
   });
   afterAll(() => foundry.shutdown());

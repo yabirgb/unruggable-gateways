@@ -1,6 +1,6 @@
 # EVMGateway (v2)
 
-`$ bun i @unruggable/evmgateway` [&check;](https://www.npmjs.com/package/@unruggable/evmgateway)
+`$ npm i @unruggable/evmgateway` [&check;](https://www.npmjs.com/package/@unruggable/evmgateway)
 
 ## Setup
 

@@ -56,3 +56,43 @@ test('ClowesConcatSlice', async () => {
   expect(values[0]).toStrictEqual(data);
   expect(values[1]).toStrictEqual(ethers.toBeHex(VALUE, 32));
 });
+
+test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
+  const foundry = await Foundry.launch({ infoLog: false });
+  afterAll(() => foundry.shutdown());
+  const contract = await foundry.deploy({
+    sol: `
+		  contract X {
+			  mapping (uint256 => uint256) map;
+			  constructor() {
+				  map[1] = 2;
+			  }
+		  }
+	  `,
+  });
+  const prover = await EthProver.latest(foundry.provider);
+  const r1 = new EVMRequest()
+    .setTarget(contract.target)
+    .push(1)
+    .follow()
+    .read()
+    .addOutput();
+  const r2 = new EVMRequest()
+    .setTarget(contract.target)
+    .push(1)
+    .pushSlot()
+    .concat()
+    .keccak()
+    .zeroSlot()
+    .addSlot()
+    .read()
+    .addOutput();
+  expect(r1.ops).toStrictEqual(r2.ops);
+  expect(
+    (async () =>
+      !Bun.deepEquals(
+        await prover.evalRequest(r1).then((x) => x.resolveOutputs()),
+        await prover.evalRequest(r2).then((x) => x.resolveOutputs())
+      ))()
+  ).resolves.toStrictEqual(true);
+});

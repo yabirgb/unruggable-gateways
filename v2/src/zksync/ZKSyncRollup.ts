@@ -36,17 +36,17 @@ export type ZKSyncCommit = RollupCommit<ZKSyncProver> & {
 
 export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
   // https://docs.zksync.io/build/developer-reference/era-contracts/l1-contracts
-  static readonly mainnetConfig = {
+  static readonly mainnetConfig: RollupDeployment<ZKSyncConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.ZKSYNC,
     DiamondProxy: '0x32400084c286cf3e17e7b677ea9583e60a000324',
-  } as const satisfies RollupDeployment<ZKSyncConfig>;
+  };
 
-  static readonly testnetConfig = {
+  static readonly testnetConfig: RollupDeployment<ZKSyncConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.ZKSYNC_SEPOLIA,
     DiamondProxy: '0x9a6de0f62Aa270A8bCB1e2610078650D539B1Ef9',
-  } as const satisfies RollupDeployment<ZKSyncConfig>;
+  };
 
   readonly DiamondProxy: Contract;
   constructor(providers: ProviderPair, config: ZKSyncConfig) {

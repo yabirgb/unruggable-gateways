@@ -26,23 +26,21 @@ export type NitroCommit = RollupCommit<EthProver> & {
 
 export class NitroRollup extends AbstractRollupV1<NitroCommit> {
   // https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses
-  static readonly arb1MainnetConfig = {
+  static readonly arb1MainnetConfig: RollupDeployment<NitroConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.ARB1,
     L2Rollup: '0x5eF0D09d1E6204141B4d37530808eD19f60FBa35',
-  } as const satisfies RollupDeployment<NitroConfig>;
-
-  static readonly arbTestnetConfig = {
+  };
+  static readonly arbTestnetConfig: RollupDeployment<NitroConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.ARB_SEPOLIA,
     L2Rollup: '0xd80810638dbDF9081b72C1B33c65375e807281C8',
-  } as const satisfies RollupDeployment<NitroConfig>;
-
-  static readonly arbNovaMainnetConfig = {
+  };
+  static readonly arbNovaMainnetConfig: RollupDeployment<NitroConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.ARB_NOVA,
     L2Rollup: '0xFb209827c58283535b744575e11953DCC4bEAD88',
-  } as const satisfies RollupDeployment<NitroConfig>;
+  };
 
   readonly L2Rollup: Contract;
   constructor(providers: ProviderPair, config: NitroConfig) {

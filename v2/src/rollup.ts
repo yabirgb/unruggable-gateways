@@ -1,7 +1,7 @@
 import type { ChainPair, HexString, Provider, ProviderPair } from './types.js';
 import type { AbstractProver, ProofSequence, ProofSequenceV1 } from './vm.js';
 
-export type RollupDeployment<Config> = ChainPair & Config;
+export type RollupDeployment<Config> = Readonly<ChainPair & Config>;
 
 export type RollupCommit<P extends AbstractProver> = {
   readonly index: bigint;

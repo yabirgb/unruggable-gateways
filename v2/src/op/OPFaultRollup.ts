@@ -22,21 +22,21 @@ type ABIFinalizedGame = {
 };
 
 export class OPFaultRollup extends AbstractOPRollup {
-  static readonly mainnetConfig = {
+  // https://docs.optimism.io/chain/addresses
+  static readonly mainnetConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.OP,
-    // https://docs.optimism.io/chain/addresses
     OptimismPortal: '0xbEb5Fc579115071764c7423A4f12eDde41f106Ed',
     GameFinder: '0x5A8E83f0E728bEb821b91bB82cFAE7F67bD36f7e',
-  } as const satisfies RollupDeployment<OPFaultConfig>;
+  };
 
-  static readonly baseTestnetConfig = {
+  // https://docs.base.org/docs/base-contracts/#ethereum-testnet-sepolia
+  static readonly baseTestnetConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.BASE_SEPOLIA,
-    // https://docs.base.org/docs/base-contracts/#ethereum-testnet-sepolia
     OptimismPortal: '0x49f53e41452C74589E85cA1677426Ba426459e85',
     GameFinder: '0x0f1449C980253b576aba379B11D453Ac20832a89',
-  } as const satisfies RollupDeployment<OPFaultConfig>;
+  };
 
   static async create(providers: ProviderPair, config: OPFaultConfig) {
     const optimismPortal = new Contract(

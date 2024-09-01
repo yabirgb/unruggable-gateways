@@ -38,12 +38,12 @@ export type TaikoCommit = RollupCommit<EthProver> & {
 
 export class TaikoRollup extends AbstractRollup<TaikoCommit> {
   // https://docs.taiko.xyz/network-reference/mainnet-addresses
-  static readonly mainnetConfig = {
+  static readonly mainnetConfig: RollupDeployment<TaikoConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.TAIKO,
     TaikoL1: '0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a', // based.taiko.eth
     commitBatchSpan: 1,
-  } as const satisfies RollupDeployment<TaikoConfig>;
+  };
 
   static async create(providers: ProviderPair, config: TaikoConfig) {
     const TaikoL1 = new Contract(

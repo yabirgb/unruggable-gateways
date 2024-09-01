@@ -1,6 +1,5 @@
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
-import { CHAIN_MAINNET } from '../../src/chains.js';
 import { LineaRollup } from '../../src/linea/LineaRollup.js';
 import { ethers } from 'ethers';
 import { describe, test, expect, afterAll } from 'bun:test';
@@ -10,7 +9,7 @@ describe('LineaProver', async () => {
   const gateway = new LineaRollup(createProviderPair(config), config);
   const commit = await gateway.fetchLatestCommit();
   const foundry = await Foundry.launch({
-    fork: providerURL(CHAIN_MAINNET),
+    fork: providerURL(config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
