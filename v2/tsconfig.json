@@ -26,7 +26,7 @@
 		"verbatimModuleSyntax": false,
 		"importHelpers": true,
 		
-		"module": "node16",
+		"module": "NodeNext",
 		// "target": "ES2021",
 		// "lib": ["ES2022"],
 

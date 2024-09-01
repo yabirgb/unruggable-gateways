@@ -1,4 +1,11 @@
-import { readFileSync, writeFileSync, mkdirSync, rmdirSync } from 'node:fs';
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  rmdirSync,
+  readdirSync,
+  renameSync,
+} from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -26,7 +33,7 @@ log(`Saved configuration`);
 
 // verify build
 log(`Typechecking...`);
-spawnSync('bun', ['tsc', '-p', '.', '--noEmit']);
+runTypescript('--noEmit');
 log('Ready!');
 
 // clear dist
@@ -38,32 +45,60 @@ log(`Cleaned ${distDir}`);
 tsc.include = tsc.include.filter((x) => !`^test\b`.match(x));
 writeFileSync(tsconfigFile, JSON.stringify(tsc));
 
+// create outputs
+const cjsDir = join(distDir, 'cjs');
+const esmDir = join(distDir, 'esm');
+const typesDir = join(distDir, 'types');
 try {
-  build('commonjs', 'cjs');
-  build('module', 'esm');
+  setPackageType('commonjs');
+  runTypescript('--outDir', cjsDir, '--module', 'node16');
+  forceExtension(cjsDir, 'cjs');
+  log('Built cjs');
+
+  setPackageType('module');
+  runTypescript('--outDir', esmDir);
+  forceExtension(esmDir, 'mjs');
+  log('Built esm');
+
+  runTypescript(
+    '--outDir',
+    typesDir,
+    '--module',
+    'esnext',
+    '--emitDeclarationOnly',
+    '--declaration',
+    '--declarationMap'
+  );
+  log('Built types');
 } finally {
   writeFileSync(packageFile, packageOriginal);
   writeFileSync(tsconfigFile, tsconfigOriginal);
   log(`Restored configuration`);
 }
 
-function build(packageType: string, dirName: string) {
-  pkg.type = packageType;
+function runTypescript(...args: string[]) {
+  spawnSync('bun', ['tsc', '-p', '.', ...args]);
+}
+
+function setPackageType(type: string) {
+  pkg.type = type;
   writeFileSync(packageFile, JSON.stringify(pkg));
-  log(`Set package type: "${packageType}"`);
-  const dir = join(distDir, dirName);
-  spawnSync('bun', [
-    'tsc',
-    '-p',
-    '.',
-    '--outDir',
-    dir,
-    '--declaration',
-    '--declarationMap',
-  ]);
-  writeFileSync(
-    join(dir, 'package.json'),
-    JSON.stringify({ type: packageType, sideEffects: false })
-  );
-  log(`Built ${dirName}: ${dir}`);
+  log(`Set package type: "${type}"`);
+}
+
+function forceExtension(dir: string, ext: string) {
+  for (const x of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, x.name);
+    if (x.isDirectory()) {
+      forceExtension(path, ext);
+    } else if (x.name.endsWith('.js')) {
+      let code = readFileSync(path, { encoding: 'utf-8' });
+      code = code.replaceAll(
+        /(["'])(.*?\.)js\1/g,
+        (_, q, x) => q + x + ext + q
+      );
+      writeFileSync(path, code);
+      renameSync(path, join(dir, x.name.slice(0, -2) + ext));
+    }
+  }
 }

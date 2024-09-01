@@ -1,6 +1,6 @@
 {
   "name": "@unruggable/evmgateway",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "keywords": [
     "ethereum",
     "evm",
@@ -22,10 +22,9 @@
   },
   "sideEffects": false,
   "exports": {
-    ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
-    }
+    "types": "./dist/types/index.d.ts",
+    "require": "./dist/cjs/index.cjs",
+    "import": "./dist/esm/index.mjs"
   },
   "files": [
     "dist/",
