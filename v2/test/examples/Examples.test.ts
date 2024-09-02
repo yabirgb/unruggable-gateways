@@ -1,7 +1,7 @@
 import { EVMRequest } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { ethers } from 'ethers';
+import { hexlify, toBeHex, randomBytes, concat, dataSlice } from 'ethers';
 import { test, afterAll, expect } from 'bun:test';
 
 test('ClowesConcatSlice', async () => {
@@ -13,11 +13,8 @@ test('ClowesConcatSlice', async () => {
   const LAST = 5;
   const VALUE = 1337;
 
-  const data = ethers.hexlify(ethers.randomBytes(SIZE));
-  const key = ethers.concat([
-    ethers.dataSlice(data, 0, FIRST),
-    ethers.dataSlice(data, -LAST),
-  ]);
+  const data = hexlify(randomBytes(SIZE));
+  const key = concat([dataSlice(data, 0, FIRST), dataSlice(data, -LAST)]);
 
   const contract = await foundry.deploy({
     sol: `
@@ -54,7 +51,7 @@ test('ClowesConcatSlice', async () => {
 
   expect(values).toHaveLength(2);
   expect(values[0]).toStrictEqual(data);
-  expect(values[1]).toStrictEqual(ethers.toBeHex(VALUE, 32));
+  expect(values[1]).toStrictEqual(toBeHex(VALUE, 32));
 });
 
 test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
