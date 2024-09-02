@@ -360,7 +360,7 @@ export class EVMProgram {
   }
 
   // experimental syntax
-  // alternative: pushCommand()
+  // alternative: pushProgram()
   begin() {
     return new EVMProgram(this);
   }
