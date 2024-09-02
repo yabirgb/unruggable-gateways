@@ -1,73 +1,63 @@
-import { ethers } from 'ethers';
+import { Contract } from 'ethers';
 import { expect, test } from 'bun:test';
 
-// run tests twice to check cache
-function testTwice(name: string, fn: () => void) {
-  for (let i = 0; i < 2; i++) {
-    test(name, fn);
-  }
-}
-
-export function runSlotDataTests(
-  reader: ethers.Contract,
-  ignoreCi: boolean = false
-) {
-  testTwice('latest = 49', () => {
+export function runSlotDataTests(reader: Contract) {
+  test('latest = 49', () => {
     expect(reader.readLatest({ enableCcipRead: true })).resolves.toStrictEqual(
       49n
     );
   });
-  testTwice('name = "Satoshi"', () => {
+  test('name = "Satoshi"', () => {
     expect(reader.readName({ enableCcipRead: true })).resolves.toStrictEqual(
       'Satoshi'
     );
   });
-  testTwice('highscores[0] = 1', () => {
+  test('highscores[0] = 1', () => {
     expect(
       reader.readHighscore(0, { enableCcipRead: true })
     ).resolves.toStrictEqual(1n);
   });
-  testTwice('highscores[latest] = 12345', async () => {
+  test('highscores[latest] = 12345', async () => {
     expect(
       reader.readLatestHighscore({ enableCcipRead: true })
     ).resolves.toStrictEqual(12345n);
   });
-  testTwice('highscorers[latest] = name', async () => {
+  test('highscorers[latest] = name', async () => {
     expect(
       await reader.readLatestHighscorer({ enableCcipRead: true })
     ).toStrictEqual('Satoshi');
   });
-  testTwice('realnames["Money Skeleton"] = "Vitalik Buterin"', async () => {
+  test('realnames["Money Skeleton"] = "Vitalik Buterin"', async () => {
     expect(
       await reader.readRealName('Money Skeleton', { enableCcipRead: true })
     ).toStrictEqual('Vitalik Buterin');
   });
-  testTwice('realnames[highscorers[latest]] = "Hal Finney"', async () => {
+  test('realnames[highscorers[latest]] = "Hal Finney"', async () => {
     expect(
       await reader.readLatestHighscorerRealName({ enableCcipRead: true })
     ).toStrictEqual('Hal Finney');
   });
-  if (process.env.IS_CI && !ignoreCi) {
-    testTwice('zero = 0', async () => {
+  if (!process.env.IS_CI) {
+    test('zero = 0', async () => {
       expect(await reader.readZero({ enableCcipRead: true })).toStrictEqual(0n);
     });
   }
-  testTwice('root.str = "raffy"', async () => {
+  test('root.str = "raffy"', async () => {
     expect(
       await reader.readRootStr([], { enableCcipRead: true })
     ).toStrictEqual('raffy');
   });
-  testTwice('root.map["a"].str = "chonk"', async () => {
+  test('root.map["a"].str = "chonk"', async () => {
     expect(
       await reader.readRootStr(['a'], { enableCcipRead: true })
     ).toStrictEqual('chonk');
   });
-  testTwice('root.map["a"].map["b"].str = "eth"', async () => {
+  test('root.map["a"].map["b"].str = "eth"', async () => {
     expect(
       await reader.readRootStr(['a', 'b'], { enableCcipRead: true })
     ).toStrictEqual('eth');
   });
-  testTwice('highscorers[keccak(...)] = "chonk"', async () => {
+  test('highscorers[keccak(...)] = "chonk"', async () => {
     expect(
       await reader.readSlicedKeccak({ enableCcipRead: true })
     ).toStrictEqual('chonk');

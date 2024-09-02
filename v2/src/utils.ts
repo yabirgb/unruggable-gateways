@@ -4,7 +4,7 @@ import {
   AbiCoder,
   id as keccakStr,
 } from 'ethers';
-import { Provider, BigNumberish, HexString } from './types';
+import type { Provider, BigNumberish, HexString } from './types.js';
 
 export const ABI_CODER = AbiCoder.defaultAbiCoder();
 
@@ -12,8 +12,19 @@ export const ABI_CODER = AbiCoder.defaultAbiCoder();
 // "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
 export const NULL_CODE_HASH = keccakStr('');
 
+// hex-prefixed without any zero-padding
 export function toString16(x: BigNumberish): HexString {
   return '0x' + BigInt(x).toString(16);
+}
+
+export function withResolvers<T = void>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: any) => void;
+  const promise = new Promise<T>((ful, rej) => {
+    resolve = ful;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 export async function sendRetry<T>(

@@ -1,16 +1,44 @@
-import { EVMRequestV1 } from '../../src/v1.js';
-import { EVMRequest } from '../../src/vm.js';
-import { EthProver } from '../../src/eth/EthProver.js';
-//import {Foundry} from '@adraffy/blocksmith';
-//import {ethers} from 'ethers';
-import { createProvider } from '../providers.js';
-import { CHAIN_MAINNET } from '../../src/chains.js';
+import { EVMRequestV1, EVMRequest, EthProver, CHAINS,  NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup } from '../../src/index.js';
+import { createProvider, createProviderPair } from '../providers.js';
 
 // this is just a worksheet
 
+if (0) {
+	const config = OPRollup.baseMainnetConfig;
+	const rollup = new OPRollup(createProviderPair(config), config);
+	//const commit = await rollup.fetchLatestCommit();
+	const commit = await rollup.fetchCommit(0n);
+	console.log(commit);
+	throw 1;
+}
+
+if (0) {
+	const config = NitroRollup.arb1MainnetConfig;
+	const rollup = new NitroRollup(createProviderPair(config), config);
+	const commit = await rollup.fetchLatestCommit();
+	console.log(commit);
+	throw 1;
+}
+
+if (0) {
+	const config = TaikoRollup.mainnetConfig;
+	const rollup = await TaikoRollup.create(createProviderPair(config), config);
+	const commit = await rollup.fetchCommit(123124124n);
+	console.log(await commit.prover.prove([[config.TaikoL1, true]]));
+	throw 1;
+}
+
+if (1) {
+	const config = ZKSyncRollup.mainnetConfig;
+	const rollup = new ZKSyncRollup(createProviderPair(config), config);
+	const commit = await rollup.fetchLatestCommit();
+	console.log(await commit.prover.prove([[config.DiamondProxy, true]]));
+	throw 1;
+}
+
 //let foundry = await Foundry.launch({infoLog: false});
 
-const prover = await EthProver.latest(createProvider(CHAIN_MAINNET));
+const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));
 
 const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 

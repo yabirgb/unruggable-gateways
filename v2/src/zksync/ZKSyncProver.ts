@@ -12,7 +12,7 @@ import {
   type ProofSequence,
 } from '../vm.js';
 import { toBeHex } from 'ethers';
-import { ABI_CODER } from '../utils.js';
+import { ABI_CODER, withResolvers } from '../utils.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
 // https://github.com/matter-labs/era-contracts/blob/fd4aebcfe8833b26e096e87e142a5e7e4744f3fa/system-contracts/bootloader/bootloader.yul#L458
@@ -117,7 +117,7 @@ export class ZKSyncProver extends AbstractProver {
   async getStorageProofs(target: HexString, slots: bigint[]) {
     target = target.toLowerCase();
     const missing: number[] = [];
-    const { promise, resolve, reject } = Promise.withResolvers();
+    const { promise, resolve, reject } = withResolvers();
     const storageProofs: (
       | Promise<ZKSyncStorageProof>
       | ZKSyncStorageProof

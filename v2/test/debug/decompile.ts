@@ -1,4 +1,4 @@
-import { EVMRequest, ProgramReader } from '../../src/vm';
+import { EVMRequest, ProgramReader } from '../../src/vm.js';
 
 // TODO: decompiler should execute machine
 // eg. OP_TARGET shows value from stack

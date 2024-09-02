@@ -33,5 +33,5 @@ describe('zksync', async () => {
     file: 'SlotDataReader',
     args: [verifier, '0x1Cd42904e173EA9f7BA05BbB685882Ea46969dEc'],
   });
-  runSlotDataTests(reader, true);
+  runSlotDataTests(reader);
 });

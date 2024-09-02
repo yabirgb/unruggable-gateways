@@ -1,7 +1,12 @@
 import type { EncodedProof, HexString, Provider } from '../types.js';
 import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
 import { ZeroHash, dataSlice, toBeHex } from 'ethers';
-import { ABI_CODER, NULL_CODE_HASH, sendImmediate } from '../utils.js';
+import {
+  ABI_CODER,
+  NULL_CODE_HASH,
+  sendImmediate,
+  withResolvers,
+} from '../utils.js';
 import {
   isExistanceProof,
   type LineaProof,
@@ -165,7 +170,7 @@ export class LineaProver extends AbstractProver {
     // 2.) account is EOA
     // 3.) account is contract
     const missing: number[] = [];
-    const { promise, resolve, reject } = Promise.withResolvers();
+    const { promise, resolve, reject } = withResolvers();
     // check if we have an account proof
     let accountProof: Promise<LineaProof> | LineaProof | undefined =
       this.proofLRU.touch(target);

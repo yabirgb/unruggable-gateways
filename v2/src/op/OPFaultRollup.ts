@@ -1,13 +1,8 @@
 import type { RollupDeployment } from '../rollup.js';
-import { Contract } from 'ethers';
 import type { HexAddress, ProviderPair } from '../types.js';
+import { Contract } from 'ethers';
 import { PORTAL_ABI, GAME_FINDER_ABI } from './types.js';
-import {
-  CHAIN_BASE_SEPOLIA,
-  CHAIN_MAINNET,
-  CHAIN_OP,
-  CHAIN_SEPOLIA,
-} from '../chains.js';
+import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
 import { toString16 } from '../utils.js';
 
@@ -26,23 +21,22 @@ type ABIFinalizedGame = {
   l2BlockNumber: bigint;
 };
 
-const callOptions = { blockTag: 'finalized' };
-
 export class OPFaultRollup extends AbstractOPRollup {
+  // https://docs.optimism.io/chain/addresses
   static readonly mainnetConfig: RollupDeployment<OPFaultConfig> = {
-    chain1: CHAIN_MAINNET,
-    chain2: CHAIN_OP,
-    // https://docs.optimism.io/chain/addresses
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.OP,
     OptimismPortal: '0xbEb5Fc579115071764c7423A4f12eDde41f106Ed',
     GameFinder: '0x5A8E83f0E728bEb821b91bB82cFAE7F67bD36f7e',
-  } as const;
+  };
+
+  // https://docs.base.org/docs/base-contracts/#ethereum-testnet-sepolia
   static readonly baseTestnetConfig: RollupDeployment<OPFaultConfig> = {
-    chain1: CHAIN_SEPOLIA,
-    chain2: CHAIN_BASE_SEPOLIA,
-    // https://docs.base.org/docs/base-contracts/#ethereum-testnet-sepolia
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.BASE_SEPOLIA,
     OptimismPortal: '0x49f53e41452C74589E85cA1677426Ba426459e85',
     GameFinder: '0x0f1449C980253b576aba379B11D453Ac20832a89',
-  } as const;
+  };
 
   static async create(providers: ProviderPair, config: OPFaultConfig) {
     const optimismPortal = new Contract(
@@ -68,7 +62,9 @@ export class OPFaultRollup extends AbstractOPRollup {
   }
 
   async fetchRespectedGameType(): Promise<bigint> {
-    return this.OptimismPortal.respectedGameType(callOptions);
+    return this.OptimismPortal.respectedGameType({
+      blockTag: this.latestBlockTag,
+    });
   }
 
   override async fetchLatestCommitIndex(): Promise<bigint> {
@@ -84,15 +80,17 @@ export class OPFaultRollup extends AbstractOPRollup {
       this.OptimismPortal.target,
       this.gameTypeBitMask,
       0,
-      callOptions
+      { blockTag: this.latestBlockTag }
     );
   }
-  override async fetchParentCommitIndex(commit: OPCommit): Promise<bigint> {
+  protected override async _fetchParentCommitIndex(
+    commit: OPCommit
+  ): Promise<bigint> {
     return this.GameFinder.findFinalizedGameIndex(
       this.OptimismPortal.target,
       this.gameTypeBitMask,
       commit.index,
-      callOptions
+      { blockTag: this.latestBlockTag }
     );
   }
   protected override async _fetchCommit(index: bigint) {
@@ -100,7 +98,7 @@ export class OPFaultRollup extends AbstractOPRollup {
       this.OptimismPortal.target,
       this.gameTypeBitMask,
       index,
-      callOptions
+      { blockTag: this.latestBlockTag }
     );
     if (!game.l2BlockNumber) {
       throw new Error(`Commit(${index}) not finalized`);

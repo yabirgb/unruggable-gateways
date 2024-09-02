@@ -10,13 +10,8 @@ import {
   type ABIZKSyncCommitBatchInfo,
   type RPCZKSyncL1BatchDetails,
 } from './types.js';
-import { Contract, EventLog } from 'ethers';
-import {
-  CHAIN_MAINNET,
-  CHAIN_SEPOLIA,
-  CHAIN_ZKSYNC,
-  CHAIN_ZKSYNC_SEPOLIA,
-} from '../chains.js';
+import { Contract, EventLog, ZeroHash } from 'ethers';
+import { CHAINS } from '../chains.js';
 import {
   type RollupDeployment,
   type RollupCommit,
@@ -42,15 +37,16 @@ export type ZKSyncCommit = RollupCommit<ZKSyncProver> & {
 export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
   // https://docs.zksync.io/build/developer-reference/era-contracts/l1-contracts
   static readonly mainnetConfig: RollupDeployment<ZKSyncConfig> = {
-    chain1: CHAIN_MAINNET,
-    chain2: CHAIN_ZKSYNC,
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.ZKSYNC,
     DiamondProxy: '0x32400084c286cf3e17e7b677ea9583e60a000324',
-  } as const;
+  };
+
   static readonly testnetConfig: RollupDeployment<ZKSyncConfig> = {
-    chain1: CHAIN_SEPOLIA,
-    chain2: CHAIN_ZKSYNC_SEPOLIA,
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.ZKSYNC_SEPOLIA,
     DiamondProxy: '0x9a6de0f62Aa270A8bCB1e2610078650D539B1Ef9',
-  } as const;
+  };
 
   readonly DiamondProxy: Contract;
   constructor(providers: ProviderPair, config: ZKSyncConfig) {
@@ -64,45 +60,44 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
 
   override async fetchLatestCommitIndex(): Promise<bigint> {
     const count: bigint = await this.DiamondProxy.getTotalBatchesExecuted({
-      blockTag: 'finalized',
+      blockTag: this.latestBlockTag,
     });
     return count - 1n;
   }
-  override async fetchParentCommitIndex(commit: ZKSyncCommit): Promise<bigint> {
+  protected override async _fetchParentCommitIndex(
+    commit: ZKSyncCommit
+  ): Promise<bigint> {
     return commit.index - 1n;
   }
   protected override async _fetchCommit(index: bigint): Promise<ZKSyncCommit> {
     const batchIndex = Number(index);
-    const details: RPCZKSyncL1BatchDetails = await this.provider2.send(
+    const details: RPCZKSyncL1BatchDetails | null = await this.provider2.send(
       'zks_getL1BatchDetails',
-      [batchIndex] // rpc requires number
+      [batchIndex] // rpc requires Number
     );
-    // 20240810: this check fails even though the block is finalized
+    if (!details) throw new Error(`no batch details`);
+    if (!details.rootHash) throw new Error('no rootHash');
+    if (!details.commitTxHash) throw new Error('no commitTxHash');
+    // 20240810: this check randomly fails even though the block is finalized
     // if (details.status !== 'verified') {
     //   throw new Error(`not verified: ${details.status}`);
     // }
-    const { rootHash, commitTxHash } = details;
-    if (!rootHash || !commitTxHash) {
-      throw new Error(`Commit(${index}) not finalized`);
-    }
     const [tx, [log], l2LogsTreeRoot] = await Promise.all([
-      this.provider1.getTransaction(commitTxHash),
+      this.provider1.getTransaction(details.commitTxHash),
       this.DiamondProxy.queryFilter(
-        this.DiamondProxy.filters.BlockCommit(index, rootHash)
+        this.DiamondProxy.filters.BlockCommit(index, details.rootHash)
       ),
       this.DiamondProxy.l2LogsRootHash(index) as Promise<HexString32>,
     ]);
-    if (!tx || !(log instanceof EventLog)) {
-      throw new Error(`Commit(${index}) no tx: ${commitTxHash}`);
-    }
+    if (!tx) throw new Error(`missing commit tx: ${details.commitTxHash}`);
+    if (!(log instanceof EventLog)) throw new Error(`no BlockCommit event`);
+    if (l2LogsTreeRoot === ZeroHash) throw new Error('not finalized');
     const commits: ABIZKSyncCommitBatchInfo[] = DIAMOND_ABI.decodeFunctionData(
       'commitBatchesSharedBridge',
       tx.data
     ).newBatchesData;
     const batchInfo = commits.find((x) => x.batchNumber == index);
-    if (!batchInfo) {
-      throw new Error(`Commit(${index}) not member`);
-    }
+    if (!batchInfo) throw new Error(`commit not in batch`);
     const abiEncodedBatch = ABI_CODER.encode(
       [
         'uint64', // batchNumber
@@ -115,8 +110,8 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
         'bytes32', // commitment
       ],
       [
-        batchInfo.batchNumber,
-        batchInfo.newStateRoot,
+        batchInfo.batchNumber, // == index
+        batchInfo.newStateRoot, // == details.rootHash
         batchInfo.indexRepeatedStorageChanges,
         batchInfo.numberOfLayer1Txs,
         batchInfo.priorityOperationsHash,
@@ -129,7 +124,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     return {
       index,
       prover,
-      stateRoot: rootHash,
+      stateRoot: details.rootHash,
       abiEncodedBatch,
     };
   }

@@ -38,7 +38,7 @@ export class Gateway<R extends Rollup> extends EZCCIP {
     Infinity
   );
   private readonly parentCacheMap = new CachedMap<bigint, bigint>(Infinity);
-  readonly callCacheMap = new LRU<string, Uint8Array>(1000);
+  readonly callLRU = new LRU<string, Uint8Array>(1000);
   constructor(readonly rollup: R) {
     super();
     this.register(GATEWAY_ABI, {
@@ -54,7 +54,7 @@ export class Gateway<R extends Rollup> extends EZCCIP {
         // TODO: ops could be hashed like a selector...
         history.show = [commit.index, hexlify(ops), shortHash(hash)];
         // NOTE: for a given commit + request, calls are pure
-        return this.callCacheMap.cache(hash, async () => {
+        return this.callLRU.cache(hash, async () => {
           const state = await commit.prover.evalDecoded(ops, inputs);
           const proofSeq = await commit.prover.prove(state.needs);
           return getBytes(this.rollup.encodeWitness(commit, proofSeq));
@@ -73,7 +73,7 @@ export class Gateway<R extends Rollup> extends EZCCIP {
           const commit = await this.getLatestCommit();
           const hash = keccakStr(`${commit.index}:${context.calldata}`);
           history.show = [commit.index, shortHash(hash)];
-          return this.callCacheMap.cache(hash, async () => {
+          return this.callLRU.cache(hash, async () => {
             const req = new EVMRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
             const state = await commit.prover.evalRequest(req);
             const proofSeq = await commit.prover.proveV1(state.needs);
@@ -136,7 +136,7 @@ export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
   private readonly latestCache = new CachedValue(() =>
     this.rollup.fetchLatestCommitIndex()
   );
-  readonly callCacheMap = new LRU<string, Uint8Array>();
+  readonly callLRU = new LRU<string, Uint8Array>();
   constructor(readonly rollup: R) {
     super();
     this.register(GATEWAY_ABI, {
@@ -148,7 +148,7 @@ export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
         const commit = await this.getLatestCommit();
         const hash = keccakStr(`${commit.index}:${context.calldata}`);
         history.show = [commit.index, shortHash(hash)];
-        return this.callCacheMap.cache(hash, async () => {
+        return this.callLRU.cache(hash, async () => {
           const req = new EVMRequestV1(target, commands, constants);
           return getBytes(await this.handleRequest(commit, req));
         });

@@ -1,5 +1,5 @@
 import { Interface } from 'ethers';
-import type { HexString32 } from '../types';
+import type { HexString32 } from '../types.js';
 
 export const ROOT_CHAIN_ABI = new Interface([
   //   `event NewHeaderBlock(

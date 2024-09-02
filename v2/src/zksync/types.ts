@@ -48,8 +48,7 @@ export type RPCZKSyncL1BatchDetails = {
   l2TxCount: number;
   number: number;
   rootHash: HexString32 | null; // is this really optional?
-  // https://github.com/matter-labs/zksync-era/blob/main/core/lib/types/src/api/mod.rs#L751
-  status: 'verified' | 'sealed';
+  status: string; // https://github.com/matter-labs/zksync-era/blob/main/core/lib/types/src/api/mod.rs#L751
   timestamp: number;
 };
 // {

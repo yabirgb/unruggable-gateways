@@ -6,7 +6,7 @@ import { createProviderPair, providerURL } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
-describe('polygon-pos', async () => {
+describe('polygon', async () => {
   const config = PolygonPoSRollup.mainnetConfig;
   const rollup = new PolygonPoSRollup(createProviderPair(config), config);
   rollup.configure = (c) => {

@@ -1,8 +1,8 @@
-import { CHAIN_ZKEVM_CARDONA } from '../../src/chains.js';
+import { CHAINS } from '../../src/chains.js';
 import { createProvider } from '../providers.js';
 import { ethers } from 'ethers';
 
-const p = createProvider(CHAIN_ZKEVM_CARDONA);
+const p = createProvider(CHAINS.POLYGON_ZKEVM_CARDONA);
 
 console.log(
   await p.send('eth_getProof', [

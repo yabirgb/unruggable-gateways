@@ -1,8 +1,8 @@
 import type { RollupDeployment } from '../rollup.js';
 import type { HexAddress, ProviderPair } from '../types.js';
-import { Contract } from 'ethers';
 import { type ABIOutputProposal, ORACLE_ABI } from './types.js';
-import { CHAIN_BASE, CHAIN_MAINNET } from '../chains.js';
+import { Contract } from 'ethers';
+import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
 import { toString16 } from '../utils.js';
 
@@ -11,11 +11,33 @@ export type OPConfig = {
 };
 
 export class OPRollup extends AbstractOPRollup {
+  // https://docs.base.org/docs/base-contracts#base-mainnet
   static readonly baseMainnetConfig: RollupDeployment<OPConfig> = {
-    chain1: CHAIN_MAINNET,
-    chain2: CHAIN_BASE,
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.BASE,
     L2OutputOracle: '0x56315b90c40730925ec5485cf004d835058518A0',
-  } as const;
+  };
+
+  // https://docs.blast.io/building/contracts#mainnet
+  static readonly blastMainnnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.BLAST,
+    L2OutputOracle: '0x826D1B0D4111Ad9146Eb8941D7Ca2B6a44215c76',
+  };
+
+  // https://docs.frax.com/fraxtal/addresses/fraxtal-contracts#mainnet
+  static readonly fraxtalMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.FRAXTAL,
+    L2OutputOracle: '0x66CC916Ed5C6C2FA97014f7D1cD141528Ae171e4',
+  };
+
+  // https://docs.zora.co/zora-network/network#zora-network-mainnet-1
+  static readonly zoraMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.ZORA,
+    L2OutputOracle: '0x9E6204F750cD866b299594e2aC9eA824E2e5f95c',
+  };
 
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {
@@ -28,12 +50,17 @@ export class OPRollup extends AbstractOPRollup {
   }
 
   override async fetchLatestCommitIndex(): Promise<bigint> {
-    return this.L2OutputOracle.latestOutputIndex({ blockTag: 'finalized' });
+    return this.L2OutputOracle.latestOutputIndex({
+      blockTag: this.latestBlockTag,
+    });
   }
-  override async fetchParentCommitIndex(commit: OPCommit): Promise<bigint> {
+  protected override async _fetchParentCommitIndex(
+    commit: OPCommit
+  ): Promise<bigint> {
     return commit.index - 1n;
   }
   protected override async _fetchCommit(index: bigint) {
+    // this fails with ARRAY_RANGE_ERROR when invalid
     const output: ABIOutputProposal =
       await this.L2OutputOracle.getL2Output(index);
     return this.createCommit(index, toString16(output.l2BlockNumber));

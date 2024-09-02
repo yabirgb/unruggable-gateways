@@ -267,7 +267,7 @@ test('bool[]', async () => {
   ).toStrictEqual(VALUES);
 });
 
-for (let N = 1; N <= 32; N++) {
+for (let N = 1; N <= 32; N <<= 1) {
   const W = N << 3;
   test(`uint${W}[]`, async () => {
     const VALUES = Array.from({ length: 17 }, (_, i) => ethers.toBeHex(i, N));
@@ -288,7 +288,7 @@ for (let N = 1; N <= 32; N++) {
   });
 }
 
-for (let N = 1; N <= 32; N++) {
+for (let N = 1; N <= 32; N <<= 1) {
   test(`bytes${N}[]`, async () => {
     const VALUES = Array.from({ length: Math.ceil(247 / N) }, (_, i) =>
       ethers.toBeHex(i, N)

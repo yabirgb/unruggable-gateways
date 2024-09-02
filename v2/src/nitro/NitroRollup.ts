@@ -7,13 +7,7 @@ import type { HexAddress, HexString, ProviderPair } from '../types.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
 import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
 import { ZeroHash, Contract, EventLog } from 'ethers';
-import {
-  CHAIN_MAINNET,
-  CHAIN_ARB1,
-  CHAIN_ARB_NOVA,
-  CHAIN_ARB_SEPOLIA,
-  CHAIN_SEPOLIA,
-} from '../chains.js';
+import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import { type ABINodeTuple, ROLLUP_ABI } from './types.js';
 import { ABI_CODER } from '../utils.js';
@@ -33,20 +27,20 @@ export type NitroCommit = RollupCommit<EthProver> & {
 export class NitroRollup extends AbstractRollupV1<NitroCommit> {
   // https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses
   static readonly arb1MainnetConfig: RollupDeployment<NitroConfig> = {
-    chain1: CHAIN_MAINNET,
-    chain2: CHAIN_ARB1,
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.ARB1,
     L2Rollup: '0x5eF0D09d1E6204141B4d37530808eD19f60FBa35',
-  } as const;
+  };
   static readonly arbTestnetConfig: RollupDeployment<NitroConfig> = {
-    chain1: CHAIN_SEPOLIA,
-    chain2: CHAIN_ARB_SEPOLIA,
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.ARB_SEPOLIA,
     L2Rollup: '0xd80810638dbDF9081b72C1B33c65375e807281C8',
-  } as const;
+  };
   static readonly arbNovaMainnetConfig: RollupDeployment<NitroConfig> = {
-    chain1: CHAIN_MAINNET,
-    chain2: CHAIN_ARB_NOVA,
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.ARB_NOVA,
     L2Rollup: '0xFb209827c58283535b744575e11953DCC4bEAD88',
-  } as const;
+  };
 
   readonly L2Rollup: Contract;
   constructor(providers: ProviderPair, config: NitroConfig) {
@@ -56,28 +50,33 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
 
   override async fetchLatestCommitIndex(): Promise<bigint> {
     return this.L2Rollup.latestConfirmed({
-      blockTag: 'finalized',
+      blockTag: this.latestBlockTag,
     });
   }
-  override async fetchParentCommitIndex(commit: NitroCommit): Promise<bigint> {
-    if (!commit.index) return -1n; // genesis
+  protected override async _fetchParentCommitIndex(
+    commit: NitroCommit
+  ): Promise<bigint> {
     const node: ABINodeTuple = await this.L2Rollup.getNode(commit.index);
     return node.prevNum;
   }
   protected override async _fetchCommit(index: bigint): Promise<NitroCommit> {
+    const { createdAtBlock }: ABINodeTuple = await this.L2Rollup.getNode(index);
+    if (!createdAtBlock) throw new Error('unknown node');
     const [event] = await this.L2Rollup.queryFilter(
-      this.L2Rollup.filters.NodeCreated(index)
+      this.L2Rollup.filters.NodeCreated(index),
+      createdAtBlock,
+      createdAtBlock
     );
-    if (!(event instanceof EventLog)) {
-      throw new Error(`unknown node index: ${index}`);
-    }
+    if (!(event instanceof EventLog)) throw new Error('no NodeCreated event');
     // ethers bug: named abi parsing doesn't propagate through event tuples
     // [4][1][0][0] == event.args.afterState.globalState.bytes32Vals[0];
     const [blockHash, sendRoot] = event.args[4][1][0][0];
-    const block: RPCEthGetBlock = await this.provider2.send(
+    const block: RPCEthGetBlock | null = await this.provider2.send(
       'eth_getBlockByHash',
       [blockHash, false]
     );
+    if (!block) throw new Error(`no block: ${blockHash}`);
+    // note: block.sendRoot == sendRoot
     const rlpEncodedBlock = encodeRlpBlock(block);
     const prover = new EthProver(this.provider2, block.number);
     return { index, prover, sendRoot, rlpEncodedBlock };

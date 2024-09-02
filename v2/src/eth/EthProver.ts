@@ -8,7 +8,13 @@ import type {
 } from './types.js';
 import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
 import { ZeroHash, toBeHex } from 'ethers';
-import { ABI_CODER, NULL_CODE_HASH, sendRetry, toString16 } from '../utils.js';
+import {
+  ABI_CODER,
+  NULL_CODE_HASH,
+  sendRetry,
+  toString16,
+  withResolvers,
+} from '../utils.js';
 
 function isContract(proof: EthAccountProof) {
   return (
@@ -73,7 +79,7 @@ export class EthProver extends AbstractProver {
   ): Promise<RPCEthGetProof> {
     target = target.toLowerCase();
     const missing: number[] = []; // indices of slots we dont have proofs for
-    const { promise, resolve, reject } = Promise.withResolvers(); // create a blocker
+    const { promise, resolve, reject } = withResolvers(); // create a blocker
     // 20240708: must setup blocks before await
     let accountProof: Promise<EthAccountProof> | EthAccountProof | undefined =
       this.proofLRU.touch(target);

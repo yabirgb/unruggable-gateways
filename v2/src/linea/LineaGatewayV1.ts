@@ -8,8 +8,7 @@ import { requireV1Needs } from '../vm.js';
 // https://github.com/Consensys/linea-ens/blob/main/packages/linea-ccip-gateway/src/L2ProofService.ts
 
 // the deployed linea verifier is not compatible with the current gateway design
-// 1. v0 request encoding (no OP_ADD_CONST)
-// 2. strange proof encoding: incorrect negative proofs + unnecessary data (key)
+// due to strange proof encoding: incorrect negative proofs + unnecessary data (key)
 
 export class LineaGatewayV1 extends GatewayV1<LineaRollup> {
   override async handleRequest(commit: LineaCommit, request: EVMRequestV1) {

@@ -109,7 +109,7 @@ contract PolygonPoSVerifier is OwnedVerifier {
 
 	function _computeRootHash(bytes32 leafHash, bytes memory proof, uint256 index) internal pure returns (bytes32 ret) {
 		ret = leafHash;
-		for (uint256 i; i < proof.length; ) {
+		for (uint256 i; i < proof.length; index >>= 1) {
 			bytes32 next;
 			assembly {
 				i := add(i, 32)
@@ -120,7 +120,6 @@ contract PolygonPoSVerifier is OwnedVerifier {
 			} else {
 				ret = keccak256(abi.encodePacked(next, ret));
 			}
-			index >>= 1;
 		}
 	}
 

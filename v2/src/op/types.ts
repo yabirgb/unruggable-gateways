@@ -1,5 +1,5 @@
 import { Interface } from 'ethers';
-import type { HexString32 } from '../types';
+import type { HexString32 } from '../types.js';
 
 export const ORACLE_ABI = new Interface([
   'function latestOutputIndex() external view returns (uint256)',

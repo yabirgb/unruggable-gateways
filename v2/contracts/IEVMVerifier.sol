@@ -15,4 +15,3 @@ interface IEVMVerifier {
 	) external view returns (bytes[] memory values, uint8 exitCode);
 
 }
-

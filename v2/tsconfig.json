@@ -1,8 +1,6 @@
 {
-	"include": ["src"],
+	"include": ["src", "test"],
 	"compilerOptions": {
-		// Incremental builds
-		// NOTE: Enabling incremental builds speeds up `tsc`. Keep in mind though that it does not reliably bust the cache when the `tsconfig.json` file changes.
 		"incremental": false,
 	
 		// Type checking
@@ -26,17 +24,12 @@
 		"allowSyntheticDefaultImports": false,
 		"forceConsistentCasingInFileNames": true,
 		"verbatimModuleSyntax": false,
-		"importHelpers": true, // This is only used for build validation. Since we do not have `tslib` installed, this will fail if we accidentally make use of anything that'd require injection of helpers.
-	
-		// Language and environment
-		"moduleResolution": "NodeNext",
+		"importHelpers": true,
+		
 		"module": "NodeNext",
-		"target": "ES2021", // Setting this to `ES2021` enables native support for `Node v16+`: https://github.com/microsoft/TypeScript/wiki/Node-Target-Mapping.
-		"lib": [
-			"ES2022", // By using ES2022 we get access to the `.cause` property on `Error` instances.
-			"DOM" // For `btoa` and `atob`.
-		],
-		// Skip type checking for node modules
+		// "target": "ES2021",
+		// "lib": ["ES2022"],
+
 		"skipLibCheck": true
 	}
 }

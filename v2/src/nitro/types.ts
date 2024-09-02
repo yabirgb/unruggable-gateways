@@ -36,4 +36,5 @@ export const ROLLUP_ABI = new Interface([
 
 export type ABINodeTuple = {
   readonly prevNum: bigint;
+  readonly createdAtBlock: bigint;
 };
