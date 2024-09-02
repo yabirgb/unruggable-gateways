@@ -93,7 +93,7 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
       });
       if (logs.length) return logs[logs.length - 1];
     }
-    throw new Error(`unable to find earlier root: ${l2BlockNumber}`);
+    throw new Error(`no earlier root: ${l2BlockNumber}`);
   }
   async findPosterHeaderBefore(l2BlockNumber: bigint) {
     // find the most recent post that occurred before this block
@@ -179,7 +179,7 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
       fromBlock: l2BlockNumberStart,
       toBlock: l2BlockNumberEnd,
     });
-    if (!events.length) throw new Error(`Commit(${index}) no post`);
+    if (!events.length) throw new Error(`no poster`);
     const event = events[events.length - 1];
     const prevBlockHash = extractPrevBlockHash(event);
     // rlpEncodedProof:
@@ -195,8 +195,9 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
       this.provider2.send('eth_getBlockByHash', [
         prevBlockHash,
         false,
-      ]) as Promise<RPCEthGetBlock>,
+      ]) as Promise<RPCEthGetBlock | null>,
     ]);
+    if (!prevBlock) throw new Error('no prevBlock');
     const rlpEncodedBlock = getBytes(encodeRlpBlock(prevBlock));
     // if (ethers.keccak256(rlpEncodedBlock) !== prevBlockHash) {
     //   throw new Error('block hash mismatch`);

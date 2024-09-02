@@ -10,7 +10,7 @@ import {
   type ABIZKSyncCommitBatchInfo,
   type RPCZKSyncL1BatchDetails,
 } from './types.js';
-import { Contract, EventLog } from 'ethers';
+import { Contract, EventLog, ZeroHash } from 'ethers';
 import { CHAINS } from '../chains.js';
 import {
   type RollupDeployment,
@@ -71,36 +71,33 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
   }
   protected override async _fetchCommit(index: bigint): Promise<ZKSyncCommit> {
     const batchIndex = Number(index);
-    const details: RPCZKSyncL1BatchDetails = await this.provider2.send(
+    const details: RPCZKSyncL1BatchDetails | null = await this.provider2.send(
       'zks_getL1BatchDetails',
-      [batchIndex] // rpc requires number
+      [batchIndex] // rpc requires Number
     );
+    if (!details) throw new Error(`no batch details`);
+    if (!details.rootHash) throw new Error('no rootHash');
+    if (!details.commitTxHash) throw new Error('no commitTxHash');
     // 20240810: this check randomly fails even though the block is finalized
     // if (details.status !== 'verified') {
     //   throw new Error(`not verified: ${details.status}`);
     // }
-    const { rootHash, commitTxHash } = details;
-    if (!rootHash || !commitTxHash) {
-      throw new Error(`not finalized`);
-    }
     const [tx, [log], l2LogsTreeRoot] = await Promise.all([
-      this.provider1.getTransaction(commitTxHash),
+      this.provider1.getTransaction(details.commitTxHash),
       this.DiamondProxy.queryFilter(
-        this.DiamondProxy.filters.BlockCommit(index, rootHash)
+        this.DiamondProxy.filters.BlockCommit(index, details.rootHash)
       ),
       this.DiamondProxy.l2LogsRootHash(index) as Promise<HexString32>,
     ]);
-    if (!tx || !(log instanceof EventLog)) {
-      throw new Error(`missing commit tx: ${commitTxHash}`);
-    }
+    if (!tx) throw new Error(`missing commit tx: ${details.commitTxHash}`);
+    if (!(log instanceof EventLog)) throw new Error(`no BlockCommit event`);
+    if (l2LogsTreeRoot === ZeroHash) throw new Error('not finalized');
     const commits: ABIZKSyncCommitBatchInfo[] = DIAMOND_ABI.decodeFunctionData(
       'commitBatchesSharedBridge',
       tx.data
     ).newBatchesData;
     const batchInfo = commits.find((x) => x.batchNumber == index);
-    if (!batchInfo) {
-      throw new Error(`commit not in batch`);
-    }
+    if (!batchInfo) throw new Error(`commit not in batch`);
     const abiEncodedBatch = ABI_CODER.encode(
       [
         'uint64', // batchNumber
@@ -113,8 +110,8 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
         'bytes32', // commitment
       ],
       [
-        batchInfo.batchNumber,
-        batchInfo.newStateRoot,
+        batchInfo.batchNumber, // == index
+        batchInfo.newStateRoot, // == details.rootHash
         batchInfo.indexRepeatedStorageChanges,
         batchInfo.numberOfLayer1Txs,
         batchInfo.priorityOperationsHash,
@@ -127,7 +124,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     return {
       index,
       prover,
-      stateRoot: rootHash,
+      stateRoot: details.rootHash,
       abiEncodedBatch,
     };
   }

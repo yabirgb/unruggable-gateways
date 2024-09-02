@@ -29,5 +29,5 @@ describe('taiko', async () => {
     file: 'SlotDataReader',
     args: [verifier, '0xAF7f1Fa8D5DF0D9316394433E841321160408565'],
   });
-  runSlotDataTests(reader, true);
+  runSlotDataTests(reader);
 });

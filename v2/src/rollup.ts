@@ -40,19 +40,23 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   // abstract wrappers
   async fetchParentCommitIndex(commit: C) {
     try {
-      if (!commit.index) throw new Error('genesis');
+      if (!commit.index) throw undefined;
       const index = await this._fetchParentCommitIndex(commit);
       if (index >= commit.index) throw new Error('bug');
       if (index < 0) throw undefined;
       return index;
     } catch (cause) {
-      throw new Error(`no earlier commit: ${commit.index}`, { cause });
+      throw new Error(`no parent commit: ${commit.index}`, { cause });
     }
   }
   async fetchCommit(index: bigint) {
-    const commit = await this._fetchCommit(index);
-    this.configure?.(commit);
-    return commit;
+    try {
+      const commit = await this._fetchCommit(index);
+      this.configure?.(commit);
+      return commit;
+    } catch (cause) {
+      throw new Error(`invalid commit: ${index}`, { cause });
+    }
   }
 
   // convenience

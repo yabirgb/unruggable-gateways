@@ -145,17 +145,13 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
     const receipt = await this.provider1.getTransactionReceipt(
       commit.finalTxHash
     );
-    if (!receipt) {
-      throw new Error(`missing commit tx: ${commit.finalTxHash}`);
-    }
+    if (!receipt) throw new Error(`no commit tx: ${commit.finalTxHash}`);
     return this.findFinalizedBatchIndexBefore(BigInt(receipt.blockNumber));
   }
   protected override async _fetchCommit(index: bigint): Promise<ScrollCommit> {
     const { status, l2BlockNumber, finalTxHash } =
       await this.fetchAPIBatchIndexInfo(index);
-    if (status !== 'finalized') {
-      throw new Error(`not finalized: ${status}`);
-    }
+    if (status !== 'finalized') throw new Error(`not finalized: ${status}`);
     const prover = new EthProver(this.provider2, toString16(l2BlockNumber));
     return { index, prover, finalTxHash };
   }

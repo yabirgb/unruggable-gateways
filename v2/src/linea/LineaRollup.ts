@@ -74,21 +74,19 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
         commit.stateRoot
       )
     );
-    if (!event) throw new Error('missing DataFinalized event');
+    if (!event) throw new Error('no DataFinalized event');
     // find the block that finalized this root
     const prevStateRoot = event.topics[2];
     const [prevEvent] = await this.L1MessageService.queryFilter(
       this.L1MessageService.filters.DataFinalized(null, null, prevStateRoot)
     );
-    if (!prevEvent) throw new Error('missing prior DataFinalized event');
+    if (!prevEvent) throw new Error('no prior DataFinalized event');
     return BigInt(prevEvent.topics[1]); // l2BlockNumber
   }
   protected override async _fetchCommit(index: bigint): Promise<LineaCommit> {
     const stateRoot: HexString32 =
       await this.L1MessageService.stateRootHashes(index);
-    if (stateRoot === ZeroHash) {
-      throw new Error('not finalized');
-    }
+    if (stateRoot === ZeroHash) throw new Error('not finalized');
     const prover = new LineaProver(this.provider2, toString16(index));
     return { index, stateRoot, prover };
   }

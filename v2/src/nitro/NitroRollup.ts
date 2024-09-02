@@ -60,19 +60,23 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
     return node.prevNum;
   }
   protected override async _fetchCommit(index: bigint): Promise<NitroCommit> {
+    const { createdAtBlock }: ABINodeTuple = await this.L2Rollup.getNode(index);
+    if (!createdAtBlock) throw new Error('unknown node');
     const [event] = await this.L2Rollup.queryFilter(
-      this.L2Rollup.filters.NodeCreated(index)
+      this.L2Rollup.filters.NodeCreated(index),
+      createdAtBlock,
+      createdAtBlock
     );
-    if (!(event instanceof EventLog)) {
-      throw new Error('missing NodeCreated event');
-    }
+    if (!(event instanceof EventLog)) throw new Error('no NodeCreated event');
     // ethers bug: named abi parsing doesn't propagate through event tuples
     // [4][1][0][0] == event.args.afterState.globalState.bytes32Vals[0];
     const [blockHash, sendRoot] = event.args[4][1][0][0];
-    const block: RPCEthGetBlock = await this.provider2.send(
+    const block: RPCEthGetBlock | null = await this.provider2.send(
       'eth_getBlockByHash',
       [blockHash, false]
     );
+    if (!block) throw new Error(`no block: ${blockHash}`);
+    // note: block.sendRoot == sendRoot
     const rlpEncodedBlock = encodeRlpBlock(block);
     const prover = new EthProver(this.provider2, block.number);
     return { index, prover, sendRoot, rlpEncodedBlock };

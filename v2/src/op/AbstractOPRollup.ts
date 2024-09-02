@@ -1,5 +1,5 @@
 import type { HexAddress, HexString } from '../types.js';
-import type { RPCEthGetBlock, RPCEthGetProof } from '../eth/types.js';
+import type { RPCEthGetBlock } from '../eth/types.js';
 import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
@@ -27,23 +27,19 @@ export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
   L2ToL1MessagePasser: HexAddress =
     '0x4200000000000000000000000000000000000016';
   async createCommit(index: bigint, block: HexString): Promise<OPCommit> {
-    const [{ storageHash: passerRoot }, { stateRoot, hash: blockHash }] =
-      await Promise.all([
-        this.provider2.send('eth_getProof', [
-          this.L2ToL1MessagePasser,
-          [],
-          block,
-        ]) as Promise<RPCEthGetProof>,
-        this.provider2.send('eth_getBlockByNumber', [
-          block,
-          false,
-        ]) as Promise<RPCEthGetBlock>,
-      ]);
     const prover = new EthProver(this.provider2, block);
+    const [{ storageHash: passerRoot }, blockInfo] = await Promise.all([
+      prover.fetchProofs(this.L2ToL1MessagePasser),
+      this.provider2.send('eth_getBlockByNumber', [
+        block,
+        false,
+      ]) as Promise<RPCEthGetBlock | null>,
+    ]);
+    if (!blockInfo) throw new Error('no block');
     return {
       index,
-      blockHash,
-      stateRoot,
+      blockHash: blockInfo.hash,
+      stateRoot: blockInfo.stateRoot,
       passerRoot,
       prover,
     };

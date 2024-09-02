@@ -29,5 +29,5 @@ describe('scroll', async () => {
     file: 'SlotDataReader',
     args: [verifier, '0x09D2233D3d109683ea95Da4546e7E9Fc17a6dfAF'],
   });
-  runSlotDataTests(reader, true);
+  runSlotDataTests(reader);
 });

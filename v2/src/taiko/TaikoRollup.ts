@@ -88,13 +88,13 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     return commit.index - this.commitStep;
   }
   protected override async _fetchCommit(index: bigint): Promise<TaikoCommit> {
-    const block = toString16(index);
-    const { parentHash }: RPCEthGetBlock = await this.provider2.send(
+    const blockInfo: RPCEthGetBlock | null = await this.provider2.send(
       'eth_getBlockByNumber',
-      [block, false]
+      [toString16(index), false]
     );
-    const prover = new EthProver(this.provider2, block);
-    return { index, prover, parentHash };
+    if (!blockInfo) throw new Error('no block');
+    const prover = new EthProver(this.provider2, blockInfo.number);
+    return { index, prover, parentHash: blockInfo.parentHash };
   }
   override encodeWitness(
     commit: TaikoCommit,

@@ -60,6 +60,7 @@ export class OPRollup extends AbstractOPRollup {
     return commit.index - 1n;
   }
   protected override async _fetchCommit(index: bigint) {
+    // this fails with ARRAY_RANGE_ERROR when invalid
     const output: ABIOutputProposal =
       await this.L2OutputOracle.getL2Output(index);
     return this.createCommit(index, toString16(output.l2BlockNumber));
