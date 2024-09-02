@@ -1,24 +1,24 @@
-[submodule "v2/lib/forge-std"]
-	path = v2/lib/forge-std
+[submodule "lib/forge-std"]
+	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "v2/lib/ens-contracts"]
-	path = v2/lib/ens-contracts
+[submodule "lib/ens-contracts"]
+	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts
-[submodule "v2/lib/buffer"]
-	path = v2/lib/buffer
+[submodule "lib/buffer"]
+	path = lib/buffer
 	url = https://github.com/ensdomains/buffer
-[submodule "v2/lib/nitro-contracts"]
-	path = v2/lib/nitro-contracts
+[submodule "lib/nitro-contracts"]
+	path = lib/nitro-contracts
 	url = https://github.com/offchainlabs/nitro-contracts
-[submodule "v2/lib/enschain"]
-	path = v2/lib/enschain
+[submodule "lib/enschain"]
+	path = lib/enschain
 	url = https://github.com/ensdomains/enschain
-[submodule "v2/lib/openzeppelin-contracts-v4.9"]
-	path = v2/lib/openzeppelin-contracts-v4.9
+[submodule "lib/openzeppelin-contracts-v4.9"]
+	path = lib/openzeppelin-contracts-v4.9
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "v2/lib/optimism"]
-	path = v2/lib/optimism
+[submodule "lib/optimism"]
+	path = lib/optimism
 	url = https://github.com/ethereum-optimism/optimism
-[submodule "v2/lib/openzeppelin-contracts"]
-	path = v2/lib/openzeppelin-contracts
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
