@@ -1,157 +1,158 @@
-# EVM CCIP-Read Gateway
-This repository implements a generic CCIP-Read gateway framework for fetching state proofs of data on other EVM chains. This allows L1 smart contracts to fetch and verify state from L2s. The library is built to be as modular and interchangeable as possible. This means:
+<p align="center">
+    <img src="./unruggable-logo-black.png" style = "width:300px;" alt = "Unruggable Gateways" />
+</p>
 
- - Anyone can operate their own gateway, but...
- - Only one gateway needs to be operated for each chain, regardless of the applications requesting data from it.
- - Gateways do not need to be trusted; their responses are fully verified on L1.
- - Contracts can fetch L2 state using a simple builder interface and callbacks.
- - Contracts can change targets (eg, a different L2) just by swapping out the address of a verifier contract for another.
+# EVMGateway (v2)
 
-While this functionality is written primarily with read calls in mind, it also functions for transactions; using a compliant
-library like Ethers, a transaction that includes relevant L2 proofs can be generated and signed.
+This repository provides an end-to-end code solution for resolving data from other blockchains and verifying it against state posted to Layer 1 Ethereum.
 
+## Quickstart
 
+Install our npm package:
 
-## Usage
+`$ npm i @unruggable/evmgateway` [&check;](https://www.npmjs.com/package/@unruggable/evmgateway)
 
- 1. Have your contract extend `EVMFetcher`.
- 2. In a view/pure context, use `EVMFetcher` to fetch the value of slots from another contract (potentially on another chain). Calling `EVMFetcher.fetch()` terminates execution and generates a callback to the same contract on a function you specify.
- 3. In the callback function, use the information from the relevant slots as you see fit.
+We have extensive [documentation](https://gateway-docs.unruggable.com), with a slightly less quick [Quickstart](https://gateway-docs.unruggable.com/quickstart). 
 
-## Example
+The [examples](https://gateway-docs.unruggable.com/examples) page may be of particular interest. 
 
-The example below fetches another contract's storage value `testUint`.
+We also have an [examples repo](https://github.com/unruggable-labs/gateway-examples) that utilises our npm package to demonstrate both simple and complex use cases in a few clicks.
 
-```
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+## Architecture
 
-import { EVMFetcher } from '@ensdomains/evm-verifier/contracts/EVMFetcher.sol';
-import { EVMFetchTarget } from '@ensdomains/evm-verifier/contracts/EVMFetchTarget.sol';
-import { IEVMVerifier } from '@ensdomains/evm-verifier/contracts/IEVMVerifier.sol';
+The core components of a chain solution are:
 
-contract TestL2 {
-    uint256 testUint; // Slot 0
-    
-    constructor() {
-        testUint = 42;
-    }
-}
+- **Gateway**: A HTTP server that handles responding to a virtual machine request by interfacing with the appropriate blockchain to return proofs of the requested data stored on that chain.
+- **Verifier**: A Solidity smart contract (deployed on Layer 1) that verifies the proofs returned by the gateway and returns the proven data values.
+- **Prover**: A Solidity library (deployed on Layer 1) that handles the chain-specific proving process.
 
-contract TestL1 is EVMFetchTarget {
-    using EVMFetcher for EVMFetcher.EVMFetchRequest;
+In addition to these core components, we have provided TypeScript implementations of the request builder ([vm.ts](https://github.com/unruggable-labs/evmgateway-v2/blob/main/v2/src/vm.ts)) and the provers (listed below) to allow smart contract implementors to quickly iterate and test when building solutions.
 
-    IEVMVerifier verifier;
-    address target;
+## Chain Support
 
-    constructor(IEVMVerifier _verifier, address _target) {
-        verifier = _verifier;
-        target = _target;
-    }
+There are currently implementations for the following chains:
 
-    function getTestUint() public view returns(uint256) {
-        EVMFetcher.newFetchRequest(verifier, target)
-            .getStatic(0)
-            .fetch(this.getSingleStorageSlotCallback.selector, "");
-    }
-
-    function getSingleStorageSlotCallback(bytes[] memory values, bytes memory) public pure returns(uint256) {
-        return uint256(bytes32(values[0]));
-    }
-}
+```bash
+Arbitrum
+Base
+Blast
+Fraxtal
+Linea
+Optimism
+Polygon PoS
+Scroll
+Taiko
+ZKSync
+Zora
 ```
 
-## Packages
+If you are interested in building out a solution for another chain, please take a look at our our [Contribution Guidelines](#contribution-guidelines) and/or [get in touch](https://unruggable.com/contact).
 
-This is a monorepo divided up into several packages:
+## Setup
 
-### [evm-gateway](/evm-gateway/)
-A framework for constructing generic CCIP-Read gateways targeting different EVM-compatible chains. This repository
-implements all the functionality required to fetch and verify multiple storage slots from an EVM-compatible chain,
-omitting only the L2-specific logic of determining a block to target, and verifying the root of the generated proof.
+1. [`foundryup`](https://book.getfoundry.sh/getting-started/installation)
+1. `forge install`
+1. `bun i`
+1. create [`.env`](./.env.example)
 
-### [l1-gateway](/l1-gateway/)
-An instantiation of `evm-gateway` that targets Ethereum L1 - that is, it implements a CCIP-Read gateway that generates
-proofs of contract state on L1.
+## Support
+* Provers
+	* [EthProver](./src/eth//EthProver.ts) &rarr; `eth_getProof`
+	* [LineaProver](./src/linea/LineaProver.ts) &rarr; `linea_getProof`
+	* [ZKSyncProver](./src/zksync/ZKSyncProver.ts) &rarr; `zks_getProof`
+* Rollups: 
+	* [OP](./src/op/OPRollup.ts) &mdash; Base, Blast, Fraxtal, Zora
+	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; OP Mainnet
+	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
+	* [Linea](./src/linea/LineaRollup.ts)
+	* [Polygon PoS](./src/polygon/PolygonPoSRollup.ts)
+	* [Polygon ZK](./src/polygon/PolygonZKRollup.ts) &mdash; *WIP*
+	* [Scroll](./src/scroll/ScrollRollup.ts)
+	* [Taiko](./src/taiko/TaikoRollup.ts)
+	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
 
-This may at first seem useless, but as the simplest possible practical EVM gateway implementation, it acts as an excellent
-target for testing the entire framework end-to-end.
+## Running a Gateway
 
-It may also prove useful for contracts that wish to trustlessly establish the content of storage variables of other contracts,
-or historic values for storage variables of any contract.
+* `bun run serve <chain> [port]`
+	* Chain names: `arb1` `base` `blast` `fraxtal` `linea` `op` `polygon` `scroll` `taiko` `zksync` `zora`
+	* Default port: `8000`
 
-### [evm-verifier](/evm-verifier/)
-A Solidity library that verifies state proofs generated by an `evm-gateway` instance. This library implements all the
-functionality required make CCIP-Read calls to an EVM gateway and verify the responses, except for verifying the root of the
-proof. This library is intended to be used by libraries for specific EVM-compatible chains that implement the missing 
-functionality.
+## Testing
 
-### [l1-verifier](/l1-verifier/)
-A complete Solidity library that facilitates sending CCIP-Read requests for L1 state, and verifying the responses.
+There is an extensive test suite available for testing individual components of the solution in an isolated manner. 
 
-This repository also contains the end-to-end tests for the entire stack.
+Using [blocksmith.js](https://github.com/adraffy/blocksmith.js/) and [Foundry](https://getfoundry.sh/) we fork the chain in question (such that can interact with contracts deployed on a real network) and then deploy and test against an isolated unit (for example the chain specific verifier).
 
-### [op-gateway](/op-gateway/)
-An instantiation of `evm-gateway` that targets Optimism. Combined with `op-verifier`, makes it possible for L1 contracts to fetch contract state data from Optimism.
+Commands available include:
 
-### [op-verifier](/op-verifier/)
-A complete Solidity library that facilitates sending CCIP-Read requests for Optimism state, and verifying the responses.
+* `bun run test`
+	* `bun run test-components`
+		* [Supported Operations](./test/components/ops.test.ts)
+		* [Protocol Limits](./test/components/limits.test.ts)
+		* [Batched `eth_getProof`](./test/components/proofs.test.ts)
+	* `bun run test-gateways`
+		* [Contract](./test/gateway/SlotDataContract.sol) &rarr; [Reader](./test/gateway/SlotDataReader.sol) &rarr; [Tests](./test/gateway/tests.ts)
+		* ⚠️ Scroll fails [`readZero()`](./test/gateway/tests.ts#L26) test
+		* ⚠️ Polygon has poor `eth_getProof` support
 
-### [arb-gateway](/arb-gateway/)
-An instantiation of `evm-gateway` that targets Arbitrum. Combined with `arb-verifier`, makes it possible for L1 contracts to fetch contract state data from Arbitrum.
+## Examples
 
-### [arb-verifier](/arb-verifier/)
-A complete Solidity library that facilitates sending CCIP-Read requests for Arbitrum state, and verifying the responses.
+A number of examples are provided as part of this repository. For more extensive step-wise example code, please see our [documentation](https://gateway-docs.unruggable.com/examples).
 
-### [scroll-gateway](/scroll-gateway/)
-An instantiation of `evm-gateway` that targets Scroll. Combined with `scroll-verifier`, makes it possible for L1 contracts to fetch contract state data from Scroll.
+* [enschain](./test/examples/enschain/) &rarr; [ensdomains/**enschain**](https://github.com/ensdomains/enschain/)
+	* `bun test/examples/enschain/demo.ts`
+* [ENSv2](./test/examples/ENSv2/)
+	* copy [`contracts/`](https://github.com/unruggable-labs/ENS-V2/tree/main/contracts)
+	* `bun test/examples/ENSv2/demo.ts`
+* [TeamNick](./test/examples/TeamNick/)
+	* `bun test/examples/TeamNick/fetch.ts`
+		* write requests [in JS](./test/examples//TeamNick/fetch.ts) to quickly iterate
+	* `bun test test/examples/TeamNick/resolver.test.ts`
+		* [port to Solidity](./test/examples/TeamNick/TeamNick.sol) and write tests [in JS](./test/examples/TeamNick/resolver.test.ts) to validate
+* [linea-ens](./test/v1/linea-ens.ts)
+	* Replacement backend demo for https://names.linea.build/
+	* `bun serve lineaV1`
 
-### [scroll-verifier](/scroll-verifier/)
-A complete Solidity library that facilitates sending CCIP-Read requests for Scroll state, and verifying the responses.
+## Notes
 
-## How to setup locally
+#### Suggested VSCode Extensions
 
+* [JuanBlanco.solidity](https://marketplace.visualstudio.com/items?itemName=JuanBlanco.solidity)
+* [esbenp.prettier-vscode](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+* [dbaeumer.vscode-eslint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
+
+#### Forge Setup
+```sh
+# installed by forge in step (2)
+# provided for reference
+forge install foundry-rs/forge-std
+forge install openzeppelin-contracts-v4.9=OpenZeppelin/openzeppelin-contracts@release-v4.9 # required for ens-contracts
+forge install ensdomains/ens-contracts
+forge install ensdomains/buffer
+forge install OpenZeppelin/openzeppelin-contracts@master # https://github.com/OpenZeppelin/openzeppelin-contracts/pull/4845
+forge install ethereum-optimism/optimism@v1.8.0
+forge install offchainlabs/nitro-contracts
+forge install ensdomains/enschain
+# forge install taikoxyz/taiko-mono # using inline headers instead
 ```
-gh repo clone ensdomains/evmgateway
-bun install # `@ensdomains/@ensdomains` not found error will be thrown
-bun run workspace evm-gateway build
-bun install
-bun run test
-```
 
-## Troubleshooting
 
-### Error HH12: Trying to use a non-local installation of Hardhat, which is not supported.
+## Contribution Guidelines
 
-`yarn test` spawns `hardhat test` in the forked process. When `hardhat` command is installed under the node_modules of under each workspace, it complains that it's using locally installed hardhat. Remove hardhat from local node_modules and make sure it's only installed under the root `node_modules`
+We welcome contributions to this codebase. 
 
-```
-rm -rf *-*/node_modules/hardhat
-rm bun.lockb
-bun install
-```
+The premise behind the development of this software is to minimise duplication of effort and provide tooling that allows developers to interface with a simple, standardised API to read data from other chains.
 
-## A guide on adding new chains
+Please take a look at our [CONTRIBUTING.md](https://github.com/unruggable-labs/evmgateway-v2/blob/main/v2/CONTRIBUTING.md) file for a more in depth overview of our contribution process.
 
-In a L2 rollup system, state hashes are stored on-chain, along with the transaction calls and arguments logged as calldata. a rollup has a mechanism to verify the state of their chain on L1, either instantly or optimistically.
+## Release Process
 
-ENS integration utilizes this mechanism in the gateway. The gateway retrieves the data from L2 along side with the proof (often via `eth_getProof`) and returns back to the caller. The caller passes the data to L1 resolver contract to verify its state and data([more detail](https://medium.com/the-ethereum-name-service/mvp-of-ens-on-l2-with-optimism-demo-video-how-to-try-it-yourself-b44c390cbd67)). As long as L1 contract can verify the state and storage of the L2 data, users no longer need to trust the gateway itself. If a gateway service is compromised, the worst can happen is that the gateway stops responding data ( when that happens, the owner of the resolver can simply startup new gateway and update the L1 contract to return the new gateway address). The parent owner does not even have to host the gateway services by themselves but can use third party gateway services.
+### Branching strategy
 
-To assess whether a L2 rollup system can integrate with ENS, please see the following steps.
+* [main](https://github.com/unruggable-labs/evmgateway-v2/tree/main) is our stable release branch that reflects the latest release.
+* [develop](https://github.com/unruggable-labs/evmgateway-v2/tree/develop) is our ongoing development branch. Feature branches are to merged down into this.
+* Feature Branches: Separate branches will be utilised for new feature development or bug fixes.
 
-1. Does the new chain use [same address format as the ones used in Ethereum](https://info.etherscan.com/what-is-an-ethereum-address/)? = Some ZKRollup chains use different address format. If that's the case, you need to add the wallet address format into ENS multicoin type. Please refer to [Starknet support PR as a reference](https://github.com/ensdomains/address-encoder/pull/365).
-2. Does RPC of the chain return [`eth_getProof`](https://docs.alchemy.com/reference/eth-getproof)? If not, it requies a way to retrieve a storage proof to verify on Ethereum L1
-3. Does the rollup contract have a function to return information of the latest L2 block committed to Ethereum L1? For Optimistic Rollup, it needs both the committed and finalised (after challenge period) block information. The `blockhash` is required to call `eth_getProof` equivalent function on L2
-4. Is there a way to verify on L1 contract that the state root returned from L2 is valid?
-5. Is there a way to verify that the `storageProof` is included in the state root? For Optimistic rollups, we can use [`Lib_SecureMerkleTrie`](https://github.com/ethereum-optimism/optimism/blob/develop/packages/contracts/contracts/libraries/trie/Lib\_SecureMerkleTrie.sol) library developed by the optimism team. If the chain doesn't support Patricia Merkle Trie, it needs own library
+## License
 
-### Integration examples
-
-Here are some of the PoC examples provided by other chains and the actual integration pull requests describing the basic flow.
-
-- Arbitrum = [PoC](https://gist.github.com/gzeoneth/0a8bac381752e4b4f30650a0d3c76096), [PR](https://github.com/ensdomains/evmgateway/pull/19)
-- Scroll = [PoC](https://github.com/makoto/scrolltest/blob/master/src/index.ts), [PR](https://github.com/ensdomains/evmgateway/pull/42)
-- Taiko = [PoC](https://github.com/makoto/taikotest)
-- Starknet = [PoC](https://github.com/NethermindEth/starknet-state-verifier)
-- ZKSync = [PoC](https://github.com/getclave/zksync-storage-proofs)
- 
+All files within this repository are licensed under the [MIT License](https://github.com/ethereum-optimism/optimism/blob/master/LICENSE) unless stated otherwise.

@@ -1,7 +1,0 @@
-# see: parent.git ignore
-#node_modules/
-#cache/
-out/
-junk/
-*.tgz
-.vscode/

@@ -1,8 +1,0 @@
-{
-  "extends": "../tsconfig.json",
-  "include": ["./"],
-  "compilerOptions": {
-    "module": "nodenext",
-    "types": ["bun-types"]
-  }
-}
