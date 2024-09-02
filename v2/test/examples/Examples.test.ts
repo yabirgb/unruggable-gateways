@@ -21,21 +21,21 @@ test('ClowesConcatSlice', async () => {
 
   const contract = await foundry.deploy({
     sol: `
-		contract C {
-			bytes slot0;
-			mapping (bytes => uint256) slot1;
-			constructor(bytes memory data, bytes memory key, uint256 value) {
-				slot0 = data;
-				slot1[key] = value;
-			}
-		}
-	`,
+      contract C {
+        bytes slot0;
+        mapping (bytes => uint256) slot1;
+        constructor(bytes memory data, bytes memory key, uint256 value) {
+          slot0 = data;
+          slot1[key] = value;
+        }
+      }
+  `,
     args: [data, key, VALUE],
   });
 
   const prover = await EthProver.latest(foundry.provider);
 
-  const r = new EVMRequest(2)
+  const req = new EVMRequest(2)
     .setTarget(contract.target)
     .setSlot(0)
     .readBytes()
@@ -50,7 +50,7 @@ test('ClowesConcatSlice', async () => {
     .read()
     .setOutput(1);
 
-  const values = await prover.evalRequest(r).then((r) => r.resolveOutputs());
+  const values = await prover.evalRequest(req).then((r) => r.resolveOutputs());
 
   expect(values).toHaveLength(2);
   expect(values[0]).toStrictEqual(data);
@@ -62,22 +62,24 @@ test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
   afterAll(() => foundry.shutdown());
   const contract = await foundry.deploy({
     sol: `
-		  contract X {
-			  mapping (uint256 => uint256) map;
-			  constructor() {
-				  map[1] = 2;
-			  }
-		  }
-	  `,
+      contract X {
+        mapping (uint256 => uint256) map;
+        constructor() {
+          map[1] = 2;
+        }
+      }
+    `,
   });
   const prover = await EthProver.latest(foundry.provider);
-  const r1 = new EVMRequest()
+
+  const req1 = new EVMRequest()
     .setTarget(contract.target)
     .push(1)
     .follow()
     .read()
     .addOutput();
-  const r2 = new EVMRequest()
+
+  const req2 = new EVMRequest()
     .setTarget(contract.target)
     .push(1)
     .pushSlot()
@@ -87,12 +89,15 @@ test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
     .addSlot()
     .read()
     .addOutput();
-  expect(r1.ops).toStrictEqual(r2.ops);
+
+  // the requests should be different
+  expect(Bun.deepEquals(req1.ops, req2.ops)).toStrictEqual(false);
+
+  // the outputs should be the same
   expect(
-    (async () =>
-      !Bun.deepEquals(
-        await prover.evalRequest(r1).then((x) => x.resolveOutputs()),
-        await prover.evalRequest(r2).then((x) => x.resolveOutputs())
-      ))()
-  ).resolves.toStrictEqual(true);
+    Bun.deepEquals(
+      await prover.evalRequest(req1).then((x) => x.resolveOutputs()),
+      await prover.evalRequest(req2).then((x) => x.resolveOutputs())
+    )
+  ).toStrictEqual(true);
 });

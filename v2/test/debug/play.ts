@@ -1,11 +1,5 @@
-import { EVMRequestV1 } from '../../src/v1.js';
-import { EVMRequest } from '../../src/vm.js';
-import { EthProver } from '../../src/eth/EthProver.js';
-//import {Foundry} from '@adraffy/blocksmith';
-//import {ethers} from 'ethers';
+import { EVMRequestV1, EVMRequest, EthProver, CHAINS,  NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup } from '../../src/index.js';
 import { createProvider, createProviderPair } from '../providers.js';
-import { CHAINS } from '../../src/chains.js';
-import { NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup } from '../../src/index.js';
 
 // this is just a worksheet
 

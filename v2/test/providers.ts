@@ -170,7 +170,7 @@ export const CHAIN_MAP = new Map(
       name: 'linea',
       rpc: 'https://rpc.linea.build',
       infura: 'linea-mainnet',
-      alchemy: 'linea-mainnet',
+      //alchemy: 'linea-mainnet', // 20240901: eth_getProof doesn't work
     },
     {
       chain: CHAINS.LINEA_SEPOLIA,
