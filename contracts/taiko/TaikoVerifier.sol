@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
-import {EVMProver, ProofSequence} from "../EVMProver.sol";
+import {DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 
 interface ITaiko {
@@ -62,7 +62,7 @@ contract TaikoVerifier is OwnedVerifier {
 	// 	// 63 % 16 == 15
 	// }
 
-	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint64 blockId1 = abi.decode(context, (uint64));
 		(
 			uint64 blockId,
@@ -72,7 +72,7 @@ contract TaikoVerifier is OwnedVerifier {
 		) = abi.decode(proof, (uint64, bytes32, bytes[], bytes));
 		_checkWindow(blockId1, blockId);
 		ITaiko.TransitionState memory ts = _rollup.getTransition(blockId, parentHash); // reverts if invalid
-		return EVMProver.evalRequest(req, ProofSequence(0, 
+		return DataProver.evalRequest(req, ProofSequence(0, 
 			ts.stateRoot,
 			proofs, order,
 			EthTrieHooks.proveAccountState,

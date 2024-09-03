@@ -1,28 +1,28 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {EVMRequest} from "./EVMProtocol.sol";
-import {IEVMVerifier} from "./IEVMVerifier.sol";
-import {IEVMProver} from "./IEVMProver.sol";
+import {DataRequest} from "./ProtocolData.sol";
+import {IDataProofVerifier} from "./IDataProofVerifier.sol";
+import {IDataProver} from "./IDataProver.sol";
 
 error OffchainLookup(address from, string[] urls, bytes request, bytes4 callback, bytes carry);
 
-abstract contract EVMFetchTarget {
+abstract contract DataFetchTarget {
 
 	struct Session {
-		IEVMVerifier verifier;
+		IDataProofVerifier verifier;
 		bytes context;
-		EVMRequest req;
+		DataRequest req;
 		bytes4 callback;
 		bytes carry;
 	}
 
-	function fetch(IEVMVerifier verifier, EVMRequest memory req, bytes4 callback, bytes memory carry) internal view {
+	function fetch(IDataProofVerifier verifier, DataRequest memory req, bytes4 callback, bytes memory carry) internal view {
 		bytes memory context = verifier.getLatestContext();
 		revert OffchainLookup(
 			address(this),
 			verifier.gatewayURLs(),
-			abi.encodeCall(IEVMProver.proveRequest, (context, req)),
+			abi.encodeCall(IDataProver.proveRequest, (context, req)),
 			this.fetchCallback.selector,
 			abi.encode(Session(verifier, context, req, callback, carry))
 		);

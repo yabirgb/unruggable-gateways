@@ -1,7 +1,7 @@
 import type { HexString } from '../../../src/types.js';
 import { ethers } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
-import { EVMRequest } from '../../../src/vm.js';
+import { DataRequest } from '../../../src/vm.js';
 import { EthProver } from '../../../src/eth/EthProver.js';
 import { ABI_CODER } from '../../../src/utils.js';
 
@@ -75,7 +75,7 @@ const prover = await EthProver.latest(foundry.provider);
 
 async function resolve(name: string) {
   console.log();
-  const req = new EVMRequest(3);
+  const req = new DataRequest(3);
   req.setTarget(storage.target); // use storage contract
   req.push(0).setOutput(0); // start at root (NOOP)
   name

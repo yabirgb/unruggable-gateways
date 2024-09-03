@@ -13,26 +13,26 @@ import {ITextResolver} from "@ensdomains/ens-contracts/contracts/resolvers/profi
 // libraries
 import {BytesUtils} from "@ensdomains/ens-contracts/contracts/wrapper/BytesUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {EVMFetcher, EVMRequest} from "@unruggable/gateways/contracts/EVMFetcher.sol";
+import {DataFetcher, DataRequest} from "@unruggable/gateways/contracts/DataFetcher.sol";
 
 // bases
-import {EVMFetchTarget, IEVMVerifier} from "@unruggable/gateways/contracts/EVMFetchTarget.sol";
+import {DataFetchTarget, IDataProofVerifier} from "@unruggable/gateways/contracts/DataFetchTarget.sol";
 
-contract TeamNick is IERC165, IExtendedResolver, EVMFetchTarget {
+contract TeamNick is IERC165, IExtendedResolver, DataFetchTarget {
 	using BytesUtils for bytes;
-	using EVMFetcher for EVMRequest;
+	using DataFetcher for DataRequest;
 
 	error Unreachable(bytes name);
 
 	ENS immutable _ens;
-	IEVMVerifier immutable _verifier;
+	IDataProofVerifier immutable _verifier;
 
 	uint256 constant SLOT_RECORDS = 7;
 	uint256 constant SLOT_SUPPLY = 8;
 
 	address constant TEAMNICK_ADDRESS = 0x7C6EfCb602BC88794390A0d74c75ad2f1249A17f;
 
-	constructor(ENS ens, IEVMVerifier verifier) {
+	constructor(ENS ens, IDataProofVerifier verifier) {
 		_ens = ens;
 		_verifier = verifier;
 	}
@@ -56,7 +56,7 @@ contract TeamNick is IERC165, IExtendedResolver, EVMFetchTarget {
 			if (keyhash == keccak256("url")) {
 				return abi.encode("https://teamnick.xyz");
 			} else if (keyhash == keccak256("description")) {
-				fetch(_verifier, EVMFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_SUPPLY).read().setOutput(0), this.descriptionCallback.selector, '');
+				fetch(_verifier, DataFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_SUPPLY).read().setOutput(0), this.descriptionCallback.selector, '');
 			}
 		}
 		return new bytes(64);
@@ -69,11 +69,11 @@ contract TeamNick is IERC165, IExtendedResolver, EVMFetchTarget {
 		uint256 token = pos == offset ? uint256(label) : 0;
 		bytes4 selector = bytes4(data);
 		if (selector == IAddrResolver.addr.selector) {
-			fetch(_verifier, EVMFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_RECORDS).push(token).follow().read().setOutput(0), this.addrCallback.selector, '');
+			fetch(_verifier, DataFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_RECORDS).push(token).follow().read().setOutput(0), this.addrCallback.selector, '');
 		} else if (selector == IAddressResolver.addr.selector) {
 			(, uint256 cty) = abi.decode(data[4:], (bytes32, uint256));
 			if (cty == 60) {
-				fetch(_verifier, EVMFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_RECORDS).push(token).follow().readBytes().setOutput(0), this.addressCallback.selector, '');
+				fetch(_verifier, DataFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_RECORDS).push(token).follow().readBytes().setOutput(0), this.addressCallback.selector, '');
 			}
 		} else if (selector == ITextResolver.text.selector) {
 			(, string memory key) = abi.decode(data[4:], (bytes32, string));
@@ -81,7 +81,7 @@ contract TeamNick is IERC165, IExtendedResolver, EVMFetchTarget {
 			if (keyhash == keccak256("name")) {
 				return abi.encode(name[1:pos]);
 			} else if (keyhash == keccak256("avatar")) { 
-				fetch(_verifier, EVMFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_RECORDS).push(token).follow().offset(1).readBytes().setOutput(0), this.textCallback.selector, '');
+				fetch(_verifier, DataFetcher.newRequest(1).setTarget(TEAMNICK_ADDRESS).setSlot(SLOT_RECORDS).push(token).follow().offset(1).readBytes().setOutput(0), this.textCallback.selector, '');
 			}
 		}
 		return new bytes(64);

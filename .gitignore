@@ -4,3 +4,4 @@ junk/
 *.tgz
 .vscode/
 .env
+dist/

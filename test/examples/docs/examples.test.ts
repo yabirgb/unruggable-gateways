@@ -1,7 +1,7 @@
 import type { HexString } from '../../../src/types.js';
 import { ethers } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
-import { EVMRequest } from '../../../src/vm.js';
+import { DataRequest } from '../../../src/vm.js';
 import { EthProver } from '../../../src/eth/EthProver.js';
 import { decodeStorageArray } from '../../utils.js';
 import { test, afterAll, expect } from 'bun:test';
@@ -30,7 +30,7 @@ async function setup() {
       return {
         prover,
         stateRoot,
-        async prove(req: EVMRequest) {
+        async prove(req: DataRequest) {
           const vm = await this.prover.evalRequest(req);
           const { proofs, order } = await this.prover.prove(vm.needs);
           const values = await vm.resolveOutputs();
@@ -66,7 +66,7 @@ test('get uint256', async () => {
   const P = await T.prover();
   //Build a request using our Typescript API
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1).setTarget(C.target).setSlot(0).read().setOutput(0)
+    new DataRequest(1).setTarget(C.target).setSlot(0).read().setOutput(0)
   );
   expect(exitCode).toStrictEqual(0);
   expect(values[0]).toStrictEqual(VALUE);
@@ -90,7 +90,7 @@ test('get random values from random slots', async () => {
     `,
   });
   const P = await T.prover();
-  const req = new EVMRequest(LENGTH_TO_USE).setTarget(C.target);
+  const req = new DataRequest(LENGTH_TO_USE).setTarget(C.target);
   XY.forEach(([x], i) => req.setSlot(x).read().setOutput(i));
   const { values, exitCode } = await P.prove(req);
   expect(exitCode).toStrictEqual(0);
@@ -112,7 +112,7 @@ test('get small and long string', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(2)
+    new DataRequest(2)
       .setTarget(C.target)
       .setSlot(0)
       .readBytes()
@@ -142,7 +142,7 @@ test('get small string from mapping', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1)
+    new DataRequest(1)
       .setTarget(C.target)
       .setSlot(0)
       .push(MAPPING_KEY)
@@ -171,7 +171,7 @@ test('get long string from mapping', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1)
+    new DataRequest(1)
       .setTarget(C.target)
       .setSlot(0)
       .push(MAPPING_KEY)
@@ -208,7 +208,7 @@ test('get struct data AND nested mapped struct', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(2)
+    new DataRequest(2)
       .setTarget(C.target)
       .setSlot(0)
       .push(1)
@@ -240,7 +240,7 @@ test('read multiple adjacent slot values', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1).setTarget(C.target).read(LENGTH_TO_USE).setOutput(0)
+    new DataRequest(1).setTarget(C.target).read(LENGTH_TO_USE).setOutput(0)
   );
   expect(exitCode).toStrictEqual(0);
   expect(values[0]).toStrictEqual(ethers.concat(VALUES));
@@ -259,7 +259,7 @@ test('bool[]', async () => {
   });
   const P = await T.prover();
   const { values, exitCode } = await P.prove(
-    new EVMRequest(1).setTarget(C.target).readArray(1).setOutput(0)
+    new DataRequest(1).setTarget(C.target).readArray(1).setOutput(0)
   );
   expect(exitCode).toStrictEqual(0);
   expect(
@@ -281,7 +281,7 @@ for (let N = 1; N <= 32; N <<= 1) {
     });
     const P = await T.prover();
     const { values, exitCode } = await P.prove(
-      new EVMRequest(1).setTarget(C.target).readArray(N).setOutput(0)
+      new DataRequest(1).setTarget(C.target).readArray(N).setOutput(0)
     );
     expect(exitCode).toStrictEqual(0);
     expect(decodeStorageArray(N, values[0])).toStrictEqual(VALUES);
@@ -303,7 +303,7 @@ for (let N = 1; N <= 32; N <<= 1) {
     });
     const P = await T.prover();
     const { values, exitCode } = await P.prove(
-      new EVMRequest(1).setTarget(C.target).readArray(N).setOutput(0)
+      new DataRequest(1).setTarget(C.target).readArray(N).setOutput(0)
     );
     expect(exitCode).toStrictEqual(0);
     expect(decodeStorageArray(N, values[0])).toStrictEqual(VALUES);

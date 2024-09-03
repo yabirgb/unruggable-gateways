@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
-import { EVMRequest } from '../../../src/vm.js';
+import { DataRequest } from '../../../src/vm.js';
 import { EthProver } from '../../../src/eth/EthProver.js';
 
 const foundry = await Foundry.launch();
@@ -19,7 +19,7 @@ const prover = await EthProver.latest(foundry.provider);
 
 // find versions => 1
 {
-  const req = new EVMRequest();
+  const req = new DataRequest();
   req.setTarget(resolver.target);
   const iNode = req.addInputBytes(node);
   for (let i = 0; i < 20; i++) {
@@ -32,7 +32,7 @@ const prover = await EthProver.latest(foundry.provider);
 
 // find text mapping => 11
 {
-  const req = new EVMRequest();
+  const req = new DataRequest();
   req.setTarget(resolver.target);
   const iVersion = req.addInput(1);
   const iNode = req.addInputBytes(node);

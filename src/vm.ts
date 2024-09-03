@@ -27,18 +27,18 @@ import { CachedMap, LRU } from './cached.js';
 type HexFuture = Unwrappable<HexString>;
 
 // maximum number of items on stack
-// the following should be equivalent to EVMProtocol.sol
+// the following should be equivalent to ProtocolData.sol
 export const MAX_STACK = 64;
 
 // OP_EVAL_LOOP flags
-// the following should be equivalent to EVMProtocol.sol
+// the following should be equivalent to ProtocolData.sol
 const STOP_ON_SUCCESS = 1;
 const STOP_ON_FAILURE = 2;
 const ACQUIRE_STATE = 4;
 
 // program ops
 // specific ids just need to be unique
-// the following should be equivalent to EVMProtocol.sol
+// the following should be equivalent to ProtocolData.sol
 const OP_DEBUG = 255; // experimental
 const OP_TARGET = 1;
 const OP_SET_OUTPUT = 2;
@@ -385,7 +385,7 @@ export class EVMProgram {
 }
 
 // a request is just a command where the leading byte is the number of outputs
-export class EVMRequest extends EVMProgram {
+export class DataRequest extends EVMProgram {
   context: HexString | undefined;
   constructor(outputCount = 0) {
     super(undefined);
@@ -544,7 +544,7 @@ export abstract class AbstractProver {
   async evalDecoded(ops: HexString, inputs: HexString[]) {
     return this.evalReader(new ProgramReader(getBytes(ops), inputs));
   }
-  async evalRequest(req: EVMRequest) {
+  async evalRequest(req: DataRequest) {
     return this.evalReader(ProgramReader.fromProgram(req));
   }
   async evalReader(reader: ProgramReader) {

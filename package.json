@@ -29,11 +29,11 @@
   "files": [
     "dist/",
     "src/",
-    "contracts/EVMFetcher.sol",
-    "contracts/EVMFetchTarget.sol",
-    "contracts/EVMProtocol.sol",
-    "contracts/IEVMProver.sol",
-    "contracts/IEVMVerifier.sol"
+    "contracts/DataFetcher.sol",
+    "contracts/DataFetchTarget.sol",
+    "contracts/ProtocolData.sol",
+    "contracts/IDataProver.sol",
+    "contracts/IDataProofVerifier.sol"
   ],
   "devDependencies": {
     "@adraffy/blocksmith": "^0.0.28",

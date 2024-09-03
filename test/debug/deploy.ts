@@ -7,12 +7,12 @@ const foundry = await Foundry.launch({
 
 // await foundry.deploy({
 //   sol: `
-//     import "@src/EVMProver.sol";
+//     import "@src/DataProver.sol";
 //     contract Prover {
 //       function f() external returns (bytes[] memory, uint8) {
-//         EVMRequest memory r;
+//         DataRequest memory r;
 //         ProofSequence memory s;
-//         return EVMProver.evalRequest(r, s);
+//         return DataProver.evalRequest(r, s);
 //       }
 //     }
 //   `,

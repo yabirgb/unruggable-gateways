@@ -1,7 +1,7 @@
 import { LineaCommit, LineaRollup } from './LineaRollup.js';
 import { isExistanceProof, LineaProof, LineaProofExistance } from './types.js';
 import { GatewayV1 } from '../gateway.js';
-import { EVMRequestV1 } from '../v1.js';
+import { DataRequestV1 } from '../v1.js';
 import { ABI_CODER } from '../utils.js';
 import { requireV1Needs } from '../vm.js';
 
@@ -11,7 +11,7 @@ import { requireV1Needs } from '../vm.js';
 // due to strange proof encoding: incorrect negative proofs + unnecessary data (key)
 
 export class LineaGatewayV1 extends GatewayV1<LineaRollup> {
-  override async handleRequest(commit: LineaCommit, request: EVMRequestV1) {
+  override async handleRequest(commit: LineaCommit, request: DataRequestV1) {
     const state = await commit.prover.evalRequest(request.v2());
     const { target, slots } = requireV1Needs(state.needs);
     const proofs = await commit.prover.getProofs(target, slots);

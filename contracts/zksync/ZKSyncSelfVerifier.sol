@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {EVMRequest, EVMProver, ProofSequence, NOT_A_CONTRACT} from "../EVMProver.sol";
+import {DataRequest, DataProver, ProofSequence, NOT_A_CONTRACT} from "../DataProver.sol";
 import {IZKSyncSMT, TreeEntry, ACCOUNT_CODE_HASH} from "./IZKSyncSMT.sol";
 
 //import "forge-std/console2.sol";
@@ -14,8 +14,8 @@ contract ZKSyncSelfVerifier {
 		_smt = smt;
 	}
 
-	function verify(EVMRequest memory req, bytes32 stateRoot, bytes[] memory proofs, bytes memory order) external view returns (bytes[] memory outputs, uint8 exitCode) {
-		return EVMProver.evalRequest(req, ProofSequence(0, 
+	function verify(DataRequest memory req, bytes32 stateRoot, bytes[] memory proofs, bytes memory order) external view returns (bytes[] memory outputs, uint8 exitCode) {
+		return DataProver.evalRequest(req, ProofSequence(0, 
 			stateRoot,
 			proofs, order,
 			proveAccountState,

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
-import {EVMProver, ProofSequence} from "../EVMProver.sol";
+import {DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 
@@ -67,7 +67,7 @@ contract OPFaultVerifier is OwnedVerifier {
 		return abi.encode(_gameFinder.findFinalizedGameIndex(_portal, _gameTypes, 0));
 	}
 
-	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 gameIndex1 = abi.decode(context, (uint256));
 		(
 			uint256 gameIndex,
@@ -91,7 +91,7 @@ contract OPFaultVerifier is OwnedVerifier {
 			require(gameProxy.status() == GameStatus.DEFENDER_WINS, "OPFault: not finalized");
 		}
 		require(Claim.unwrap(gameProxy.rootClaim()) == Hashing.hashOutputRootProof(outputRootProof), "OPFault: invalid root");
-		return EVMProver.evalRequest(req, ProofSequence(0,
+		return DataProver.evalRequest(req, ProofSequence(0,
 			outputRootProof.stateRoot,
 			proofs, order,
 			EthTrieHooks.proveAccountState,

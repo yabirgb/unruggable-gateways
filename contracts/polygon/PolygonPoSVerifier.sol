@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
-import {EVMRequest, EVMProver, ProofSequence} from "../EVMProver.sol";
+import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {IRootChainProxy} from "./IRootChainProxy.sol";
 import {RLPReader, RLPReaderExt} from "../RLPReaderExt.sol";
@@ -41,7 +41,7 @@ contract PolygonPoSVerifier is OwnedVerifier {
 	// gas to prove stateRoot:
 	// 20240828: ~100k gas
 	// 20240829: ~275k gas (forgot receipt proof)
-	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		//uint256 g = gasleft();
 		uint256 headerBlock1 = abi.decode(context, (uint256));
 		GatewayProof memory p = abi.decode(proof, (GatewayProof));
@@ -62,7 +62,7 @@ contract PolygonPoSVerifier is OwnedVerifier {
 		v = RLPReader.readList(p.rlpEncodedBlock);
 		bytes32 stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]);
 		//console2.log("Gas: %s", g - gasleft());
-		return EVMProver.evalRequest(req, ProofSequence(0,
+		return DataProver.evalRequest(req, ProofSequence(0,
 			stateRoot,
 			p.proofs, p.order,
 			EthTrieHooks.proveAccountState, 

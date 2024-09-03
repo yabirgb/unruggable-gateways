@@ -4,7 +4,7 @@ import {
   type WalletLike,
   type DeployedContract,
 } from '@adraffy/blocksmith';
-import { EVMRequest } from '../../../src/vm.js';
+import { DataRequest } from '../../../src/vm.js';
 import { EthProver } from '../../../src/eth/EthProver.js';
 import { HexString } from '../../../src/types.js';
 
@@ -121,7 +121,7 @@ const prover = await EthProver.latest(foundry.provider);
 
 async function resolve(name: string) {
   console.log();
-  const req = new EVMRequest(3);
+  const req = new DataRequest(3);
   const iNode = req.addInput(ethers.namehash(name));
   req.setTarget(datastore.target); // use storage contract
   req.push(rootRegistry.target).setOutput(0); // start at root

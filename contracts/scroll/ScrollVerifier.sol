@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import "../OwnedVerifier.sol";
-import {EVMProver, ProofSequence} from "../EVMProver.sol";
+import {DataProver, ProofSequence} from "../DataProver.sol";
 import {ScrollTrieHooks, IPoseidon} from "./ScrollTrieHooks.sol";
 
 interface IScrollChain {
@@ -29,7 +29,7 @@ contract ScrollVerifier is OwnedVerifier {
 		return abi.encode(_commitmentVerifier.rollup().lastFinalizedBatchIndex());
 	}
 
-	function getStorageValues(bytes memory context, EVMRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 batchIndex1 = abi.decode(context, (uint256));
 		(
 			uint256 batchIndex,
@@ -39,7 +39,7 @@ contract ScrollVerifier is OwnedVerifier {
 		_checkWindow(batchIndex1, batchIndex);
 		bytes32 stateRoot = _commitmentVerifier.rollup().finalizedStateRoots(batchIndex);
 		require(stateRoot != bytes32(0), "Scroll: not finalized");
-		return EVMProver.evalRequest(req, ProofSequence(0,
+		return DataProver.evalRequest(req, ProofSequence(0,
 			stateRoot,
 			proofs, order,
 			proveAccountState,

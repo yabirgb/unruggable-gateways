@@ -39,7 +39,7 @@ uint8 constant OP_KECCAK = 60;
 uint8 constant OP_CONCAT = 61;
 uint8 constant OP_SLICE	= 62;
 
-struct EVMRequest {
+struct DataRequest {
 	bytes ops;
 	bytes[] inputs;
 }
@@ -60,7 +60,7 @@ struct ProofSequence {
 // but they could be to further simplify the protocol
 error RequestOverflow();
 
-// this should be unreachable with a valid EVMRequest
+// this should be unreachable with a valid DataRequest
 error RequestInvalid();
 
 //error VerifierMismatch(bytes context, bytes32 derived, bytes32 actual);

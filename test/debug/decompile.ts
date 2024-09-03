@@ -1,9 +1,9 @@
-import { EVMRequest, ProgramReader } from '../../src/vm.js';
+import { DataRequest, ProgramReader } from '../../src/vm.js';
 
 // TODO: decompiler should execute machine
 // eg. OP_TARGET shows value from stack
 
-const req = new EVMRequest(1)
+const req = new DataRequest(1)
   .setTarget('0x51050ec063d393217B436747617aD1C2285Aeeee')
   .setSlot(420)
   .pushStr('chonk')

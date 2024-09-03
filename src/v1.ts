@@ -1,6 +1,6 @@
 import type { HexString, BigNumberish, BytesLike } from './types.js';
 import { ZeroAddress, hexlify, toBeHex, toUtf8Bytes, getBytes } from 'ethers';
-import { EVMRequest } from './vm.js';
+import { DataRequest } from './vm.js';
 
 // export const GATEWAY_ABI = new ethers.Interface([
 // 	`function getStorageSlots(address addr, bytes32[] commands, bytes[] constants) returns (bytes)`,
@@ -17,7 +17,7 @@ const OP_END = 0xff;
 
 const OPERAND_MASK = 0x1f;
 
-export class EVMRequestV1 {
+export class DataRequestV1 {
   constructor(
     public target: HexString = ZeroAddress,
     readonly commands: HexString[] = [],
@@ -25,7 +25,7 @@ export class EVMRequestV1 {
     private readonly buf: number[] = []
   ) {}
   clone() {
-    return new EVMRequestV1(
+    return new DataRequestV1(
       this.target,
       this.commands.slice(),
       this.constants.slice(),
@@ -84,7 +84,7 @@ export class EVMRequestV1 {
   // }
   v2() {
     this.end();
-    const req = new EVMRequest();
+    const req = new DataRequest();
     req.setTarget(this.target);
     for (const cmd of this.commands) {
       try {

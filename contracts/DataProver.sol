@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./EVMProtocol.sol";
+import "./ProtocolData.sol";
 import "./ProofUtils.sol";
 
 import {Bytes} from "@eth-optimism/contracts-bedrock/src/libraries/Bytes.sol"; // Bytes.slice
 
 import "forge-std/console2.sol"; // DEBUG
 
-library EVMProver {
+library DataProver {
 	
 	function dump(Machine memory vm) internal pure {
 		console2.log("[pos=%s/%s]", vm.pos, vm.buf.length);
@@ -51,7 +51,7 @@ library EVMProver {
 		ProofSequence proofs;
 	}
 
-	using EVMProver for Machine;
+	using DataProver for Machine;
 
 	function push(Machine memory vm, bytes memory v) internal pure {
 		vm.stack[vm.stackSize++] = v;
@@ -153,7 +153,7 @@ library EVMProver {
 		}
 	}
 
-	function evalRequest(EVMRequest memory req, ProofSequence memory proofs) internal view returns (bytes[] memory outputs, uint8 exitCode) {
+	function evalRequest(DataRequest memory req, ProofSequence memory proofs) internal view returns (bytes[] memory outputs, uint8 exitCode) {
 		Machine memory vm;
 		vm.pos = 0;
 		vm.buf = req.ops;

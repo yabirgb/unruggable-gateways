@@ -1,4 +1,4 @@
-import { EVMRequest } from '../../../src/vm.js';
+import { DataRequest } from '../../../src/vm.js';
 import { EthProver } from '../../../src/eth/EthProver.js';
 import { createProvider } from '../../providers.js';
 import { CHAINS } from '../../../src/chains.js';
@@ -8,7 +8,7 @@ import { ethers } from 'ethers';
 const prover = await EthProver.latest(createProvider(CHAINS.BASE));
 
 //https://basescan.org/address/0x7C6EfCb602BC88794390A0d74c75ad2f1249A17f#code
-const req = new EVMRequest(3)
+const req = new DataRequest(3)
   .setTarget('0x7C6EfCb602BC88794390A0d74c75ad2f1249A17f')
   .setSlot(8)
   .read()

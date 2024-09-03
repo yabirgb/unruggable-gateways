@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "./EVMProtocol.sol";
-import {IEVMVerifier} from "./IEVMVerifier.sol";
+import "./ProtocolData.sol";
+import {IDataProofVerifier} from "./IDataProofVerifier.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-abstract contract OwnedVerifier is IEVMVerifier, Ownable {
+abstract contract OwnedVerifier is IDataProofVerifier, Ownable {
 
 	event GatewayChanged();
 
