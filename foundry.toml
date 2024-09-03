@@ -11,7 +11,7 @@ remappings = [
 	'@eth-optimism=lib/optimism/packages/',
 	'@arbitrum/nitro-contracts=lib/nitro-contracts/',
 	'@ensdomains/enschain=lib/enschain/',
-	'@ensdomains/evmgateway=./'
+	'@unruggable/gateways=./'
 ]
 
 optimizer = true

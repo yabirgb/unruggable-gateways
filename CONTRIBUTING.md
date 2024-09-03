@@ -6,12 +6,12 @@ We welcome contributions from the community to help extend and improve the EVM G
 
 To get started with contributing, please follow these steps:
 
-1. **Fork the Repository**: Fork the [repository](https://github.com/unruggable-labs/evmgateway-v2/tree/main/v2) to your own GitHub account.
+1. **Fork the Repository**: Fork the [repository](https://github.com/unruggable-labs/unruggable-gateways/tree/main/v2) to your own GitHub account.
 2. **Clone Your Fork**: Clone your forked repository to your local machine.
 
    ```bash
-   git clone https://github.com/your-username/evmgateway-v2.git
-   cd evmgateway-v2/v2
+   git clone https://github.com/your-username/unruggable-gateways.git
+   cd unruggable-gateways/v2
    ```
 
 3. **Create a New Branch**: Create a new branch for your work. Make sure to give it a descriptive name that summarizes your changes.
@@ -34,7 +34,7 @@ To get started with contributing, please follow these steps:
 
 5. **Make Your Changes**: Make your changes to the codebase. Ensure your changes are well-documented and follow the existing code style.
 
-6. **Run Tests**: We utilize Github Actions to run our tests on each push (see [`v2.yml`](https://github.com/unruggable-labs/evmgateway-v2/blob/main/.github/workflows/v2.yml)). Ensure all tests pass before submitting your changes. You can run tests with the following command:
+6. **Run Tests**: We utilize Github Actions to run our tests on each push (see [`v2.yml`](https://github.com/unruggable-labs/unruggable-gateways/blob/main/.github/workflows/v2.yml)). Ensure all tests pass before submitting your changes. You can run tests with the following command:
 
    ```bash
    bun test
@@ -69,12 +69,12 @@ To maintain consistency and quality in the codebase, please adhere to the follow
 
 - **Code Style**: Follow the existing code style and structure. Ensure your code is clean, readable, and well-documented.
 - **Testing**: All new features and bug fixes should be covered by tests. Make sure that your tests pass before submitting your pull request.
-- **Documentation**: If your contribution adds or changes functionality, please write appropriate documentation and submit a matching pull request to our [documentation reopsitory](https://github.com/unruggable-labs/evmgateway-v2-docs).
+- **Documentation**: If your contribution adds or changes functionality, please write appropriate documentation and submit a matching pull request to our [documentation reopsitory](https://github.com/unruggable-labs/unruggable-gateways-documentation).
 - **Keep It Focused**: Make sure your pull request is focused on a single issue or feature. Avoid combining multiple unrelated changes in a single PR.
 
 ## Reporting Issues
 
-If you encounter a bug, have a feature request, or need help, please open an issue on the [GitHub Issues](https://github.com/unruggable-labs/evmgateway-v2/issues) page. When opening an issue, please provide as much detail as possible to help us understand the problem or suggestion.
+If you encounter a bug, have a feature request, or need help, please open an issue on the [GitHub Issues](https://github.com/unruggable-labs/unruggable-gateways/issues) page. When opening an issue, please provide as much detail as possible to help us understand the problem or suggestion.
 
 ## Community
 

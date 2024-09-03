@@ -2,15 +2,15 @@
     <img src="./unruggable-logo-black.png" style = "width:300px;" alt = "Unruggable Gateways" />
 </p>
 
-# EVMGateway (v2)
+# Unruggable Gateways
 
-This repository provides an end-to-end code solution for resolving data from other blockchains and verifying it against state posted to Layer 1 Ethereum.
+This repository provides an end-to-end code solution for resolving data from rollup chains and verifying it against state posted to Layer 1 Ethereum.
 
 ## Quickstart
 
 Install our npm package:
 
-`$ npm i @unruggable/evmgateway` [&check;](https://www.npmjs.com/package/@unruggable/evmgateway)
+`$ npm i @unruggable/gateways` [&check;](https://www.npmjs.com/package/@unruggable/unruggable-gateways)
 
 We have extensive [documentation](https://gateway-docs.unruggable.com), with a slightly less quick [Quickstart](https://gateway-docs.unruggable.com/quickstart). 
 
@@ -22,11 +22,11 @@ We also have an [examples repo](https://github.com/unruggable-labs/gateway-examp
 
 The core components of a chain solution are:
 
-- **Gateway**: A HTTP server that handles responding to a virtual machine request by interfacing with the appropriate blockchain to return proofs of the requested data stored on that chain.
+- **Gateway**: A HTTP server that handles responding to a virtual machine request by interfacing with the appropriate rollup to return proofs of the requested data stored on that chain.
 - **Verifier**: A Solidity smart contract (deployed on Layer 1) that verifies the proofs returned by the gateway and returns the proven data values.
 - **Prover**: A Solidity library (deployed on Layer 1) that handles the chain-specific proving process.
 
-In addition to these core components, we have provided TypeScript implementations of the request builder ([vm.ts](https://github.com/unruggable-labs/evmgateway-v2/blob/main/v2/src/vm.ts)) and the provers (listed below) to allow smart contract implementors to quickly iterate and test when building solutions.
+In addition to these core components, we have provided TypeScript implementations of the request builder ([vm.ts](https://github.com/unruggable-labs/unruggable-gateways/blob/main/v2/src/vm.ts)) and the provers (listed below) to allow smart contract implementors to quickly iterate and test when building solutions.
 
 ## Chain Support
 
@@ -143,14 +143,14 @@ We welcome contributions to this codebase.
 
 The premise behind the development of this software is to minimise duplication of effort and provide tooling that allows developers to interface with a simple, standardised API to read data from other chains.
 
-Please take a look at our [CONTRIBUTING.md](https://github.com/unruggable-labs/evmgateway-v2/blob/main/v2/CONTRIBUTING.md) file for a more in depth overview of our contribution process.
+Please take a look at our [CONTRIBUTING.md](https://github.com/unruggable-labs/unruggable-gateways/blob/main/v2/CONTRIBUTING.md) file for a more in depth overview of our contribution process.
 
 ## Release Process
 
 ### Branching strategy
 
-* [main](https://github.com/unruggable-labs/evmgateway-v2/tree/main) is our stable release branch that reflects the latest release.
-* [develop](https://github.com/unruggable-labs/evmgateway-v2/tree/develop) is our ongoing development branch. Feature branches are to merged down into this.
+* [main](https://github.com/unruggable-labs/unruggable-gateways/tree/main) is our stable release branch that reflects the latest release.
+* [develop](https://github.com/unruggable-labs/unruggable-gateways/tree/develop) is our ongoing development branch. Feature branches are to merged down into this.
 * Feature Branches: Separate branches will be utilised for new feature development or bug fixes.
 
 ## License

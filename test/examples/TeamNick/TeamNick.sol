@@ -13,10 +13,10 @@ import {ITextResolver} from "@ensdomains/ens-contracts/contracts/resolvers/profi
 // libraries
 import {BytesUtils} from "@ensdomains/ens-contracts/contracts/wrapper/BytesUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {EVMFetcher, EVMRequest} from "@ensdomains/evmgateway/contracts/EVMFetcher.sol";
+import {EVMFetcher, EVMRequest} from "@unruggable/gateways/contracts/EVMFetcher.sol";
 
 // bases
-import {EVMFetchTarget, IEVMVerifier} from "@ensdomains/evmgateway/contracts/EVMFetchTarget.sol";
+import {EVMFetchTarget, IEVMVerifier} from "@unruggable/gateways/contracts/EVMFetchTarget.sol";
 
 contract TeamNick is IERC165, IExtendedResolver, EVMFetchTarget {
 	using BytesUtils for bytes;
