@@ -5,6 +5,7 @@ import "../OwnedVerifier.sol";
 import {DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
+import "forge-std/console2.sol"; // DEBUG
 
 interface IL2OutputOracle {
 	function latestOutputIndex() external view returns (uint256);
@@ -13,14 +14,19 @@ interface IL2OutputOracle {
 
 contract OPVerifier is OwnedVerifier {
 
-	IL2OutputOracle immutable _oracle;
+	function getOracle() internal view returns (IL2OutputOracle) {
 
-	/*constructor(string[] memory urls, uint256 window, IL2OutputOracle oracle) OwnedVerifier(urls, window) {
-		_oracle = oracle;
-	}*/
+		address oracleAddress = getProxy().readAddressFromConfig("rollupAddress");
+
+		console2.log("oracleAddress");
+		console2.logBytes(abi.encode(oracleAddress));
+
+		return IL2OutputOracle(oracleAddress);
+	}
+
 
 	function getLatestContext() external view returns (bytes memory) {
-		return abi.encode(_oracle.latestOutputIndex());
+		return abi.encode(getOracle().latestOutputIndex());
 	}
 
 	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
@@ -31,9 +37,9 @@ contract OPVerifier is OwnedVerifier {
 			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (uint256, Types.OutputRootProof, bytes[], bytes));
-		Types.OutputProposal memory output = _oracle.getL2Output(outputIndex);
+		Types.OutputProposal memory output = getOracle().getL2Output(outputIndex);
 		if (outputIndex != outputIndex1) {
-			Types.OutputProposal memory output1 = _oracle.getL2Output(outputIndex1);
+			Types.OutputProposal memory output1 = getOracle().getL2Output(outputIndex1);
 			_checkWindow(output1.timestamp, output.timestamp);
 		}
 		bytes32 computedRoot = Hashing.hashOutputRootProof(outputRootProof);

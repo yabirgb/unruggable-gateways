@@ -27,13 +27,13 @@ contract SlotDataReader is DataFetchTarget {
 		return "test2";
 	}
 
-	function readLatest() external  returns (uint256) {
+	function readLatest() external view returns (uint256) {
 		//return 123;
 		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(0).read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}
-/*
+
 	function readName() external view returns (string memory) {
 		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(1).readBytes().setOutput(0);
@@ -93,5 +93,5 @@ contract SlotDataReader is DataFetchTarget {
 		r.concat().keccak().setSlot(3).follow().readBytes().setOutput(0); // highscorers[keccak("Hal"+12345)]
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
-*/
+
 }

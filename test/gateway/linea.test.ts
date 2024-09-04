@@ -5,13 +5,15 @@ import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
+import { ABI_CODER } from '../../src/utils.js';
 
 describe('linea', async () => {
   const config = LineaRollup.mainnetConfig;
   const rollup = new LineaRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
-    infoLog: false,
+    infoLog: true,
+    procLog: true,
   });
   afterAll(() => foundry.shutdown());
   const gateway = new Gateway(rollup);
@@ -22,15 +24,41 @@ describe('linea', async () => {
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'LineaVerifier',
-    args: [[ccip.endpoint], rollup.defaultWindow, rollup.L1MessageService],
+    args: [],
     libs: {
       SparseMerkleProof: config.SparseMerkleProof,
     },
   });
+
+  //[ccip.endpoint], rollup.defaultWindow, rollup.L1MessageService
+
+  const gatewayUrlsBytes = ABI_CODER.encode(['string[]'], [[ccip.endpoint]]);
+  const windowBytes = ABI_CODER.encode(['uint256'], [rollup.defaultWindow]);
+  const rollupAddressBytes = ABI_CODER.encode(
+    ['address'],
+    [rollup.L1MessageService.target]
+  );
+
+  const theArgs = [
+    verifier.target,
+    (await foundry.ensureWallet('admin')).address,
+    '0x',
+    gatewayUrlsBytes,
+    windowBytes,
+    rollupAddressBytes,
+  ];
+
+  console.log('args', theArgs);
+
+  const proxy = await foundry.deploy({
+    file: 'VerifierProxy',
+    args: theArgs,
+  });
+
   // https://lineascan.build/address/0x48F5931C5Dbc2cD9218ba085ce87740157326F59#code
   const reader = await foundry.deploy({
     file: 'SlotDataReader',
-    args: [verifier, '0x48F5931C5Dbc2cD9218ba085ce87740157326F59'],
+    args: [proxy.target, '0x48F5931C5Dbc2cD9218ba085ce87740157326F59'],
   });
   runSlotDataTests(reader);
 });

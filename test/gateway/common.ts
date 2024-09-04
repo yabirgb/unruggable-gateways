@@ -24,6 +24,7 @@ export function testOP(
     const foundry = await Foundry.launch({
       fork: providerURL(config.chain1),
       infoLog: false,
+      procLog: true,
     });
     afterAll(() => foundry.shutdown());
     const gateway = new Gateway(rollup);
@@ -32,14 +33,47 @@ export function testOP(
       log: false,
     });
     afterAll(() => ccip.http.close());
+
     const verifier = await foundry.deploy({
       file: 'OPVerifier',
-      args: [[ccip.endpoint], rollup.defaultWindow, rollup.L2OutputOracle],
+      args: [],
     });
+
+    const gatewayUrlsBytes = ABI_CODER.encode(['string[]'], [[ccip.endpoint]]);
+    const windowBytes = ABI_CODER.encode(['uint256'], [rollup.defaultWindow]);
+    const rollupAddressBytes = ABI_CODER.encode(
+      ['address'],
+      [rollup.L2OutputOracle.target]
+    );
+
+    const theArgs = [
+      verifier.target,
+      (await foundry.ensureWallet('admin')).address,
+      '0x',
+      gatewayUrlsBytes,
+      windowBytes,
+      rollupAddressBytes,
+    ];
+
+    console.log('args', theArgs);
+    //process.exit();
+
+    const proxy = await foundry.deploy({
+      file: 'VerifierProxy',
+      args: theArgs,
+    });
+
     const reader = await foundry.deploy({
       file: 'SlotDataReader',
-      args: [verifier, slotDataReaderAddress],
+      args: [proxy.target, slotDataReaderAddress],
     });
+
+    console.log('reader', reader.target);
+    console.log('proxy', proxy.target);
+    
+    //const result = await reader.readLatest({ enableCcipRead: true, gasLimit: 3e7 });
+    //console.log('CCIP read result:', result);
+
     runSlotDataTests(reader);
   });
 }
@@ -152,7 +186,7 @@ export function testOPFault(
         49n
       );
     });*/
-    const result = reader.readLatest({ enableCcipRead: true });
+    const result = await reader.readLatest({ enableCcipRead: true });
     console.log('CCIP read result:', result);
 
     /*try {
