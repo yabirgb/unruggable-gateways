@@ -11,9 +11,11 @@ contract NitroVerifier is OwnedVerifier {
 
 	IRollupCore immutable _rollup;
 
+/*
 	constructor(string[] memory urls, uint256 window, IRollupCore rollup) OwnedVerifier(urls, window) {
 		_rollup = rollup;
 	}
+*/
 
 	function getLatestContext() external view returns (bytes memory) {
 		return abi.encode(_rollup.latestConfirmed());

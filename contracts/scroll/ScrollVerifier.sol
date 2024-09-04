@@ -20,10 +20,12 @@ contract ScrollVerifier is OwnedVerifier {
 	IScrollChainCommitmentVerifier immutable _commitmentVerifier;
 	//IPoseidon immutable _poseidon;
 
+/*
 	constructor(string[] memory urls, uint256 window, IScrollChainCommitmentVerifier commitmentVerifier) OwnedVerifier(urls, window) {
 		_commitmentVerifier = commitmentVerifier;
 		//_poseidon = _commitmentVerifier.poseidon();
 	}
+*/
 
 	function getLatestContext() external view returns (bytes memory) {
 		return abi.encode(_commitmentVerifier.rollup().lastFinalizedBatchIndex());

@@ -21,7 +21,7 @@ contract TestImplementation {
 
     //This method accesses and returns configuration data from the VerifierProxy contract for which this is the implementation contract
     function readFromConfig() public view returns (bytes memory) {  
-        bytes32 key = bytes32(abi.encodePacked("key"));
+        string memory key = "key";
         address payable proxyAddress = payable(address(this));
         return VerifierProxy(proxyAddress).getConfig(key);
     }

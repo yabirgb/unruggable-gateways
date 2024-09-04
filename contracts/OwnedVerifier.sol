@@ -1,38 +1,47 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import "./VerifierProxy.sol";
 import "./ProtocolData.sol";
 import {IDataProofVerifier} from "./IDataProofVerifier.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import "forge-std/console2.sol"; // DEBUG
 
 abstract contract OwnedVerifier is IDataProofVerifier, Ownable {
 
 	event GatewayChanged();
+	
+	constructor() Ownable(msg.sender) {}
 
-	string[] _gatewayURLs;
-	uint256 _window;
+	function getProxy() internal view returns (VerifierProxy) {
 
-	constructor(string[] memory urls, uint256 window) Ownable(msg.sender) {
-		_gatewayURLs = urls;
-		_window = window;
+		console2.log("GET PROXY");
+				console2.logBytes(abi.encode(address(this)));
+
+		address payable proxyAddress = payable(address(this));	
+		return VerifierProxy(proxyAddress);
 	}
 
-	function setGatewayURLs(string[] memory urls) external onlyOwner {
-		_gatewayURLs = urls;
-		emit GatewayChanged();
-	}
-	function setWindow(uint256 window) external onlyOwner {
-		_window = window;
-		emit GatewayChanged();
+	function lol() public view returns (uint256) {
+		
+		console2.logBytes(abi.encode(address(this)));
+		return getWindow();
 	}
 
-	function gatewayURLs() external view returns (string[] memory) {
-		return _gatewayURLs;
+	function gatewayURLs() public view returns (string[] memory) {
+		VerifierProxy proxy = getProxy();
+		string[] memory gatewayUrls = proxy.readStringArrayFromConfig("gatewayUrls");
+		return gatewayUrls;
+	}
+
+	function getWindow() internal view returns (uint256) {
+		uint256 window = getProxy().readUint256FromConfig("window");
+		return window;
 	}
 
 	function _checkWindow(uint256 latest, uint256 got) internal view {
 		if (got > latest) revert("too new");
-		if (got + _window < latest) revert("too old");
+		if (got + getWindow() < latest) revert("too old");
 	}
 
 }

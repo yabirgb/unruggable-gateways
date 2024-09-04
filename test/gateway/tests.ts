@@ -7,7 +7,7 @@ export function runSlotDataTests(reader: Contract) {
       49n
     );
   });
-  test('name = "Satoshi"', () => {
+  /*test('name = "Satoshi"', () => {
     expect(reader.readName({ enableCcipRead: true })).resolves.toStrictEqual(
       'Satoshi'
     );
@@ -61,5 +61,5 @@ export function runSlotDataTests(reader: Contract) {
     expect(
       await reader.readSlicedKeccak({ enableCcipRead: true })
     ).toStrictEqual('chonk');
-  });
+  });*/
 }

@@ -15,9 +15,9 @@ contract OPVerifier is OwnedVerifier {
 
 	IL2OutputOracle immutable _oracle;
 
-	constructor(string[] memory urls, uint256 window, IL2OutputOracle oracle) OwnedVerifier(urls, window) {
+	/*constructor(string[] memory urls, uint256 window, IL2OutputOracle oracle) OwnedVerifier(urls, window) {
 		_oracle = oracle;
-	}
+	}*/
 
 	function getLatestContext() external view returns (bytes memory) {
 		return abi.encode(_oracle.latestOutputIndex());

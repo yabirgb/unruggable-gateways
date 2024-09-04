@@ -1,5 +1,8 @@
 import { encodeBytes32String, Interface, Contract, toUtf8String } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
+import { OPFaultRollup } from '../../../src/op/OPFaultRollup.js';
+import { createProviderPair } from '../../providers.js';
+import { ABI_CODER } from '../../../src/utils.js';
 
 const foundry = await Foundry.launch({
   /*procLog: true, infoLog: true*/
@@ -18,10 +21,30 @@ async function deployImplementation(value: string) {
   });
 }
 
+const config = OPFaultRollup.mainnetConfig;
+const rollup = await OPFaultRollup.create(createProviderPair(config), config);
+
+const gatewayUrlsBytes = ABI_CODER.encode(
+  ['string[]'],
+  [['http://localhost:3000']]
+);
+const windowBytes = ABI_CODER.encode(['uint256'], [rollup.defaultWindow]);
+const rollupAddressBytes = ABI_CODER.encode(
+  ['address'],
+  [config.OptimismPortal]
+);
+
 async function deployProxy(name: string, implementation: Contract) {
   return foundry.deploy({
     file: 'VerifierProxy',
-    args: [implementation.target, adminWallet.address, '0x'],
+    args: [
+      implementation.target,
+      adminWallet.address,
+      '0x',
+      gatewayUrlsBytes,
+      windowBytes,
+      rollupAddressBytes,
+    ],
   });
 }
 

@@ -27,10 +27,10 @@ contract ZKSyncVerifier is OwnedVerifier {
 	IZKSyncDiamond immutable _diamond;
 	IZKSyncSMT immutable _smt;
 
-	constructor(string[] memory urls, uint256 window, IZKSyncDiamond diamond, IZKSyncSMT smt) OwnedVerifier(urls, window) {
+	/*constructor(string[] memory urls, uint256 window, IZKSyncDiamond diamond, IZKSyncSMT smt) OwnedVerifier(urls, window) {
 		_diamond = diamond;
 		_smt = smt;
-	}
+	}*/
 
 	function getLatestContext() external view returns (bytes memory) {
 		return abi.encode(_diamond.getTotalBatchesExecuted() - 1);

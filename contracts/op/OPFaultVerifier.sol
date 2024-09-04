@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import "../VerifierProxy.sol";
 import "../OwnedVerifier.sol";
 import {DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
@@ -48,23 +49,39 @@ type Position is uint128;
 
 contract OPFaultVerifier is OwnedVerifier {
 
-	IOptimismPortal immutable _portal;
-	IOPFaultGameFinder immutable _gameFinder;
-	uint256 _gameTypes;
+	/*constructor(string[] memory urls, uint256 window, IOptimismPortal portal, IOPFaultGameFinder gameFinder, uint256 gameTypes) OwnedVerifier(urls, window) {}
+*/
 
-	constructor(string[] memory urls, uint256 window, IOptimismPortal portal, IOPFaultGameFinder gameFinder, uint256 gameTypes) OwnedVerifier(urls, window) {
-		_portal = portal;
-		_gameFinder = gameFinder;
-		_gameTypes = gameTypes;
+	function getPortal() internal view returns (IOptimismPortal) {
+
+		address portalAddress = getProxy().readAddressFromConfig("rollup");
+
+		return IOptimismPortal(portalAddress);
 	}
 
-	function setGameTypes(uint256 gameTypes) external onlyOwner {
+	function getGameFinder() internal view returns (IOPFaultGameFinder) {
+
+		address gameFinderAddress = getProxy().readAddressFromConfig("gameFinder");
+
+		return IOPFaultGameFinder(gameFinderAddress);
+	}
+
+	function getGameTypes() internal view returns (uint256) {
+
+		uint256 gameTypes = getProxy().readUint256FromConfig("gameTypes");
+
+		return gameTypes;
+	}
+
+
+
+	/*function setGameTypes(uint256 gameTypes) external onlyOwner {
 		_gameTypes = gameTypes;
 		emit GatewayChanged();
-	}
+	}*/
 
-	function getLatestContext() external virtual view returns (bytes memory) {
-		return abi.encode(_gameFinder.findFinalizedGameIndex(_portal, _gameTypes, 0));
+	function getLatestContext() public virtual view returns (bytes memory) {
+		return abi.encode(getGameFinder().findFinalizedGameIndex(getPortal(), getGameTypes(), 0));
 	}
 
 	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
@@ -75,7 +92,7 @@ contract OPFaultVerifier is OwnedVerifier {
 			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (uint256, Types.OutputRootProof, bytes[], bytes));
-		IDisputeGameFactory factory = _portal.disputeGameFactory();
+		IDisputeGameFactory factory = getPortal().disputeGameFactory();
 		(GameType gt, , IDisputeGame gameProxy) = factory.gameAtIndex(gameIndex);
 		if (gameIndex != gameIndex1) {
 			// the gateway gave us a different game, so lets check it
@@ -85,8 +102,8 @@ contract OPFaultVerifier is OwnedVerifier {
 			// check if game is finalized
 			//(, , uint256 blockNumber) = _gameFinder.getFinalizedGame(_portal, _gameTypes, gameIndex);
 			//require(blockNumber != 0, "OPFault: not finalized");
-			uint256 gameTypes = _gameTypes;
-			if (gameTypes == 0) gameTypes = 1 << GameType.unwrap(_portal.respectedGameType());
+			uint256 gameTypes = getGameTypes();
+			if (gameTypes == 0) gameTypes = 1 << GameType.unwrap(getPortal().respectedGameType());
 			require((gameTypes & (1 << GameType.unwrap(gt))) != 0, "OPFault: unsupported gameType");
 			require(gameProxy.status() == GameStatus.DEFENDER_WINS, "OPFault: not finalized");
 		}

@@ -14,9 +14,9 @@ contract PolygonPoSVerifier is OwnedVerifier {
 	IRootChainProxy immutable _rootChain;
 	mapping (address => bool) _posters;
 
-	constructor(string[] memory urls, uint256 window, IRootChainProxy rootChain) OwnedVerifier(urls, window) {
+	/*constructor(string[] memory urls, uint256 window, IRootChainProxy rootChain) OwnedVerifier(urls, window) {
 		_rootChain = rootChain;
-	}
+	}*/
 
 	function togglePoster(address poster, bool allowed) onlyOwner external {
 		_posters[poster] = allowed;

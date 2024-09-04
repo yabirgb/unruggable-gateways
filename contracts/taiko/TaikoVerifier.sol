@@ -37,9 +37,11 @@ contract TaikoVerifier is OwnedVerifier {
 
 	ITaiko immutable _rollup;
 
+/*
 	constructor(string[] memory urls, uint256 window, ITaiko rollup) OwnedVerifier(urls, window) {
 		_rollup = rollup;
 	}
+*/
 
 	function getLatestContext() external view returns (bytes memory) {
 		(uint64 blockId, , ) = _rollup.getLastSyncedBlock();

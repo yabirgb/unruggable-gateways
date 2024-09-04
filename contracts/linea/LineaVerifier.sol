@@ -14,9 +14,11 @@ contract LineaVerifier is OwnedVerifier {
 
 	IRollup immutable _rollup;
 	
+	/*
 	constructor(string[] memory urls, uint256 window, IRollup rollup) OwnedVerifier(urls, window) {
 		_rollup = rollup;
 	}
+*/
 
 	function getLatestContext() external view returns (bytes memory) {
 		return abi.encode(_rollup.currentL2BlockNumber());

@@ -4,6 +4,8 @@ pragma solidity ^0.8.25;
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
+import "forge-std/console2.sol"; // DEBUG
+
 /**
  * @title Custom Proxy with Integrated Config Storage
  * Extends OpenZeppelin TransparentUpgradeableProxy to add safe configuration storage.
@@ -41,8 +43,16 @@ contract VerifierProxy is TransparentUpgradeableProxy {
     constructor(
         address _logic,
         address admin_,
-        bytes memory _data
-    ) TransparentUpgradeableProxy(_logic, admin_, _data) {}
+        bytes memory _data,
+        bytes memory urls, 
+        bytes memory window, 
+        bytes memory rollupAddress
+    ) TransparentUpgradeableProxy(_logic, admin_, _data) {
+
+        setConfig("gatewayUrls", urls);
+        setConfig("window", window);
+        setConfig("rollupAddress", rollupAddress);
+    }
 
 
     /**
@@ -50,7 +60,7 @@ contract VerifierProxy is TransparentUpgradeableProxy {
     * Uses a unique storage slot to avoid collisions with implementation storage.
     * Restricted to admin only by default due to TransparentUpgradeableProxy behavior.
     */
-    function setConfig(bytes32 key, bytes calldata value) external isAdminOwner {
+    function setConfig(string memory key, bytes memory value) public isAdminOwner {
 
         bytes32 slot = keccak256(abi.encodePacked(_CONFIG_SLOT, key));
 
@@ -77,7 +87,7 @@ contract VerifierProxy is TransparentUpgradeableProxy {
     /**
      * @dev Returns a configuration value encoded as bytes based on its key.
      */
-    function getConfig(bytes32 key) external view returns (bytes memory value) {
+    function getConfig(string memory key) external view returns (bytes memory value) {
         bytes32 slot = keccak256(abi.encodePacked(_CONFIG_SLOT, key));
         uint256 dataLength;
 
@@ -97,6 +107,34 @@ contract VerifierProxy is TransparentUpgradeableProxy {
             }
         }
     }
+
+
+    function readAddressFromConfig(string memory key) public view returns (address) {  
+        bytes memory data = this.getConfig(key);
+        return abi.decode(data, (address));
+    }
+
+    function readUint256FromConfig(string memory key) public view returns (uint256) {  
+
+        //return 234;
+
+        address payable proxyAddress = payable(address(this));
+        bytes memory data = this.getConfig(key);
+
+        console2.log("HAI");
+        console2.logBytes(data);
+
+        uint256 decoded = abi.decode(data, (uint256));
+
+        console2.logUint(decoded);
+        return decoded;
+    }
+
+    function readStringArrayFromConfig(string memory key) public view returns (string[] memory) {  
+        bytes memory data = this.getConfig(key);
+        return abi.decode(data, (string[]));
+    }
+
 
     /**
      * @dev Returns the address of the admin.
