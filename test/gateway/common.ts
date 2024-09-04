@@ -58,6 +58,9 @@ export function testOPFault(
       infoLog: false,
       //procLog: true,
     });
+
+    //console.log(foundry.provider);
+
     afterAll(() => foundry.shutdown());
     const gateway = new Gateway(rollup);
     const ccip = await serve(gateway, {
@@ -117,10 +120,9 @@ export function testOPFault(
       args: [proxy, slotDataReaderAddress],
     });
 
-    const proxI = await proxy._impl();
-    console.log('impl', proxI);
-
-    
+    //const proxI = await proxy._impl();
+    //console.log('impl', proxI);
+  
     const implementationABI = [
       'function gatewayURLs() public view returns (string[] memory)',
     ];
@@ -133,25 +135,26 @@ export function testOPFault(
       anotherWallet
     );
 
-    const gw = await proxyContract.gatewayURLs();
+    //const gw = await proxyContract.gatewayURLs();
+    //console.log('gw', gw);
 
-    console.log('gw', gw);
+    console.log(typeof foundry.provider);
     //process.exit();
 
 
-    const val = await proxy.staticReadProxyLevel();
-    console.log('reader', reader.target);
+    //const val = await proxy.staticReadProxyLevel();
+    //console.log('reader', reader.target);
 
-    const aw = await foundry.createWallet();
+    //const aw = await foundry.createWallet();
 
-    test('latest = 49', () => {
+    /*test('latest = 49', () => {
       expect(reader.readLatest({ enableCcipRead: true, gasLimit:3e7 })).resolves.toStrictEqual(
         49n
       );
-    });
-    /*const result = reader.readLatest({ enableCcipRead: true});
+    });*/
+    const result = reader.readLatest({ enableCcipRead: true });
     console.log('CCIP read result:', result);
-*/
+
     /*try {
       // Call the contract function with enableCcipRead option set to true
       const result = await reader.readLatest({ enableCcipRead: true, gasLimit: 3e7 });
@@ -165,6 +168,6 @@ export function testOPFault(
       }
   }*/
     //console.log('ccip', ccipr);
-    //runSlotDataTests(reader);
+    runSlotDataTests(reader);
   });
 }

@@ -95,6 +95,7 @@ contract OPFaultVerifier is OwnedVerifier {
 
 		 console2.log("CONTEXT");
 		 console2.logBytes(context);
+		 return context;
 	}
 
 	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
