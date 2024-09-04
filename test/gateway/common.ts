@@ -12,7 +12,8 @@ import {
   OPFaultRollup,
 } from '../../src/op/OPFaultRollup.js';
 import { ABI_CODER } from '../../src/utils.js';
-import {Contract} from 'ethers';
+import { Contract, dd } from 'ethers';
+import { expect, test } from 'bun:test';
 
 export function testOP(
   config: RollupDeployment<OPConfig>,
@@ -55,7 +56,7 @@ export function testOPFault(
     const foundry = await Foundry.launch({
       fork: providerURL(config.chain1),
       infoLog: false,
-      procLog: true
+      //procLog: true,
     });
     afterAll(() => foundry.shutdown());
     const gateway = new Gateway(rollup);
@@ -119,16 +120,23 @@ export function testOPFault(
     const proxI = await proxy._impl();
     console.log('impl', proxI);
 
-    const implementationABI = ['function lol() external view returns (uint256)'];
     
+    const implementationABI = [
+      'function gatewayURLs() public view returns (string[] memory)',
+    ];
+
     const anotherWallet = await foundry.createWallet();
     // Initialize the contract with the implementation ABI
-    const proxyContract = new Contract(proxy.target, implementationABI, anotherWallet);
+    const proxyContract = new Contract(
+      proxy.target,
+      implementationABI,
+      anotherWallet
+    );
 
-    const gw = await proxyContract.lol();
+    const gw = await proxyContract.gatewayURLs();
 
     console.log('gw', gw);
-    process.exit();
+    //process.exit();
 
 
     const val = await proxy.staticReadProxyLevel();
@@ -136,9 +144,27 @@ export function testOPFault(
 
     const aw = await foundry.createWallet();
 
-    const ccipr = await reader.readLatest({ enableCcipRead: false });
+    test('latest = 49', () => {
+      expect(reader.readLatest({ enableCcipRead: true, gasLimit:3e7 })).resolves.toStrictEqual(
+        49n
+      );
+    });
+    /*const result = reader.readLatest({ enableCcipRead: true});
+    console.log('CCIP read result:', result);
+*/
+    /*try {
+      // Call the contract function with enableCcipRead option set to true
+      const result = await reader.readLatest({ enableCcipRead: true, gasLimit: 3e7 });
+      console.log('CCIP read result:', result);
+  } catch (error) {
+      console.error('Error handling CCIP read:', error);
 
-    console.log('ccip', ccipr);
+      // Additional debug information
+      if (error.code === 'CALL_EXCEPTION' && error.data.startsWith('0x556f1830')) {
+          console.log('Detected OffchainLookup error. Please check your contract setup and off-chain gateway.');
+      }
+  }*/
+    //console.log('ccip', ccipr);
     //runSlotDataTests(reader);
   });
 }

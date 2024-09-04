@@ -19,19 +19,25 @@ abstract contract DataFetchTarget {
 		bytes carry;
 	}
 
-	function fetch(IDataProofVerifier verifier, DataRequest memory req, bytes4 callback, bytes memory carry) internal {
+	function fetch(IDataProofVerifier verifier, DataRequest memory req, bytes4 callback, bytes memory carry) internal view {
 
-						console2.log("FETCH");
-						console2.logBytes(abi.encode(address(verifier)));
+		console2.log("FETCHy");
+		console2.logBytes(abi.encode(address(verifier)));
 
 		// Function signature for `gatewayURLs()`
-        bytes memory encodedData = abi.encodeWithSignature("gatewayURLs()");
+        //bytes memory encodedData = abi.encodeWithSignature("getLatestContext()");
 
         // Low-level call to the proxy
-        (bool success, bytes memory returnData) = address(verifier).call(encodedData);
+        //(bool success, bytes memory context) = address(verifier).call(encodedData);
+
+		
         
-        require(success, "Call to proxy failed");
-/*
+        //require(success, "Call to proxy failed");
+
+		bytes memory context = verifier.getLatestContext();
+
+		string[] memory urls;
+
 		revert OffchainLookup(
 			address(this),
 			verifier.gatewayURLs(),
@@ -39,7 +45,7 @@ abstract contract DataFetchTarget {
 			this.fetchCallback.selector,
 			abi.encode(Session(verifier, context, req, callback, carry))
 		);
-		*/
+		
 	}
 
 	function fetchCallback(bytes calldata response, bytes calldata carry) external view {

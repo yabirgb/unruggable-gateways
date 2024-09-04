@@ -6,6 +6,7 @@ import "../OwnedVerifier.sol";
 import {DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
+import "forge-std/console2.sol"; // DEBUG
 
 interface IOptimismPortal {
 	function disputeGameFactory() external view returns (IDisputeGameFactory);
@@ -54,7 +55,10 @@ contract OPFaultVerifier is OwnedVerifier {
 
 	function getPortal() internal view returns (IOptimismPortal) {
 
-		address portalAddress = getProxy().readAddressFromConfig("rollup");
+		address portalAddress = getProxy().readAddressFromConfig("rollupAddress");
+
+		console2.log("portalAddress");
+		console2.logBytes(abi.encode(portalAddress));
 
 		return IOptimismPortal(portalAddress);
 	}
@@ -63,12 +67,18 @@ contract OPFaultVerifier is OwnedVerifier {
 
 		address gameFinderAddress = getProxy().readAddressFromConfig("gameFinder");
 
+		console2.log("gameFinderAddress");
+		console2.logBytes(abi.encode(gameFinderAddress));
+
 		return IOPFaultGameFinder(gameFinderAddress);
 	}
 
 	function getGameTypes() internal view returns (uint256) {
 
 		uint256 gameTypes = getProxy().readUint256FromConfig("gameTypes");
+
+		console2.log("gameTypes");
+		console2.logBytes(abi.encode(gameTypes));
 
 		return gameTypes;
 	}
@@ -80,8 +90,11 @@ contract OPFaultVerifier is OwnedVerifier {
 		emit GatewayChanged();
 	}*/
 
-	function getLatestContext() public virtual view returns (bytes memory) {
-		return abi.encode(getGameFinder().findFinalizedGameIndex(getPortal(), getGameTypes(), 0));
+	function getLatestContext() public virtual view returns (bytes memory context) {
+		 context = abi.encode(getGameFinder().findFinalizedGameIndex(getPortal(), getGameTypes(), 0));
+
+		 console2.log("CONTEXT");
+		 console2.logBytes(context);
 	}
 
 	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
