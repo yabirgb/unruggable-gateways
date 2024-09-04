@@ -42,8 +42,14 @@ jobs:
           echo IS_CI=true >> .env
           cat .env
 
-      - name: Test (uses node internally)
-        run: bun run test
+      - name: Build
+        run: forge build
+
+      - name: Test Components (uses node internally)
+        run: bun run test-components
+
+      - name: Test Gateways (uses node internally)
+        run: bun run test-gateways
   lint:
     name: Lint v2
     runs-on: ubuntu-latest
