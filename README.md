@@ -107,8 +107,8 @@ A number of examples are provided as part of this repository. For more extensive
 * [TeamNick](./test/examples/TeamNick/)
 	* `bun test/examples/TeamNick/fetch.ts`
 		* write requests [in JS](./test/examples//TeamNick/fetch.ts) to quickly iterate
-	* `bun test test/examples/TeamNick/resolver.test.ts`
-		* [port to Solidity](./test/examples/TeamNick/TeamNick.sol) and write tests [in JS](./test/examples/TeamNick/resolver.test.ts) to validate
+	* `bun test/examples/TeamNick/demo.ts`
+		* A [JS](./test/examples//TeamNick/demo.ts) demonstration of resolving from the TeamNick smart contracts.
 * [linea-ens](./test/v1/linea-ens.ts)
 	* Replacement backend demo for https://names.linea.build/
 	* `bun serve lineaV1`
