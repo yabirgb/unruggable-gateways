@@ -53,7 +53,7 @@ If you are interested in building out a solution for another chain, please take 
 1. [`foundryup`](https://book.getfoundry.sh/getting-started/installation)
 1. `forge install`
 1. `bun i`
-1. `bun build/op.ts`
+1. `bun build/import-op.ts`
 1. create [`.env`](./.env.example)
 
 ## Support
@@ -122,8 +122,8 @@ forge install OpenZeppelin/openzeppelin-contracts@v5.0.2
 # installed by script instead of the following command
 # placed at standard remapping location
 # see: https://github.com/ethereum-optimism/optimism/issues/10202
-#forge install ethereum-optimism/optimism@v1.8.0
-bun build/op.ts
+#forge install ethereum-optimism/optimism
+bun build/import-op.ts
 ```
 
 
