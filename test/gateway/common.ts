@@ -1,5 +1,5 @@
-import type { BigNumberish, HexAddress } from '../../src/types.js';
-import type { Rollup, RollupDeployment } from '../../src/rollup.js';
+import type { HexAddress } from '../../src/types.js';
+import type { RollupDeployment } from '../../src/rollup.js';
 import { Contract } from 'ethers';
 import { Gateway } from '../../src/gateway.js';
 import { createProviderPair, providerURL, chainName } from '../providers.js';

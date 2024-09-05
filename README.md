@@ -53,7 +53,6 @@ If you are interested in building out a solution for another chain, please take 
 1. [`foundryup`](https://book.getfoundry.sh/getting-started/installation)
 1. `forge install`
 1. `bun i`
-1. `bun build/import-op.ts`
 1. create [`.env`](./.env.example)
 
 ## Support
