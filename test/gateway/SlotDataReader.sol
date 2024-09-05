@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {DataFetchTarget, IDataProofVerifier} from "@unruggable/gateways/contracts/DataFetchTarget.sol";
-import {DataFetcher, DataRequest} from "@unruggable/gateways/contracts/DataFetcher.sol";
+import {DataFetchTarget, IDataProofVerifier} from "../../contracts/DataFetchTarget.sol";
+import {DataFetcher, DataRequest} from "../../contracts/DataFetcher.sol";
 
 contract SlotDataReader is DataFetchTarget {
 	using DataFetcher for DataRequest;

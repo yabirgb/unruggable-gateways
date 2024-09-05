@@ -5,14 +5,8 @@ solc = "0.8.25"
 evm_version = "cancun"
 
 remappings = [
-	'lib/ens-contracts:@openzeppelin/contracts=lib/openzeppelin-contracts-v4.9/contracts/',
 	'@openzeppelin/contracts=lib/openzeppelin-contracts/contracts/',
-	'@ensdomains/ens-contracts=lib/ens-contracts/',
-	'@ensdomains/buffer=lib/buffer',
 	'@eth-optimism=lib/optimism/packages/',
-	'@arbitrum/nitro-contracts=lib/nitro-contracts/',
-	'@ensdomains/enschain=lib/enschain/',
-	'@unruggable/gateways=./'
 ]
 
 optimizer = true
