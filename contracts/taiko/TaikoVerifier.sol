@@ -1,48 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "../OwnedVerifier.sol";
-import {DataProver, ProofSequence} from "../DataProver.sol";
+import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
+import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
+import {ITaiko} from "./ITaiko.sol";
 
-interface ITaiko {
-	struct Config {
-		uint64 chainId;
-		uint64 blockMaxProposals;
-		uint64 blockRingBufferSize;
-		uint64 maxBlocksToVerify;
-		uint32 blockMaxGasLimit;
-		uint96 livenessBond;
-		uint8 stateRootSyncInternal;
-		bool checkEOAForCalldataDA;
+contract TaikoVerifier is AbstractVerifier {
+
+	bytes32 constant SLOT_rollup = keccak256("unruggable.gateway.rollup");
+
+	function _rollup() internal view returns (ITaiko) {
+		return ITaiko(StorageSlot.getAddressSlot(SLOT_rollup).value);
 	}
-	struct TransitionState {
-		bytes32 key;
-		bytes32 blockHash;
-		bytes32 stateRoot;
-		address prover;
-		uint96 validityBond;
-		address contester;
-		uint96 contestBond;
-		uint64 timestamp;
-		uint16 tier;
-		uint8 __reserved1;
-	}
-	function getConfig() external view returns (Config memory);
-	function getTransition(uint64 blockId, bytes32 parentHash) external view returns (TransitionState memory);
-	function getLastSyncedBlock() external view returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot);
-}
 
-contract TaikoVerifier is OwnedVerifier {
-
-	ITaiko immutable _rollup;
-
-	constructor(string[] memory urls, uint256 window, ITaiko rollup) OwnedVerifier(urls, window) {
-		_rollup = rollup;
+	function setRollup(address rollup) external onlyOwner {
+		StorageSlot.getAddressSlot(SLOT_rollup).value = rollup;
+		emit GatewayChanged();
 	}
 
 	function getLatestContext() external view returns (bytes memory) {
-		(uint64 blockId, , ) = _rollup.getLastSyncedBlock();
+		(uint64 blockId, , ) = _rollup().getLastSyncedBlock();
 		return abi.encode(blockId);
 	}
 
@@ -71,7 +49,7 @@ contract TaikoVerifier is OwnedVerifier {
 			bytes memory order
 		) = abi.decode(proof, (uint64, bytes32, bytes[], bytes));
 		_checkWindow(blockId1, blockId);
-		ITaiko.TransitionState memory ts = _rollup.getTransition(blockId, parentHash); // reverts if invalid
+		ITaiko.TransitionState memory ts = _rollup().getTransition(blockId, parentHash); // reverts if invalid
 		return DataProver.evalRequest(req, ProofSequence(0, 
 			ts.stateRoot,
 			proofs, order,

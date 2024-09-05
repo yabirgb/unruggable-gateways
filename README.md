@@ -53,6 +53,7 @@ If you are interested in building out a solution for another chain, please take 
 1. [`foundryup`](https://book.getfoundry.sh/getting-started/installation)
 1. `forge install`
 1. `bun i`
+1. `bun build/op.ts`
 1. create [`.env`](./.env.example)
 
 ## Support
@@ -99,16 +100,6 @@ Commands available include:
 
 A number of examples are provided as part of this repository. For more extensive step-wise example code, please see our [documentation](https://gateway-docs.unruggable.com/examples).
 
-* [enschain](./test/examples/enschain/) &rarr; [ensdomains/**enschain**](https://github.com/ensdomains/enschain/)
-	* `bun test/examples/enschain/demo.ts`
-* [ENSv2](./test/examples/ENSv2/)
-	* copy [`contracts/`](https://github.com/unruggable-labs/ENS-V2/tree/main/contracts)
-	* `bun test/examples/ENSv2/demo.ts`
-* [TeamNick](./test/examples/TeamNick/)
-	* `bun test/examples/TeamNick/fetch.ts`
-		* write requests [in JS](./test/examples//TeamNick/fetch.ts) to quickly iterate
-	* `bun test/examples/TeamNick/demo.ts`
-		* A [JS](./test/examples//TeamNick/demo.ts) demonstration of resolving from the TeamNick smart contracts.
 * [linea-ens](./test/v1/linea-ens.ts)
 	* Replacement backend demo for https://names.linea.build/
 	* `bun serve lineaV1`
@@ -126,14 +117,13 @@ A number of examples are provided as part of this repository. For more extensive
 # installed by forge in step (2)
 # provided for reference
 forge install foundry-rs/forge-std
-forge install openzeppelin-contracts-v4.9=OpenZeppelin/openzeppelin-contracts@release-v4.9 # required for ens-contracts
-forge install ensdomains/ens-contracts
-forge install ensdomains/buffer
-forge install OpenZeppelin/openzeppelin-contracts@master # https://github.com/OpenZeppelin/openzeppelin-contracts/pull/4845
-forge install ethereum-optimism/optimism@v1.8.0
-forge install offchainlabs/nitro-contracts
-forge install ensdomains/enschain
-# forge install taikoxyz/taiko-mono # using inline headers instead
+forge install OpenZeppelin/openzeppelin-contracts@v5.0.2
+
+# installed by script instead of the following command
+# placed at standard remapping location
+# see: https://github.com/ethereum-optimism/optimism/issues/10202
+#forge install ethereum-optimism/optimism@v1.8.0
+bun build/op.ts
 ```
 
 

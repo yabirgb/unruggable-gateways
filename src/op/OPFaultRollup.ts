@@ -89,16 +89,14 @@ export class OPFaultRollup extends AbstractOPRollup {
     return this.GameFinder.findFinalizedGameIndex(
       this.OptimismPortal.target,
       this.gameTypeBitMask,
-      commit.index,
-      { blockTag: this.latestBlockTag }
+      commit.index
     );
   }
   protected override async _fetchCommit(index: bigint) {
     const game: ABIFinalizedGame = await this.GameFinder.getFinalizedGame(
       this.OptimismPortal.target,
       this.gameTypeBitMask,
-      index,
-      { blockTag: this.latestBlockTag }
+      index
     );
     if (!game.l2BlockNumber) {
       throw new Error(`Commit(${index}) not finalized`);

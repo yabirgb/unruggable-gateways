@@ -1,5 +1,6 @@
-import type { HexAddress } from '../../src/types.js';
-import type { RollupDeployment } from '../../src/rollup.js';
+import type { BigNumberish, HexAddress } from '../../src/types.js';
+import type { Rollup, RollupDeployment } from '../../src/rollup.js';
+import { Contract } from 'ethers';
 import { Gateway } from '../../src/gateway.js';
 import { createProviderPair, providerURL, chainName } from '../providers.js';
 import { serve } from '@resolverworks/ezccip';
@@ -11,6 +12,16 @@ import {
   type OPFaultConfig,
   OPFaultRollup,
 } from '../../src/op/OPFaultRollup.js';
+
+export async function deployProxy(foundry: Foundry, verifier: Contract) {
+  const wallet = foundry.wallets.admin;
+  const proxy = await foundry.deploy({
+    import:
+      '@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol',
+    args: [verifier, wallet, '0x'],
+  });
+  return new Contract(proxy.target, verifier.interface, wallet);
+}
 
 export function testOP(
   config: RollupDeployment<OPConfig>,
@@ -29,13 +40,14 @@ export function testOP(
       log: false,
     });
     afterAll(() => ccip.http.close());
-    const verifier = await foundry.deploy({
-      file: 'OPVerifier',
-      args: [[ccip.endpoint], rollup.defaultWindow, rollup.L2OutputOracle],
-    });
+    const verifier = await foundry.deploy({ file: 'OPVerifier' });
+    const proxy = await deployProxy(foundry, verifier);
+    await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
+    await foundry.confirm(proxy.setOracle(rollup.L2OutputOracle));
     const reader = await foundry.deploy({
       file: 'SlotDataReader',
-      args: [verifier, slotDataReaderAddress],
+      args: [proxy, slotDataReaderAddress],
     });
     runSlotDataTests(reader);
   });
@@ -68,17 +80,15 @@ export function testOPFault(
     });
     const verifier = await foundry.deploy({
       file: 'OPFaultVerifier',
-      args: [
-        [ccip.endpoint],
-        rollup.defaultWindow,
-        rollup.OptimismPortal,
-        gameFinder, // official is too slow in fork mode (30sec+)
-        rollup.gameTypeBitMask,
-      ],
+      args: [gameFinder],
     });
+    const proxy = await deployProxy(foundry, verifier);
+    await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
+    await foundry.confirm(proxy.setPortal(rollup.OptimismPortal));
     const reader = await foundry.deploy({
       file: 'SlotDataReader',
-      args: [verifier, slotDataReaderAddress],
+      args: [proxy, slotDataReaderAddress],
     });
     runSlotDataTests(reader);
   });

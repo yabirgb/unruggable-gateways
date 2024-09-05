@@ -2,12 +2,12 @@ import { PolygonPoSRollup } from '../../src/polygon/PolygonPoSRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { createProviderPair, providerURL } from '../providers.js';
+import { chainName, createProviderPair, providerURL } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
 import { describe, afterAll } from 'bun:test';
 
-describe('polygon', async () => {
-  const config = PolygonPoSRollup.mainnetConfig;
+const config = PolygonPoSRollup.mainnetConfig;
+describe(chainName(config.chain2), async () => {
   const rollup = new PolygonPoSRollup(createProviderPair(config), config);
   rollup.configure = (c) => {
     c.prover.proofRetryCount = 5; // hack for failing eth_getProof

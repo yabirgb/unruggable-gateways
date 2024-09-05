@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "../OwnedVerifier.sol";
-import {DataProver, ProofSequence} from "../DataProver.sol";
+import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
+import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 import {Node, IRollupCore} from "./IRollupCore.sol"; // @arbitrum/nitro-contracts/src/rollup/IRollupCore.sol
 
-contract NitroVerifier is OwnedVerifier {
+contract NitroVerifier is AbstractVerifier {
 
-	IRollupCore immutable _rollup;
+	bytes32 constant SLOT_rollup = keccak256("unruggable.gateway.rollup");
 
-	constructor(string[] memory urls, uint256 window, IRollupCore rollup) OwnedVerifier(urls, window) {
-		_rollup = rollup;
+	function _rollup() internal view returns (IRollupCore) {
+		return IRollupCore(StorageSlot.getAddressSlot(SLOT_rollup).value);
+	}
+
+	function setRollup(address rollup) external onlyOwner {
+		StorageSlot.getAddressSlot(SLOT_rollup).value = rollup;
+		emit GatewayChanged();
 	}
 
 	function getLatestContext() external view returns (bytes memory) {
-		return abi.encode(_rollup.latestConfirmed());
+		return abi.encode(_rollup().latestConfirmed());
 	}
 
 	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
@@ -28,9 +33,10 @@ contract NitroVerifier is OwnedVerifier {
 			bytes[] memory proofs,
 			bytes memory order
 		) = abi.decode(proof, (uint64, bytes32, bytes, bytes[], bytes));
-		Node memory node = _rollup.getNode(nodeNum);
+		IRollupCore rollup = _rollup();
+		Node memory node = rollup.getNode(nodeNum);
 		if (nodeNum != nodeNum1) {
-			Node memory node1 = _rollup.getNode(nodeNum1);
+			Node memory node1 = rollup.getNode(nodeNum1);
 			_checkWindow(node1.createdAtBlock, node.createdAtBlock);
 		}
  		bytes32 confirmData = keccak256(abi.encodePacked(keccak256(rlpEncodedBlock), sendRoot));

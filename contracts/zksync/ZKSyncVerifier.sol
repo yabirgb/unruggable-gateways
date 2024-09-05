@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "../OwnedVerifier.sol";
-import {DataProver, ProofSequence, NOT_A_CONTRACT} from "../DataProver.sol";
+import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
+import {DataRequest, DataProver, ProofSequence, NOT_A_CONTRACT} from "../DataProver.sol";
 import {IZKSyncSMT, TreeEntry, ACCOUNT_CODE_HASH} from "./IZKSyncSMT.sol";
 
 interface IZKSyncDiamond {	
@@ -22,18 +22,27 @@ struct StoredBatchInfo {
 	bytes32 commitment;
 }
 
-contract ZKSyncVerifier is OwnedVerifier {
+contract ZKSyncVerifier is AbstractVerifier {
 
-	IZKSyncDiamond immutable _diamond;
 	IZKSyncSMT immutable _smt;
 
-	constructor(string[] memory urls, uint256 window, IZKSyncDiamond diamond, IZKSyncSMT smt) OwnedVerifier(urls, window) {
-		_diamond = diamond;
+	constructor(IZKSyncSMT smt) {
 		_smt = smt;
 	}
 
+	bytes32 constant SLOT_diamond = keccak256("unruggable.gateway.diamond");
+
+	function _diamond() internal view returns (IZKSyncDiamond) {
+		return IZKSyncDiamond(StorageSlot.getAddressSlot(SLOT_diamond).value);
+	}
+
+	function setDiamond(address diamond) external onlyOwner {
+		StorageSlot.getAddressSlot(SLOT_diamond).value = diamond;
+		emit GatewayChanged();
+	}
+
 	function getLatestContext() external view returns (bytes memory) {
-		return abi.encode(_diamond.getTotalBatchesExecuted() - 1);
+		return abi.encode(_diamond().getTotalBatchesExecuted() - 1);
 	}
 
 	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
@@ -45,8 +54,9 @@ contract ZKSyncVerifier is OwnedVerifier {
 		) = abi.decode(proof, (bytes, bytes[], bytes));
 		StoredBatchInfo memory batchInfo = abi.decode(encodedBatch, (StoredBatchInfo));
 		_checkWindow(batchIndex1, batchInfo.batchNumber);
-		require(keccak256(encodedBatch) == _diamond.storedBatchHash(batchInfo.batchNumber), "ZKS: batchHash");
-		require(batchInfo.l2LogsTreeRoot == _diamond.l2LogsRootHash(batchInfo.batchNumber), "ZKS: l2LogsRootHash");
+		IZKSyncDiamond diamond = _diamond();
+		require(keccak256(encodedBatch) == diamond.storedBatchHash(batchInfo.batchNumber), "ZKS: batchHash");
+		require(batchInfo.l2LogsTreeRoot == diamond.l2LogsRootHash(batchInfo.batchNumber), "ZKS: l2LogsRootHash");
 		return DataProver.evalRequest(req, ProofSequence(0,
 			batchInfo.batchHash,
 			proofs, order,

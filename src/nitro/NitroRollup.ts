@@ -57,7 +57,7 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
     commit: NitroCommit
   ): Promise<bigint> {
     const node: ABINodeTuple = await this.L2Rollup.getNode(commit.index);
-    return node.prevNum;
+    return node.prevNum || -1n;
   }
   protected override async _fetchCommit(index: bigint): Promise<NitroCommit> {
     const { createdAtBlock }: ABINodeTuple = await this.L2Rollup.getNode(index);

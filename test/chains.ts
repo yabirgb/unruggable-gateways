@@ -1,8 +1,6 @@
 import { CHAINS } from '../src/chains.js';
 import { CHAIN_MAP, providerURL } from './providers.js';
 
-//
-
 const usingPublic: string[] = [];
 const leftoverChains = new Set<bigint>(Object.values(CHAINS));
 

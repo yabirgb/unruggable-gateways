@@ -1,8 +1,9 @@
 node_modules/
+cache/
 out/
 junk/
-*.tgz
-.vscode/
-.env
 dist/
-cache/
+.vscode/
+
+*.tgz
+.env

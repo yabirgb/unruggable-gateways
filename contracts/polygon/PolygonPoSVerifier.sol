@@ -1,34 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "../OwnedVerifier.sol";
+import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
 import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {IRootChainProxy} from "./IRootChainProxy.sol";
 import {RLPReader, RLPReaderExt} from "../RLPReaderExt.sol";
 
-//import "forge-std/console2.sol";
+contract PolygonPoSVerifier is AbstractVerifier {
 
-contract PolygonPoSVerifier is OwnedVerifier {
+	bytes32 constant SLOT_rootChain = keccak256("unruggable.gateway.rootChain");
+	bytes32 constant SLOT_poster = keccak256("unruggable.gateway.poster");
 
-	IRootChainProxy immutable _rootChain;
-	mapping (address => bool) _posters;
-
-	constructor(string[] memory urls, uint256 window, IRootChainProxy rootChain) OwnedVerifier(urls, window) {
-		_rootChain = rootChain;
+	function _rootChain() internal view returns (IRootChainProxy) {
+		return IRootChainProxy(StorageSlot.getAddressSlot(SLOT_rootChain).value);
+	}
+	function _poster() internal view returns (address) {
+		return StorageSlot.getAddressSlot(SLOT_poster).value;
 	}
 
-	function togglePoster(address poster, bool allowed) onlyOwner external {
-		_posters[poster] = allowed;
+	function setRootChain(address rootChain) external onlyOwner {
+		StorageSlot.getAddressSlot(SLOT_rootChain).value = rootChain;
 		emit GatewayChanged();
 	}
-
-	function isPoster(address poster) external view returns (bool) {
-		return _posters[poster];
+	function setPoster(address poster) external onlyOwner {
+		StorageSlot.getAddressSlot(SLOT_poster).value = poster;
+		emit GatewayChanged();
+	}
+ 
+	function getPoster() external view returns (address) {
+		return StorageSlot.getAddressSlot(SLOT_poster).value;
 	}
 
 	function getLatestContext() external view returns (bytes memory) {
-		return abi.encode(_rootChain.currentHeaderBlock());
+		return abi.encode(_rootChain().currentHeaderBlock());
 	}
 
 	struct GatewayProof {
@@ -47,10 +52,10 @@ contract PolygonPoSVerifier is OwnedVerifier {
 		GatewayProof memory p = abi.decode(proof, (GatewayProof));
 		RLPReader.RLPItem[] memory v = RLPReader.readList(p.rlpEncodedProof);
 		uint256 headerBlock = uint256(RLPReaderExt.bytes32FromRLP(v[0]));
-		(bytes32 rootHash, uint256 l2BlockNumberStart, , uint256 t0, ) = _rootChain.headerBlocks(headerBlock);
+		(bytes32 rootHash, uint256 l2BlockNumberStart, , uint256 t0, ) = _rootChain().headerBlocks(headerBlock);
 		require(rootHash != bytes32(0), "PolygonPoS: checkpoint");
 		if (headerBlock1 != headerBlock) {
-			(, , , uint256 t1, ) = _rootChain.headerBlocks(headerBlock1);
+			(, , , uint256 t1, ) = _rootChain().headerBlocks(headerBlock1);
 			_checkWindow(t1, t0);
 		}
 		bytes memory receipt = _proveReceiptInCheckpoint(v, rootHash, l2BlockNumberStart);
@@ -83,7 +88,7 @@ contract PolygonPoSVerifier is OwnedVerifier {
 		require(v.length > logIndex, "PolygonPoS: logIndex");
 		v = RLPReader.readList(v[logIndex]); // log
 		address poster = address(uint160(uint256(RLPReaderExt.bytes32FromRLP(v[0]))));
-		require(_posters[poster], "PolygonPoS: poster");
+		require(poster == _poster(), "PolygonPoS: poster");
 		v = RLPReader.readList(v[1]); // topics
 		return RLPReaderExt.strictBytes32FromRLP(v[1]); // prevBlockHash
 	}

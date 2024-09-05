@@ -88,13 +88,10 @@ test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
     .addOutput();
 
   // the requests should be different
-  expect(Bun.deepEquals(req1.ops, req2.ops)).toStrictEqual(false);
+  expect(req1.ops).not.toStrictEqual(req2.ops);
 
   // the outputs should be the same
-  expect(
-    Bun.deepEquals(
-      await prover.evalRequest(req1).then((x) => x.resolveOutputs()),
-      await prover.evalRequest(req2).then((x) => x.resolveOutputs())
-    )
-  ).toStrictEqual(true);
+  const v1 = await prover.evalRequest(req1).then((x) => x.resolveOutputs());
+  const v2 = await prover.evalRequest(req2).then((x) => x.resolveOutputs());
+  expect(v1).toStrictEqual(v2);
 });
