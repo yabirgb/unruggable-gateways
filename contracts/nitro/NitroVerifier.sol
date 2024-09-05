@@ -5,7 +5,7 @@ import "../OwnedVerifier.sol";
 import {DataProver, ProofSequence} from "../DataProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
-import {Node, IRollupCore} from "@arbitrum/nitro-contracts/src/rollup/IRollupCore.sol";
+import {Node, IRollupCore} from "./IRollupCore.sol"; // @arbitrum/nitro-contracts/src/rollup/IRollupCore.sol
 
 contract NitroVerifier is OwnedVerifier {
 

@@ -21,7 +21,7 @@
     "test-components": "bun test test/components/* --timeout 25000",
     "test-gateways": "bun test test/gateway/* --timeout 25000",
     "lint": "eslint . --ext .ts",
-    "build": "bun build-dist.ts"
+    "build": "bun build/dist.ts"
   },
   "sideEffects": false,
   "exports": {
