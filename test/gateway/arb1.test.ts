@@ -12,7 +12,7 @@ describe(chainName(config.chain2), async () => {
   const rollup = new NitroRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
-    infoLog: true,
+    infoLog: false,
   });
   afterAll(() => foundry.shutdown());
   const gateway = new Gateway(rollup);

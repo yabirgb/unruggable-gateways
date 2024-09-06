@@ -125,7 +125,6 @@ forge install OpenZeppelin/openzeppelin-contracts@v5.0.2
 bun build/import-op.ts
 ```
 
-
 ## Contribution Guidelines
 
 We welcome contributions to this codebase. 
