@@ -15,10 +15,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Use Bun 1.1.2
+      - name: Use Bun 1.1.26
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: 1.1.2
+          bun-version: 1.1.26
 
       - name: Use Node ${{ matrix.node }}
         uses: actions/setup-node@v4
@@ -57,10 +57,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Use Bun 1.1.2
+      - name: Use Bun 1.1.26
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: 1.1.2
+          bun-version: 1.1.26
 
       - name: Install Dependencies
         run: bun install
