@@ -6,8 +6,8 @@
 
 pragma solidity ^0.8.0;
 
-import { Bytes } from "@eth-optimism/contracts-bedrock/src/libraries/Bytes.sol";
-import { RLPReader } from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
+import { Bytes } from "../../lib/optimism/packages/contracts-bedrock/src/libraries/Bytes.sol";
+import { RLPReader } from "../../lib/optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 
 
 /**

@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
 import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
-import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
+import {Hashing, Types} from "../../lib/optimism/packages/contracts-bedrock/src/libraries/Hashing.sol";
 
 interface IL2OutputOracle {
 	function latestOutputIndex() external view returns (uint256);

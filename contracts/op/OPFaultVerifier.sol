@@ -4,8 +4,10 @@ pragma solidity ^0.8.0;
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
 import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
-import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
-import "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol";
+import {Hashing, Types} from "../../lib/optimism/packages/contracts-bedrock/src/libraries/Hashing.sol";
+import "../../lib/optimism/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol";
+
+//import {IDisputeGame} from "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IDisputeGame.sol";
 
 interface IOptimismPortal {
 	function disputeGameFactory() external view returns (IDisputeGameFactory);

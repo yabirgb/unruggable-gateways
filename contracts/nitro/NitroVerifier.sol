@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
 import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
-import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
+import {RLPReader} from "../../lib/optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 import {Node, IRollupCore} from "./IRollupCore.sol"; // @arbitrum/nitro-contracts/src/rollup/IRollupCore.sol
 
 contract NitroVerifier is AbstractVerifier {
