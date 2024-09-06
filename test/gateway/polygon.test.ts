@@ -4,6 +4,7 @@ import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { chainName, createProviderPair, providerURL } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
+import { deployProxy } from './common.js';
 import { describe, afterAll } from 'bun:test';
 
 const config = PolygonPoSRollup.mainnetConfig;
@@ -25,13 +26,19 @@ describe(chainName(config.chain2), async () => {
   afterAll(() => ccip.http.close());
   const verifier = await foundry.deploy({
     file: 'PolygonPoSVerifier',
-    args: [[ccip.endpoint], rollup.defaultWindow, rollup.RootChain],
+    args: [],
   });
-  await foundry.confirm(verifier.togglePoster(rollup.poster.address, true));
+
+  const proxy = await deployProxy(foundry, verifier);
+  await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+  await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
+  await foundry.confirm(proxy.setRootChain(rollup.RootChain.target));
+  await foundry.confirm(proxy.setPoster(rollup.poster.address));
+
   // https://polygonscan.com/address/0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361#code
   const reader = await foundry.deploy({
     file: 'SlotDataReader',
-    args: [verifier, '0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361'],
+    args: [proxy, '0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361'],
   });
   runSlotDataTests(reader);
 });
