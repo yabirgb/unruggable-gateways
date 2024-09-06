@@ -1,5 +1,9 @@
 import type { BigNumberish } from '../../src/types.js';
-import { GatewayProgram, GatewayRequest, solidityFollowSlot } from '../../src/vm.js';
+import {
+  GatewayProgram,
+  GatewayRequest,
+  solidityFollowSlot,
+} from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';

@@ -6,7 +6,11 @@ const A = '0x1234567890AbcdEF1234567890aBcdef12345678';
 
 test('getDynamic(8)', () => {
   const r1 = new GatewayRequestV1(A).getDynamic(8);
-  const r2 = new GatewayRequest().setTarget(A).setSlot(8).readBytes().addOutput();
+  const r2 = new GatewayRequest()
+    .setTarget(A)
+    .setSlot(8)
+    .readBytes()
+    .addOutput();
   expect(r1.v2()).toStrictEqual(r2);
 });
 

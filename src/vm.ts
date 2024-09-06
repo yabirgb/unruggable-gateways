@@ -226,7 +226,11 @@ export class GatewayProgram {
     readonly inputs: string[] = []
   ) {}
   clone() {
-    return new GatewayProgram(this.parent, this.ops.slice(), this.inputs.slice());
+    return new GatewayProgram(
+      this.parent,
+      this.ops.slice(),
+      this.inputs.slice()
+    );
   }
   protected addByte(x: number) {
     if ((x & 0xff) !== x) throw new Error(`expected byte: ${x}`);
