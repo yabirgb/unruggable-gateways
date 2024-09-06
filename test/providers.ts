@@ -36,7 +36,7 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
         name: 'op',
         rpc: 'https://mainnet.optimism.io',
         ankr: 'optimism',
-        infura: 'optimism',
+        infura: 'optimism-mainnet',
         alchemy: 'opt-mainnet',
       },
       {
