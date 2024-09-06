@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
-import {DataRequest, DataProver, ProofSequence, NOT_A_CONTRACT} from "../DataProver.sol";
+import {GatewayRequest, GatewayProver, ProofSequence, NOT_A_CONTRACT} from "../GatewayProver.sol";
 import {IZKSyncSMT, TreeEntry, ACCOUNT_CODE_HASH} from "./IZKSyncSMT.sol";
 
 interface IZKSyncDiamond {	
@@ -45,7 +45,7 @@ contract ZKSyncVerifier is AbstractVerifier {
 		return abi.encode(_diamond().getTotalBatchesExecuted() - 1);
 	}
 
-	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, GatewayRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 batchIndex1 = abi.decode(context, (uint256));
 		(
 			bytes memory encodedBatch,
@@ -57,7 +57,7 @@ contract ZKSyncVerifier is AbstractVerifier {
 		IZKSyncDiamond diamond = _diamond();
 		require(keccak256(encodedBatch) == diamond.storedBatchHash(batchInfo.batchNumber), "ZKS: batchHash");
 		require(batchInfo.l2LogsTreeRoot == diamond.l2LogsRootHash(batchInfo.batchNumber), "ZKS: l2LogsRootHash");
-		return DataProver.evalRequest(req, ProofSequence(0,
+		return GatewayProver.evalRequest(req, ProofSequence(0,
 			batchInfo.batchHash,
 			proofs, order,
 			proveAccountState,

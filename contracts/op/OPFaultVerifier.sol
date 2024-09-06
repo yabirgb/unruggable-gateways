@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
-import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
+import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 import "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol";
@@ -49,7 +49,7 @@ contract OPFaultVerifier is AbstractVerifier {
 		return abi.encode(_gameFinder.findFinalizedGameIndex(_portal(), _gameTypes(), 0));
 	}
 
-	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, GatewayRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 gameIndex1 = abi.decode(context, (uint256));
 		(
 			uint256 gameIndex,
@@ -72,7 +72,7 @@ contract OPFaultVerifier is AbstractVerifier {
 			require(gameProxy.status() == GameStatus.DEFENDER_WINS, "OPFault: not finalized");
 		}
 		require(Claim.unwrap(gameProxy.rootClaim()) == Hashing.hashOutputRootProof(outputRootProof), "OPFault: invalid root");
-		return DataProver.evalRequest(req, ProofSequence(0,
+		return GatewayProver.evalRequest(req, ProofSequence(0,
 			outputRootProof.stateRoot,
 			proofs, order,
 			EthTrieHooks.proveAccountState,

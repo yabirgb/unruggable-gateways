@@ -27,18 +27,18 @@ import { CachedMap, LRU } from './cached.js';
 type HexFuture = Unwrappable<HexString>;
 
 // maximum number of items on stack
-// the following should be equivalent to ProtocolData.sol
+// the following should be equivalent to GatewayProtocol.sol
 export const MAX_STACK = 64;
 
 // OP_EVAL_LOOP flags
-// the following should be equivalent to ProtocolData.sol
+// the following should be equivalent to GatewayProtocol.sol
 const STOP_ON_SUCCESS = 1;
 const STOP_ON_FAILURE = 2;
 const ACQUIRE_STATE = 4;
 
 // program ops
 // specific ids just need to be unique
-// the following should be equivalent to ProtocolData.sol
+// the following should be equivalent to GatewayProtocol.sol
 const OP_DEBUG = 255; // experimental
 const OP_TARGET = 1;
 const OP_SET_OUTPUT = 2;
@@ -105,7 +105,7 @@ type ProgramAction = {
 
 // read an ops buffer
 export class ProgramReader {
-  static fromProgram(program: EVMProgram) {
+  static fromProgram(program: GatewayProgram) {
     return new this(Uint8Array.from(program.ops), program.inputs.slice());
   }
   static fromEncoded(hex: HexString) {
@@ -219,14 +219,14 @@ export class ProgramReader {
   }
 }
 
-export class EVMProgram {
+export class GatewayProgram {
   constructor(
-    private parent: EVMProgram | undefined = undefined,
+    private parent: GatewayProgram | undefined = undefined,
     readonly ops: number[] = [],
     readonly inputs: string[] = []
   ) {}
   clone() {
-    return new EVMProgram(this.parent, this.ops.slice(), this.inputs.slice());
+    return new GatewayProgram(this.parent, this.ops.slice(), this.inputs.slice());
   }
   protected addByte(x: number) {
     if ((x & 0xff) !== x) throw new Error(`expected byte: ${x}`);
@@ -339,7 +339,7 @@ export class EVMProgram {
   pushBytes(v: BytesLike) {
     return this.addByte(OP_PUSH_INPUT).addByte(this.addInputBytes(v));
   }
-  pushProgram(program: EVMProgram) {
+  pushProgram(program: GatewayProgram) {
     return this.pushBytes(program.encode());
   }
   pushSlot() {
@@ -362,7 +362,7 @@ export class EVMProgram {
   // experimental syntax
   // alternative: pushProgram()
   begin() {
-    return new EVMProgram(this);
+    return new GatewayProgram(this);
   }
   end() {
     const p = this.parent;
@@ -385,7 +385,7 @@ export class EVMProgram {
 }
 
 // a request is just a command where the leading byte is the number of outputs
-export class DataRequest extends EVMProgram {
+export class GatewayRequest extends GatewayProgram {
   context: HexString | undefined;
   constructor(outputCount = 0) {
     super(undefined);
@@ -544,7 +544,7 @@ export abstract class AbstractProver {
   async evalDecoded(ops: HexString, inputs: HexString[]) {
     return this.evalReader(new ProgramReader(getBytes(ops), inputs));
   }
-  async evalRequest(req: DataRequest) {
+  async evalRequest(req: GatewayRequest) {
     return this.evalReader(ProgramReader.fromProgram(req));
   }
   async evalReader(reader: ProgramReader) {

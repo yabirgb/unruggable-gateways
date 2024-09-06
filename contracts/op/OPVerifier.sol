@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
-import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
+import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "@eth-optimism/contracts-bedrock/src/libraries/Hashing.sol";
 
@@ -28,7 +28,7 @@ contract OPVerifier is AbstractVerifier {
 		return abi.encode(_oracle().latestOutputIndex());
 	}
 
-	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, GatewayRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 outputIndex1 = abi.decode(context, (uint256));
 		(
 			uint256 outputIndex,
@@ -44,7 +44,7 @@ contract OPVerifier is AbstractVerifier {
 		}
 		bytes32 computedRoot = Hashing.hashOutputRootProof(outputRootProof);
 		require(computedRoot == output.outputRoot, "OP: invalid root");
-		return DataProver.evalRequest(req, ProofSequence(0, 
+		return GatewayProver.evalRequest(req, ProofSequence(0, 
 			outputRootProof.stateRoot,
 			proofs, order,
 			EthTrieHooks.proveAccountState,

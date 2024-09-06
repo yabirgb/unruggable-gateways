@@ -7,12 +7,12 @@ const foundry = await Foundry.launch({
 
 // await foundry.deploy({
 //   sol: `
-//     import "@src/DataProver.sol";
+//     import "@src/GatewayProver.sol";
 //     contract Prover {
 //       function f() external returns (bytes[] memory, uint8) {
-//         DataRequest memory r;
+//         GatewayRequest memory r;
 //         ProofSequence memory s;
-//         return DataProver.evalRequest(r, s);
+//         return GatewayProver.evalRequest(r, s);
 //       }
 //     }
 //   `,

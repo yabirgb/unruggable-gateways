@@ -13,7 +13,7 @@ import {
 } from 'ethers';
 import { CachedMap, CachedValue, LRU } from './cached.js';
 import { ABI_CODER } from './utils.js';
-import { DataRequestV1 } from './v1.js';
+import { GatewayRequestV1 } from './v1.js';
 import { EZCCIP } from '@resolverworks/ezccip';
 
 export const GATEWAY_ABI = new Interface([
@@ -74,7 +74,7 @@ export class Gateway<R extends Rollup> extends EZCCIP {
           const hash = keccakStr(`${commit.index}:${context.calldata}`);
           history.show = [commit.index, shortHash(hash)];
           return this.callLRU.cache(hash, async () => {
-            const req = new DataRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
+            const req = new GatewayRequestV1(target, commands, constants).v2(); // upgrade v1 to v2
             const state = await commit.prover.evalRequest(req);
             const proofSeq = await commit.prover.proveV1(state.needs);
             const witness = rollupV1.encodeWitnessV1(commit, proofSeq);
@@ -149,7 +149,7 @@ export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
         const hash = keccakStr(`${commit.index}:${context.calldata}`);
         history.show = [commit.index, shortHash(hash)];
         return this.callLRU.cache(hash, async () => {
-          const req = new DataRequestV1(target, commands, constants);
+          const req = new GatewayRequestV1(target, commands, constants);
           return getBytes(await this.handleRequest(commit, req));
         });
       },
@@ -166,6 +166,6 @@ export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
   // we forward the responsibility of generating a response
   abstract handleRequest(
     commit: RollupCommitType<R>,
-    request: DataRequestV1
+    request: GatewayRequestV1
   ): Promise<HexString>;
 }

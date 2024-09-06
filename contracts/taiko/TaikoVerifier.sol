@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
-import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
+import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {ITaiko} from "./ITaiko.sol";
 
@@ -40,7 +40,7 @@ contract TaikoVerifier is AbstractVerifier {
 	// 	// 63 % 16 == 15
 	// }
 
-	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, GatewayRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint64 blockId1 = abi.decode(context, (uint64));
 		(
 			uint64 blockId,
@@ -50,7 +50,7 @@ contract TaikoVerifier is AbstractVerifier {
 		) = abi.decode(proof, (uint64, bytes32, bytes[], bytes));
 		_checkWindow(blockId1, blockId);
 		ITaiko.TransitionState memory ts = _rollup().getTransition(blockId, parentHash); // reverts if invalid
-		return DataProver.evalRequest(req, ProofSequence(0, 
+		return GatewayProver.evalRequest(req, ProofSequence(0, 
 			ts.stateRoot,
 			proofs, order,
 			EthTrieHooks.proveAccountState,

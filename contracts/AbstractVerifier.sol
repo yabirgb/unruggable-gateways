@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IDataProofVerifier} from "./IDataProofVerifier.sol";
+import {IGatewayProofVerifier} from "./IGatewayProofVerifier.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
-abstract contract AbstractVerifier is IDataProofVerifier {
+abstract contract AbstractVerifier is IGatewayProofVerifier {
 	
 	event GatewayChanged();
 

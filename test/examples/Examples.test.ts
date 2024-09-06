@@ -1,4 +1,4 @@
-import { DataRequest } from '../../src/vm.js';
+import { GatewayRequest } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { hexlify, toBeHex, randomBytes, concat, dataSlice } from 'ethers';
@@ -32,7 +32,7 @@ test('ClowesConcatSlice', async () => {
 
   const prover = await EthProver.latest(foundry.provider);
 
-  const req = new DataRequest(2)
+  const req = new GatewayRequest(2)
     .setTarget(contract.target)
     .setSlot(0)
     .readBytes()
@@ -69,14 +69,14 @@ test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
   });
   const prover = await EthProver.latest(foundry.provider);
 
-  const req1 = new DataRequest()
+  const req1 = new GatewayRequest()
     .setTarget(contract.target)
     .push(1)
     .follow()
     .read()
     .addOutput();
 
-  const req2 = new DataRequest()
+  const req2 = new GatewayRequest()
     .setTarget(contract.target)
     .push(1)
     .pushSlot()

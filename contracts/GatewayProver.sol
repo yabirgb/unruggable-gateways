@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ProtocolData.sol";
+import "./GatewayProtocol.sol";
 import "./ProofUtils.sol";
 
-import {Bytes} from "@eth-optimism/contracts-bedrock/src/libraries/Bytes.sol"; // Bytes.slice
+import {Bytes} from "../lib/optimism/packages/contracts-bedrock/src/libraries/Bytes.sol"; // Bytes.slice
 
 import "forge-std/console2.sol"; // DEBUG
 
-library DataProver {
+library GatewayProver {
 	
 	function dump(Machine memory vm) internal pure {
 		console2.log("[pos=%s/%s]", vm.pos, vm.buf.length);
@@ -51,7 +51,7 @@ library DataProver {
 		ProofSequence proofs;
 	}
 
-	using DataProver for Machine;
+	using GatewayProver for Machine;
 
 	function push(Machine memory vm, bytes memory v) internal pure {
 		vm.stack[vm.stackSize++] = v;
@@ -153,7 +153,7 @@ library DataProver {
 		}
 	}
 
-	function evalRequest(DataRequest memory req, ProofSequence memory proofs) internal view returns (bytes[] memory outputs, uint8 exitCode) {
+	function evalRequest(GatewayRequest memory req, ProofSequence memory proofs) internal view returns (bytes[] memory outputs, uint8 exitCode) {
 		Machine memory vm;
 		vm.pos = 0;
 		vm.buf = req.ops;

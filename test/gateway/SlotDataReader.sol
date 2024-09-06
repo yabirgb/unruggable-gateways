@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {DataFetchTarget, IDataProofVerifier} from "../../contracts/DataFetchTarget.sol";
-import {DataFetcher, DataRequest} from "../../contracts/DataFetcher.sol";
+import {GatewayFetchTarget, IGatewayProofVerifier} from "../../contracts/GatewayFetchTarget.sol";
+import {GatewayFetcher, GatewayRequest} from "../../contracts/GatewayFetcher.sol";
 
-contract SlotDataReader is DataFetchTarget {
-	using DataFetcher for DataRequest;
-	IDataProofVerifier immutable _verifier;
+contract SlotDataReader is GatewayFetchTarget {
+	using GatewayFetcher for GatewayRequest;
+	IGatewayProofVerifier immutable _verifier;
 	address immutable _target;
-	constructor(IDataProofVerifier verifier, address target) {
+	constructor(IGatewayProofVerifier verifier, address target) {
 		_verifier = verifier;
 		_target = target;
 	}
@@ -23,55 +23,55 @@ contract SlotDataReader is DataFetchTarget {
 	}
 
 	function readLatest() external view returns (uint256) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(0).read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}
 
 	function readName() external view returns (string memory) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(1).readBytes().setOutput(0);
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
 
 	function readHighscore(uint256 key) external view returns (uint256) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(2).push(key).follow().read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}
 
 	function readLatestHighscore() external view returns (uint256) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(0).read().setSlot(2).follow().read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}
 
 	function readLatestHighscorer() external view returns (string memory) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(0).read().setSlot(3).follow().readBytes().setOutput(0);
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
 
 	function readRealName(string memory key) external view returns (string memory) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(4).push(key).follow().readBytes().setOutput(0);
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
 
 	function readLatestHighscorerRealName() external view returns (string memory) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(0).read().setSlot(3).follow().readBytes().setSlot(4).follow().readBytes().setOutput(0);
 		fetch(_verifier, r, this.stringCallback.selector, '');
 	}
 
 	function readZero() external view returns (uint256) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(5).read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}
 
 	function readRootStr(string[] memory keys) external view returns (string memory) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(12);
 		for (uint256 i; i < keys.length; i++) {
 			r.offset(2).push(keys[i]).follow();
@@ -81,7 +81,7 @@ contract SlotDataReader is DataFetchTarget {
 	}
 
 	function readSlicedKeccak() external view returns (string memory) {
-		DataRequest memory r = DataFetcher.newRequest(1).setTarget(_target);
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
 		r.setSlot(0).read().setSlot(3).follow().readBytes().setSlot(4).follow().readBytes().slice(0, 3); // "Hal"
 		r.setSlot(0).read().setSlot(2).follow().read().slice(16, 16); // uint128(12345)
 		r.concat().keccak().setSlot(3).follow().readBytes().setOutput(0); // highscorers[keccak("Hal"+12345)]

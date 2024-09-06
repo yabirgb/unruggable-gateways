@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
-import {DataRequest, DataProver, ProofSequence} from "../DataProver.sol";
+import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {LineaTrieHooks} from "./LineaTrieHooks.sol";
 
 interface IRollup {
@@ -27,7 +27,7 @@ contract LineaVerifier is AbstractVerifier {
 		return abi.encode(_rollup().currentL2BlockNumber());
 	}
 
-	function getStorageValues(bytes memory context, DataRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
+	function getStorageValues(bytes memory context, GatewayRequest memory req, bytes memory proof) external view returns (bytes[] memory, uint8 exitCode) {
 		uint256 l2BlockNumber1 = abi.decode(context, (uint256));
 		(
 			uint256 l2BlockNumber,
@@ -37,7 +37,7 @@ contract LineaVerifier is AbstractVerifier {
 		_checkWindow(l2BlockNumber1, l2BlockNumber);
 		bytes32 stateRoot = _rollup().stateRootHashes(l2BlockNumber);
 		require(stateRoot != bytes32(0), "Linea: not finalized");
-		return DataProver.evalRequest(req, ProofSequence(0, 
+		return GatewayProver.evalRequest(req, ProofSequence(0, 
 			stateRoot, 
 			proofs, order, 
 			LineaTrieHooks.proveAccountState,

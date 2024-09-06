@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {RLPReader, ContentLengthMismatch} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
+import {RLPReader, ContentLengthMismatch} from "../lib/optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 
 library RLPReaderExt {
 
