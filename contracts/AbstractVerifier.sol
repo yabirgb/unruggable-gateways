@@ -32,7 +32,12 @@ abstract contract AbstractVerifier is IGatewayProofVerifier {
 	}
 
 	function gatewayURLs() external view returns (string[] memory) {
-		return abi.decode(StorageSlot.getBytesSlot(SLOT_urls).value, (string[]));
+		bytes memory storedValue = StorageSlot.getBytesSlot(SLOT_urls).value;
+		// Check if the stored value is empty or not set
+		if (storedValue.length == 0) {
+			return new string[](0);
+		}
+		return abi.decode(storedValue, (string[]));
 	}
 
 	function setWindow(uint256 window) external onlyOwner {
