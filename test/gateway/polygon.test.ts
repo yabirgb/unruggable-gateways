@@ -24,17 +24,12 @@ describe(chainName(config.chain2), async () => {
     log: false,
   });
   afterAll(() => ccip.http.close());
-  const verifier = await foundry.deploy({
-    file: 'PolygonPoSVerifier',
-    args: [],
-  });
-
+  const verifier = await foundry.deploy({ file: 'PolygonPoSVerifier' });
   const proxy = await deployProxy(foundry, verifier);
   await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
   await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
   await foundry.confirm(proxy.setRootChain(rollup.RootChain.target));
   await foundry.confirm(proxy.setPoster(rollup.poster.address));
-
   // https://polygonscan.com/address/0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361#code
   const reader = await foundry.deploy({
     file: 'SlotDataReader',

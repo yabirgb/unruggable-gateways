@@ -25,71 +25,79 @@ export async function deployProxy(foundry: Foundry, verifier: Contract) {
 
 export function testOP(
   config: RollupDeployment<OPConfig>,
-  slotDataReaderAddress: HexAddress
+  slotDataReaderAddress: HexAddress,
+  minor = false
 ) {
-  describe(chainName(config.chain2), async () => {
-    const rollup = new OPRollup(createProviderPair(config), config);
-    const foundry = await Foundry.launch({
-      fork: providerURL(config.chain1),
-      infoLog: false,
-    });
-    afterAll(() => foundry.shutdown());
-    const gateway = new Gateway(rollup);
-    const ccip = await serve(gateway, {
-      protocol: 'raw',
-      log: false,
-    });
-    afterAll(() => ccip.http.close());
-    const verifier = await foundry.deploy({ file: 'OPVerifier' });
-    const proxy = await deployProxy(foundry, verifier);
-    await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
-    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-    await foundry.confirm(proxy.setOracle(rollup.L2OutputOracle));
-    const reader = await foundry.deploy({
-      file: 'SlotDataReader',
-      args: [proxy, slotDataReaderAddress],
-    });
-    runSlotDataTests(reader);
-  });
+  describe.skipIf(minor && !!process.env.IS_CI)(
+    chainName(config.chain2),
+    async () => {
+      const rollup = new OPRollup(createProviderPair(config), config);
+      const foundry = await Foundry.launch({
+        fork: providerURL(config.chain1),
+        infoLog: false,
+      });
+      afterAll(() => foundry.shutdown());
+      const gateway = new Gateway(rollup);
+      const ccip = await serve(gateway, {
+        protocol: 'raw',
+        log: false,
+      });
+      afterAll(() => ccip.http.close());
+      const verifier = await foundry.deploy({ file: 'OPVerifier' });
+      const proxy = await deployProxy(foundry, verifier);
+      await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+      await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
+      await foundry.confirm(proxy.setOracle(rollup.L2OutputOracle));
+      const reader = await foundry.deploy({
+        file: 'SlotDataReader',
+        args: [proxy, slotDataReaderAddress],
+      });
+      runSlotDataTests(reader);
+    }
+  );
 }
 
 export function testOPFault(
   config: RollupDeployment<OPFaultConfig>,
-  slotDataReaderAddress: HexAddress
+  slotDataReaderAddress: HexAddress,
+  minor = false
 ) {
-  describe(chainName(config.chain2), async () => {
-    const rollup = await OPFaultRollup.create(
-      createProviderPair(config),
-      config
-    );
-    const foundry = await Foundry.launch({
-      fork: providerURL(config.chain1),
-      infoLog: false,
-    });
-    afterAll(() => foundry.shutdown());
-    const gateway = new Gateway(rollup);
-    const ccip = await serve(gateway, {
-      protocol: 'raw',
-      log: false,
-    });
-    afterAll(() => ccip.http.close());
-    const commit = await gateway.getLatestCommit();
-    const gameFinder = await foundry.deploy({
-      file: 'FixedOPFaultGameFinder',
-      args: [commit.index],
-    });
-    const verifier = await foundry.deploy({
-      file: 'OPFaultVerifier',
-      args: [gameFinder],
-    });
-    const proxy = await deployProxy(foundry, verifier);
-    await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
-    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-    await foundry.confirm(proxy.setPortal(rollup.OptimismPortal));
-    const reader = await foundry.deploy({
-      file: 'SlotDataReader',
-      args: [proxy, slotDataReaderAddress],
-    });
-    runSlotDataTests(reader);
-  });
+  describe.skipIf(minor && !!process.env.IS_CI)(
+    chainName(config.chain2),
+    async () => {
+      const rollup = await OPFaultRollup.create(
+        createProviderPair(config),
+        config
+      );
+      const foundry = await Foundry.launch({
+        fork: providerURL(config.chain1),
+        infoLog: false,
+      });
+      afterAll(() => foundry.shutdown());
+      const gateway = new Gateway(rollup);
+      const ccip = await serve(gateway, {
+        protocol: 'raw',
+        log: false,
+      });
+      afterAll(() => ccip.http.close());
+      const commit = await gateway.getLatestCommit();
+      const gameFinder = await foundry.deploy({
+        file: 'FixedOPFaultGameFinder',
+        args: [commit.index],
+      });
+      const verifier = await foundry.deploy({
+        file: 'OPFaultVerifier',
+        args: [gameFinder],
+      });
+      const proxy = await deployProxy(foundry, verifier);
+      await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+      await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
+      await foundry.confirm(proxy.setPortal(rollup.OptimismPortal));
+      const reader = await foundry.deploy({
+        file: 'SlotDataReader',
+        args: [proxy, slotDataReaderAddress],
+      });
+      runSlotDataTests(reader);
+    }
+  );
 }

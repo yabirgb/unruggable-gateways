@@ -215,24 +215,50 @@ export function chainName(chain: Chain): string {
   return `${info.name}<${chain}>`;
 }
 
-export function providerURL(chain: Chain): string {
+function decideProvider(chain: Chain) {
   const info = CHAIN_MAP.get(chain);
   if (!info) throw new Error(`unknown provider: ${chain}`);
   // 20240830: so far, alchemy has the best support
-  let apiKey = process.env.ALCHEMY_KEY;
-  if (apiKey && info.alchemy) {
-    return `https://${info.alchemy}.g.alchemy.com/v2/${apiKey}`;
+  let apiKey;
+  if (info.alchemy && (apiKey = process.env.ALCHEMY_KEY)) {
+    return {
+      info,
+      type: 'alchemy',
+      url: `https://${info.alchemy}.g.alchemy.com/v2/${apiKey}`,
+      apiKey,
+    };
   }
-  apiKey = process.env.ANKR_KEY;
-  if (apiKey && info.ankr) {
-    return `https://rpc.ankr.com/${info.ankr}/${apiKey}`;
+  if (info.ankr && (apiKey = process.env.ANKR_KEY)) {
+    return {
+      info,
+      type: 'ankr',
+      url: `https://rpc.ankr.com/${info.ankr}/${apiKey}`,
+      apiKey,
+    };
   }
-  apiKey = process.env.INFURA_KEY;
-  if (apiKey && info.infura) {
-    return `https://${info.infura}.infura.io/v3/${apiKey}`;
+  if (info.infura && (apiKey = process.env.INFURA_KEY)) {
+    return {
+      info,
+      type: 'infura',
+      url: `https://${info.infura}.infura.io/v3/${apiKey}`,
+      apiKey,
+    };
   }
-  return info.rpc;
+  return { info, type: 'public', url: info.rpc };
 }
+
+export function providerURL(chain: Chain): string {
+  return decideProvider(chain).url;
+}
+export function providerType(chain: Chain): string {
+  return decideProvider(chain).type;
+}
+
+// export function chainPairName(pair: ChainPair): string {
+//   const a = decideProvider(pair.chain1);
+//   const b = decideProvider(pair.chain2);
+//   return `${a.info.name}<${a.info.chain}>${a.type}>>${b.info.name}<${b.info.chain}>${b.type}`;
+// }
 
 export function createProvider(chain: Chain): Provider {
   const fr = new FetchRequest(providerURL(chain));

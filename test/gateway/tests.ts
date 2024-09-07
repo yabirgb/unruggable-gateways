@@ -2,25 +2,25 @@ import { Contract } from 'ethers';
 import { expect, test } from 'bun:test';
 
 export function runSlotDataTests(reader: Contract) {
-  test('latest = 49', () => {
-    expect(reader.readLatest({ enableCcipRead: true })).resolves.toStrictEqual(
+  test('latest = 49', async () => {
+    expect(await reader.readLatest({ enableCcipRead: true })).toStrictEqual(
       49n
     );
   });
-  test('name = "Satoshi"', () => {
-    expect(reader.readName({ enableCcipRead: true })).resolves.toStrictEqual(
+  test('name = "Satoshi"', async () => {
+    expect(await reader.readName({ enableCcipRead: true })).toStrictEqual(
       'Satoshi'
     );
   });
-  test('highscores[0] = 1', () => {
+  test('highscores[0] = 1', async () => {
     expect(
-      reader.readHighscore(0, { enableCcipRead: true })
-    ).resolves.toStrictEqual(1n);
+      await reader.readHighscore(0, { enableCcipRead: true })
+    ).toStrictEqual(1n);
   });
   test('highscores[latest] = 12345', async () => {
     expect(
-      reader.readLatestHighscore({ enableCcipRead: true })
-    ).resolves.toStrictEqual(12345n);
+      await reader.readLatestHighscore({ enableCcipRead: true })
+    ).toStrictEqual(12345n);
   });
   test('highscorers[latest] = name', async () => {
     expect(
@@ -37,11 +37,9 @@ export function runSlotDataTests(reader: Contract) {
       await reader.readLatestHighscorerRealName({ enableCcipRead: true })
     ).toStrictEqual('Hal Finney');
   });
-  if (!process.env.IS_CI) {
-    test('zero = 0', async () => {
-      expect(await reader.readZero({ enableCcipRead: true })).toStrictEqual(0n);
-    });
-  }
+  test.skipIf(!!process.env.IS_CI)('zero = 0', async () => {
+    expect(await reader.readZero({ enableCcipRead: true })).toStrictEqual(0n);
+  });
   test('root.str = "raffy"', async () => {
     expect(
       await reader.readRootStr([], { enableCcipRead: true })

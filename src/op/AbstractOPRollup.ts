@@ -1,4 +1,4 @@
-import type { HexAddress, HexString } from '../types.js';
+import type { HexString } from '../types.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
 import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
@@ -23,9 +23,10 @@ function outputRootProofTuple(commit: OPCommit) {
   return [ZeroHash, commit.stateRoot, commit.passerRoot, commit.blockHash];
 }
 
+const L2ToL1MessagePasser = '0x4200000000000000000000000000000000000016';
+
 export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
-  L2ToL1MessagePasser: HexAddress =
-    '0x4200000000000000000000000000000000000016';
+  L2ToL1MessagePasser = L2ToL1MessagePasser;
   async createCommit(index: bigint, block: HexString): Promise<OPCommit> {
     const prover = new EthProver(this.provider2, block);
     const [{ storageHash: passerRoot }, blockInfo] = await Promise.all([
