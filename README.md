@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="./unruggable-logo-black.png" style = "width:300px;" alt = "Unruggable Gateways" />
+    <img src="https://raw.githubusercontent.com/unruggable-labs/unruggable-gateways/main/unruggable-logo-black.png" style = "width:300px;" alt = "Unruggable Gateways" />
 </p>
 
 # Unruggable Gateways
