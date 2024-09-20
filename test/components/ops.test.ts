@@ -7,7 +7,8 @@ import {
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
-import { test, afterAll, expect, describe } from 'bun:test';
+import { test, expect } from 'bun:test';
+import { describe } from '../bun-describe-fix.js';
 
 function hexStr(s: string) {
   return ethers.hexlify(ethers.toUtf8Bytes(s));
@@ -16,7 +17,7 @@ function uint256(x: BigNumberish) {
   return ethers.toBeHex(x, 32);
 }
 
-describe('ops', async () => {
+describe('ops', async (afterAll) => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({
@@ -38,13 +39,13 @@ describe('ops', async () => {
     const prover = await EthProver.latest(foundry.provider);
     const stateRoot = await prover.fetchStateRoot();
     const vm = await prover.evalRequest(req);
-    const { proofs, order } = await prover.prove(vm.needs);
+    const proofSeq = await prover.prove(vm.needs);
     const values = await vm.resolveOutputs();
     const res = await verifier.verify(
-      [Uint8Array.from(req.ops), req.inputs],
+      req.toTuple(),
       stateRoot,
-      proofs,
-      order
+      proofSeq.proofs,
+      proofSeq.order
     );
     expect(res.outputs.toArray()).toEqual(values);
     expect(res.exitCode).toBe(BigInt(vm.exitCode));

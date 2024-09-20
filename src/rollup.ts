@@ -1,3 +1,4 @@
+import type { BlockTag } from 'ethers/providers';
 import type { ChainPair, HexString, Provider, ProviderPair } from './types.js';
 import type { AbstractProver, ProofSequence, ProofSequenceV1 } from './vm.js';
 
@@ -21,7 +22,7 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   // "keep fast cache around longer" => prover.fastCache?.cacheMs = Infinity
   // "limit targets" => prover.maxUniqueTargets = 1
   configure: (<T extends C>(commit: T) => void) | undefined;
-  latestBlockTag = 'finalized';
+  latestBlockTag: BlockTag = 'finalized';
   getLogsStepSize = 1000n;
   readonly provider1: Provider;
   readonly provider2: Provider;

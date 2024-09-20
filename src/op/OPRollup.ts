@@ -1,11 +1,14 @@
 import type { RollupDeployment } from '../rollup.js';
 import type { HexAddress, ProviderPair } from '../types.js';
 import { type ABIOutputProposal, ORACLE_ABI } from './types.js';
-import { Contract } from 'ethers';
+import { Contract } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
 import { toString16 } from '../utils.js';
 
+// should this be named L2OutputOracleProxy?
+// most call it L2OutputOracle (meaning the Proxy)
+// but some list both for some stupid reason
 export type OPConfig = {
   L2OutputOracle: HexAddress;
 };
@@ -37,6 +40,35 @@ export class OPRollup extends AbstractOPRollup {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.ZORA,
     L2OutputOracle: '0x9E6204F750cD866b299594e2aC9eA824E2e5f95c',
+  };
+
+  // https://docs-v2.mantle.xyz/intro/system-components/on-chain-system
+  static readonly mantleMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.MANTLE,
+    L2OutputOracle: '0x31d543e7BE1dA6eFDc2206Ef7822879045B9f481',
+  };
+
+  // https://docs.mode.network/general-info/mainnet-contract-addresses/l1-l2-contracts
+  static readonly modeMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.MODE,
+    L2OutputOracle: '0x4317ba146D4933D889518a3e5E11Fe7a53199b04',
+  };
+
+  // https://docs.cyber.co/build-on-cyber/addresses-mainnet
+  // https://docs.cyber.co/build-on-cyber/addresses-testnet
+  static readonly cyberMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.MODE,
+    L2OutputOracle: '0xD94Ce9E4886A6dcEbC7cF993f4b38F5276516643',
+  };
+
+  // https://redstone.xyz/docs/contract-addresses
+  static readonly redstoneMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.REDSTONE,
+    L2OutputOracle: '0xa426A052f657AEEefc298b3B5c35a470e4739d69',
   };
 
   readonly L2OutputOracle;

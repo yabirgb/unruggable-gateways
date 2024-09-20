@@ -5,8 +5,10 @@ import type {
   EncodedProof,
   HexAddress,
 } from './types.js';
+import { ZeroAddress } from 'ethers/constants';
+import { keccak256 } from 'ethers/crypto';
+import { solidityPackedKeccak256 } from 'ethers/hash';
 import {
-  ZeroAddress,
   hexlify,
   toBeHex,
   dataSlice,
@@ -14,9 +16,7 @@ import {
   getBytes,
   toUtf8Bytes,
   toUtf8String,
-  keccak256,
-  solidityPackedKeccak256,
-} from 'ethers';
+} from 'ethers/utils';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
 import { ABI_CODER } from './utils.js';
 import { CachedMap, LRU } from './cached.js';
@@ -51,6 +51,7 @@ const OP_REQ_CONTRACT = 11;
 const OP_READ_SLOTS = 20;
 const OP_READ_BYTES = 21;
 const OP_READ_ARRAY = 22;
+const OP_READ_HASHED = 23;
 
 const OP_SLOT_ZERO = 30;
 const OP_SLOT_ADD = 31;
@@ -175,12 +176,14 @@ export class ProgramReader {
         return { pos, op, name: 'READ_SLOTS', count: this.readByte() };
       case OP_READ_BYTES:
         return { pos, op, name: 'READ_BYTES' };
+      case OP_READ_HASHED:
+        return { pos, op, name: 'READ_HASHED' };
       case OP_READ_ARRAY:
         return { pos, op, name: 'READ_ARRAY' };
       case OP_REQ_CONTRACT:
         return { pos, op, name: 'REQ_CONTRACT' };
       case OP_REQ_NONZERO:
-        return { pos, op, name: 'REQ_NONZERO' };
+        return { pos, op, name: 'REQ_NONZERO', back: this.readByte() };
       case OP_EVAL_INLINE:
         return { pos, op, name: 'EVAL_INLINE' };
       case OP_EVAL_LOOP:
@@ -270,6 +273,9 @@ export class GatewayProgram {
   }
   readBytes() {
     return this.addByte(OP_READ_BYTES);
+  }
+  readHashedBytes() {
+    return this.addByte(OP_READ_HASHED);
   }
   readArray(step: number) {
     return this.addByte(OP_READ_ARRAY).addShort(step);
@@ -408,8 +414,14 @@ export class GatewayRequest extends GatewayProgram {
   }
 }
 
-export type Need = [target: HexString, slot: bigint | boolean];
+export type TargetNeed = { target: HexAddress; required: boolean };
+export type HashedNeed = {
+  hash: HexString;
+  value: HexFuture;
+};
+export type Need = TargetNeed | bigint | HashedNeed;
 
+// TODO: move these to types?
 export type ProofSequence = {
   readonly proofs: EncodedProof[];
   readonly order: Uint8Array;
@@ -434,7 +446,7 @@ export class MachineState {
   constructor(
     readonly outputs: HexFuture[],
     readonly needs: Need[] = [],
-    readonly targets = new Map<HexString, Need>()
+    readonly targets = new Map<HexString, TargetNeed>()
   ) {}
   checkOutputIndex(i: number) {
     if (i >= this.outputs.length) throw new Error(`invalid output index: ${i}`);
@@ -455,69 +467,78 @@ export class MachineState {
     if (!this.stack.length) throw new Error('stack underflow');
     return this.stack.pop()!;
   }
-  traceTarget(target: HexString, max: number) {
+  changeTarget(target: HexString, max: number) {
     // IDEA: this could incrementally build the needs map
     // instead of doing it during prove()
     let need = this.targets.get(target);
     if (!need) {
-      // special value indicate accountProof instead of slot
-      // false => account proof is optional (so far)
-      need = [target, false];
-      this.targets.set(target, need);
-      if (this.targets.size > max) {
+      if (this.targets.size >= max) {
         throw new Error('too many targets');
       }
+      // changing the target doesn't necessarily include an account proof
+      // an account proof is included, either:
+      // 1.) 2-level trie (stateRoot => storageRoot => slot)
+      // 2.) we need to prove it is a contract (non-null codehash)
+      // (native balance and other account state is not currently supported)
+      need = { target, required: false };
+      this.targets.set(target, need);
     }
     this.needs.push(need);
   }
-  traceSlot(target: HexString, slot: bigint) {
-    this.needs.push([target, slot]);
-  }
-  traceSlots(target: HexString, slots: bigint[]) {
-    for (const slot of slots) {
-      this.traceSlot(target, slot);
-    }
-  }
+}
+
+export function isTargetNeed(need: Need) {
+  return typeof need === 'object' && need && 'target' in need;
 }
 
 export function requireV1Needs(needs: Need[]) {
   if (!needs.length) {
     throw new Error('expected needs');
   }
-  const [target, required] = needs[0];
-  if (typeof required !== 'boolean') {
-    throw new Error('first proof must be account');
+  const need = needs[0];
+  if (!isTargetNeed(need)) {
+    throw new Error('first need must be account');
   }
-  const slots = needs.slice(1).map(([addr, slot]) => {
-    if (addr !== target || typeof slot !== 'bigint') {
-      throw new Error('remaining proofs must be storage');
+  const slots = needs.slice(1).map((need) => {
+    if (typeof need !== 'bigint') {
+      throw new Error('remaining needs must be storage');
     }
-    return slot;
+    return need;
   });
-  return { target, required, slots };
+  return { ...need, slots };
 }
 
+function checkReadSize(size: bigint | number, limit: number) {
+  if (size > limit) {
+    throw new Error(`too many bytes: ${size} > ${limit}`);
+  }
+  return Number(size);
+}
+
+type ProofRef = { id: number; proof: EncodedProof };
+
 export abstract class AbstractProver {
-  // maximum number of bytes from single read()
-  // this is also constrained by proof count (1 proof per 32 bytes)
-  maxReadBytes = 32 * 32; // max = unlimited
   // maximum number of proofs (M account + N storage)
   // note: if this number is too small, protocol can be changed to uint16
   maxUniqueProofs = 128; // max = 256
   // maximum number of targets (accountProofs)
-  maxUniqueTargets = 32; // max = unlimited
+  maxUniqueTargets = 32; // max = maxUniqueProofs
   proofBatchSize = 64; // max = unlimited
   // general proof cache
   readonly proofLRU = new LRU<string, any>(10000);
   // use getCode() / getStorage() if no proof is cached yet
   // default: deduplicate in-flight, do not cache
   fastCache: CachedMap<string, any> | undefined = new CachedMap(0);
+  // maximum bytes from single readHashedBytes(), readFetchedBytes()
+  maxSuppliedBytes = 1 << 20; // max = unlimited
+  // maximum bytes from single read(), readBytes()
+  // (ultimately constrained by proof count)
+  maxProvableBytes = 32 << 5;
 
-  checkSize(size: bigint | number) {
-    if (size > this.maxReadBytes) {
-      throw new Error(`too many bytes: ${size} > ${this.maxReadBytes}`);
+  checkProofCount(size: number) {
+    if (size > this.maxUniqueProofs) {
+      throw new Error(`too many proofs: ${size} > ${this.maxUniqueProofs}`);
     }
-    return Number(size);
   }
   proofMap() {
     const map = new Map<string, bigint[]>();
@@ -576,7 +597,7 @@ export abstract class AbstractProver {
           // args: [] / stack: -1
           vm.target = addressFromHex(await unwrap(vm.pop()));
           vm.slot = 0n;
-          vm.traceTarget(vm.target, this.maxUniqueTargets); // accountProof
+          vm.changeTarget(vm.target, this.maxUniqueTargets);
           continue;
         }
         case OP_SLOT_ADD: {
@@ -638,9 +659,9 @@ export abstract class AbstractProver {
           // args: [count] / stack: +1
           const { target, slot } = vm;
           const count = reader.readByte();
-          this.checkSize(count << 5);
+          checkReadSize(count << 5, this.maxProvableBytes);
           const slots = bigintRange(slot, count);
-          vm.traceSlots(target, slots);
+          vm.needs.push(...slots);
           vm.push(
             slots.length
               ? new Wrapped(async () =>
@@ -658,30 +679,18 @@ export abstract class AbstractProver {
           // args: [] / stack: +1
           // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
           const { target, slot } = vm;
-          vm.traceSlot(target, slot);
-          const first = await this.getStorage(target, slot);
-          let size = parseInt(first.slice(64), 16); // last byte
-          if ((size & 1) == 0) {
-            // small
-            vm.push(dataSlice(first, 0, size >> 1));
-          } else {
-            size = this.checkSize(BigInt(first) >> 1n);
-            const slots = solidityArraySlots(slot, (size + 31) >> 5);
-            vm.traceSlots(target, slots);
-            vm.push(
-              new Wrapped(async () =>
-                dataSlice(
-                  concat(
-                    await Promise.all(
-                      slots.map((x) => this.getStorage(target, x))
-                    )
-                  ),
-                  0,
-                  size
-                )
-              )
-            );
-          }
+          const { value, slots } = await this.getStorageBytes(target, slot);
+          vm.needs.push(slot, ...slots);
+          vm.push(value);
+          continue;
+        }
+        case OP_READ_HASHED: {
+          // args: [] / stack: 0 (-hash, +value)
+          const hash = await unwrap(vm.pop());
+          const { target, slot } = vm;
+          const { value } = await this.getStorageBytes(target, slot, true);
+          vm.needs.push({ hash, value });
+          vm.push(value);
           continue;
         }
         case OP_READ_ARRAY: {
@@ -689,9 +698,9 @@ export abstract class AbstractProver {
           const step = reader.readShort();
           if (!step) throw new Error('invalid element size');
           const { target, slot } = vm;
-          vm.traceSlot(target, slot);
-          let length = this.checkSize(
-            uint256FromHex(await this.getStorage(target, slot))
+          let length = checkReadSize(
+            uint256FromHex(await this.getStorage(target, slot)),
+            this.maxProvableBytes
           );
           if (step < 32) {
             const per = (32 / step) | 0;
@@ -700,8 +709,8 @@ export abstract class AbstractProver {
             length = length * ((step + 31) >> 5);
           }
           const slots = solidityArraySlots(slot, length);
-          vm.traceSlots(target, slots);
           slots.unshift(slot);
+          vm.needs.push(...slots);
           vm.push(
             new Wrapped(async () =>
               concat(
@@ -714,7 +723,7 @@ export abstract class AbstractProver {
         case OP_REQ_CONTRACT: {
           // args: [] / stack: 0
           const need = vm.targets.get(vm.target);
-          if (need) need[1] = true; // mark accountProof as required
+          if (need) need.required = true;
           if (!(await this.isContract(vm.target))) {
             vm.exitCode = 1;
             return;
@@ -798,6 +807,101 @@ export abstract class AbstractProver {
         }
       }
     }
+  }
+  async getStorageBytes(
+    target: HexAddress,
+    slot: bigint,
+    fast = false
+  ): Promise<{
+    value: HexFuture;
+    size: number;
+    slots: bigint[];
+  }> {
+    const first = await this.getStorage(target, slot);
+    let size = parseInt(first.slice(64), 16); // last byte
+    if ((size & 1) == 0) {
+      // small
+      size >>= 1;
+      const value = dataSlice(first, 0, size);
+      return { value, size, slots: [] };
+    }
+    size = checkReadSize(
+      BigInt(first) >> 1n,
+      fast ? this.maxSuppliedBytes : this.maxProvableBytes
+    );
+    const slots = solidityArraySlots(slot, (size + 31) >> 5);
+    const value = new Wrapped(async () =>
+      dataSlice(
+        concat(await Promise.all(slots.map((x) => this.getStorage(target, x)))),
+        0,
+        size
+      )
+    );
+    return { value, size, slots };
+  }
+
+  async standardReduce(
+    needs: Need[],
+    fn: (
+      target: HexAddress,
+      accountRef: ProofRef,
+      slotRefs: Map<bigint, ProofRef>
+    ) => Promise<void>
+  ) {
+    // reduce an ordered list of needs into a deduplicated list of proofs
+    // provide empty proofs for non-contract slots
+    type Bucket = { ref: ProofRef; map: Map<bigint, ProofRef> };
+    const promises: Promise<any>[] = [];
+    const named = new Map<HexString, ProofRef>();
+    const buckets = new Map<HexString, Bucket>();
+    const refs: ProofRef[] = [];
+    let nullRef: ProofRef | undefined;
+    const createRef = () => {
+      const ref = { id: refs.length, proof: '0x' };
+      refs.push(ref);
+      return ref;
+    };
+    let bucket: Bucket | undefined;
+    const order = needs.map((need) => {
+      if (isTargetNeed(need)) {
+        // accountProof
+        // we must prove this value since it leads to a stateRoot
+        bucket = buckets.get(need.target);
+        if (!bucket) {
+          bucket = { ref: createRef(), map: new Map() };
+          buckets.set(need.target, bucket);
+        }
+        return bucket.ref;
+      } else if (typeof need === 'bigint') {
+        // storageProof (for targeted account)
+        // bucket can be undefined if a slot is read without a target
+        // this is okay because the initial machine state is NOT_A_CONTRACT
+        if (!bucket) return (nullRef ??= createRef());
+        let ref = bucket.map.get(need);
+        if (!ref) {
+          ref = createRef();
+          bucket.map.set(need, ref);
+        }
+        return ref;
+      } else {
+        let ref = named.get(need.hash);
+        if (!ref) {
+          ref = createRef();
+          promises.push((async () => (ref.proof = await unwrap(need.value)))());
+          named.set(need.hash, ref);
+        }
+        return ref;
+      }
+    });
+    this.checkProofCount(refs.length);
+    for (const [target, bucket] of buckets) {
+      promises.push(fn(target, bucket.ref, bucket.map));
+    }
+    await Promise.all(promises);
+    return {
+      proofs: refs.map((x) => x.proof),
+      order: Uint8Array.from(order, (x) => x.id),
+    };
   }
 }
 

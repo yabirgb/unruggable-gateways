@@ -22,45 +22,42 @@ describe('LineaProver', async () => {
   });
 
   test('dne', async () => {
-    const account = '0x0000000000000000000000000000000000001234';
-    expect(commit.prover.isContract(account)).resolves.toBeFalse();
-    const proof = await commit.prover.prove([[account, true]]);
+    const target = '0x0000000000000000000000000000000000001234';
+    expect(commit.prover.isContract(target)).resolves.toBeFalse();
+    const proof = await commit.prover.prove([{ target, required: true }]);
     const storageRoot = await verifier.proveAccountState(
       commit.stateRoot,
-      account,
+      target,
       proof.proofs[0]
     );
     expect(storageRoot).toStrictEqual(ethers.ZeroHash);
   });
 
   test('eoa', async () => {
-    const account = '0x51050ec063d393217B436747617aD1C2285Aeeee';
-    expect(commit.prover.isContract(account)).resolves.toBeFalse();
-    const proof = await commit.prover.prove([[account, true]]);
+    const target = '0x51050ec063d393217B436747617aD1C2285Aeeee';
+    expect(commit.prover.isContract(target)).resolves.toBeFalse();
+    const proof = await commit.prover.prove([{ target, required: true }]);
     const storageRoot = await verifier.proveAccountState(
       commit.stateRoot,
-      account,
+      target,
       proof.proofs[0]
     );
     expect(storageRoot).toStrictEqual(ethers.ZeroHash);
   });
 
   test('contract', async () => {
-    const account = '0x48F5931C5Dbc2cD9218ba085ce87740157326F59'; // SlotDataReader
-    expect(commit.prover.isContract(account)).resolves.toBeTrue();
-    const proof = await commit.prover.prove([
-      [account, true],
-      [account, 0n],
-    ]);
+    const target = '0x48F5931C5Dbc2cD9218ba085ce87740157326F59'; // SlotDataReader
+    expect(commit.prover.isContract(target)).resolves.toBeTrue();
+    const proof = await commit.prover.prove([{ target, required: true }, 0n]);
     const storageRoot = await verifier.proveAccountState(
       commit.stateRoot,
-      account,
+      target,
       proof.proofs[0]
     );
     expect(storageRoot).not.toStrictEqual(ethers.ZeroHash);
     const storageValue = await verifier.proveStorageValue(
       storageRoot,
-      account,
+      target,
       0n,
       proof.proofs[1]
     );

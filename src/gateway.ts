@@ -4,13 +4,9 @@ import {
   type Rollup,
 } from './rollup.js';
 import type { HexString } from './types.js';
-import {
-  Interface,
-  solidityPackedKeccak256,
-  getBytes,
-  hexlify,
-  id as keccakStr,
-} from 'ethers';
+import { Interface } from 'ethers/abi';
+import { solidityPackedKeccak256, id as keccakStr } from 'ethers/hash';
+import { getBytes, hexlify } from 'ethers/utils';
 import { CachedMap, CachedValue, LRU } from './cached.js';
 import { ABI_CODER } from './utils.js';
 import { GatewayRequestV1 } from './v1.js';
@@ -119,10 +115,8 @@ export class Gateway<R extends Rollup> extends EZCCIP {
   private async cachedParentCommitIndex(
     commit: RollupCommitType<R>
   ): Promise<bigint> {
-    return this.parentCacheMap.get(commit.index, async () => {
-      const index = await this.rollup.fetchParentCommitIndex(commit);
-      if (index < 0) throw new Error(`no parent commit: ${commit.index}`);
-      return index;
+    return this.parentCacheMap.get(commit.index, () => {
+      return this.rollup.fetchParentCommitIndex(commit);
     });
   }
   private async cachedCommit(index: bigint) {

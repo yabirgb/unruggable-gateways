@@ -39,7 +39,7 @@
     "contracts/IDataProofVerifier.sol"
   ],
   "devDependencies": {
-    "@adraffy/blocksmith": "0.0.33",
+    "@adraffy/blocksmith": "^0.0.34",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
@@ -49,8 +49,8 @@
     "prettier": "^3.3.3"
   },
   "dependencies": {
-    "@resolverworks/ezccip": "^0.0.14",
-    "ethers": "^6.13.1"
+    "@resolverworks/ezccip": "^0.0.15",
+    "ethers": "^6.13.2"
   },
   "peerDependencies": {
     "typescript": "^5.5.2"

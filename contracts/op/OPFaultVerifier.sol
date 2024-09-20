@@ -7,8 +7,6 @@ import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
 import {Hashing, Types} from "../../lib/optimism/packages/contracts-bedrock/src/libraries/Hashing.sol";
 import "../../lib/optimism/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol";
 
-//import {IDisputeGame} from "@eth-optimism/contracts-bedrock/src/dispute/interfaces/IDisputeGame.sol";
-
 interface IOptimismPortal {
 	function disputeGameFactory() external view returns (IDisputeGameFactory);
 	function respectedGameType() external view returns (GameType);

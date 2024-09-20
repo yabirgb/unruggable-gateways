@@ -25,7 +25,7 @@ library GatewayProver {
 		return uint256(v.length < 32 ? bytes32(v) >> ((32 - v.length) << 3) : bytes32(v));
 	}
 	
-	// TODO this checks beyond bound
+	// TODO: this checks beyond bound
 	function isZeros(bytes memory v) internal pure returns (bool ret) {
 		assembly {
 			let p := add(v, 32)
@@ -173,7 +173,7 @@ library GatewayProver {
 			uint256 op = vm.readByte();
 			if (op == OP_TARGET) {
 				vm.target = address(uint160(uint256FromBytes(vm.pop())));
-				vm.storageRoot = vm.proofs.proveAccountState(vm.proofs.stateRoot, vm.target, vm.readProof()); // TODO balance?
+				vm.storageRoot = vm.proofs.proveAccountState(vm.proofs.stateRoot, vm.target, vm.readProof()); // TODO: balance?
 				vm.slot = 0;
 			} else if (op == OP_SET_OUTPUT) {
 				outputs[vm.readByte()] = vm.pop();
@@ -186,6 +186,10 @@ library GatewayProver {
 				vm.push(vm.proveSlots(vm.readByte()));
 			} else if (op == OP_READ_BYTES) {
 				vm.push(vm.proveBytes());
+			} else if (op == OP_READ_HASHED) {
+				bytes memory v = vm.readProof();
+				if (keccak256(v) != bytes32(vm.pop())) revert RequestInvalid();
+				vm.push(v);
 			} else if (op == OP_READ_ARRAY) {
 				vm.push(vm.proveArray(vm.readShort()));
 			} else if (op == OP_PUSH_INPUT) {

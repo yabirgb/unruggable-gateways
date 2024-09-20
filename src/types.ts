@@ -1,4 +1,5 @@
-import type { JsonRpcApiProvider, BigNumberish, BytesLike } from 'ethers';
+import type { JsonRpcApiProvider } from 'ethers/providers';
+import type { BigNumberish, BytesLike } from 'ethers/utils';
 
 export type { BigNumberish, BytesLike };
 export type HexString = string;

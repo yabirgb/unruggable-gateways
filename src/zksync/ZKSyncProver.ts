@@ -7,19 +7,22 @@ import type {
 } from '../types.js';
 import {
   AbstractProver,
+  isTargetNeed,
   makeStorageKey,
   type Need,
   type ProofSequence,
 } from '../vm.js';
-import { toBeHex } from 'ethers';
+import { ZeroAddress } from 'ethers/constants';
+import { toBeHex } from 'ethers/utils';
 import { ABI_CODER, withResolvers } from '../utils.js';
+import { unwrap } from '../wrap.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
 // https://github.com/matter-labs/era-contracts/blob/fd4aebcfe8833b26e096e87e142a5e7e4744f3fa/system-contracts/bootloader/bootloader.yul#L458
 export const ZKSYNC_ACCOUNT_CODEHASH =
   '0x0000000000000000000000000000000000008002';
 
-function encodeStorageProof(proof: ZKSyncStorageProof) {
+export function encodeStorageProof(proof: ZKSyncStorageProof) {
   return ABI_CODER.encode(
     ['bytes32', 'uint64', 'bytes32[]'],
     [proof.value, proof.index, proof.proof]
@@ -68,7 +71,9 @@ export class ZKSyncProver extends AbstractProver {
   }
   override async prove(needs: Need[]): Promise<ProofSequence> {
     type Ref = { id: number; proof: EncodedProof };
-    const targets = new Map<HexString, Map<bigint, Ref>>();
+    const promises: Promise<void>[] = [];
+    const named = new Map<HexString, Ref>();
+    const buckets = new Map<HexString, Map<bigint, Ref>>();
     const refs: Ref[] = [];
     let nullRef: Ref | undefined;
     const createRef = () => {
@@ -76,42 +81,62 @@ export class ZKSyncProver extends AbstractProver {
       refs.push(ref);
       return ref;
     };
-    const order = needs.map(([target, slot]) => {
-      if (slot === false) {
-        // accountProof that isn't used
-        // save 12m gas by not including a proof
-        if (!nullRef) nullRef = createRef();
-        return nullRef.id;
-      }
-      if (slot === true) {
-        slot = BigInt(target);
-        target = ZKSYNC_ACCOUNT_CODEHASH;
-      }
-      let bucket = targets.get(target);
+    const addSlot = (target: HexAddress, slot: bigint) => {
+      if (target === ZeroAddress) return (nullRef ??= createRef());
+      let bucket = buckets.get(target);
       if (!bucket) {
         bucket = new Map();
-        targets.set(target, bucket);
+        buckets.set(target, bucket);
       }
       let ref = bucket.get(slot);
       if (!ref) {
         ref = createRef();
         bucket.set(slot, ref);
       }
-      return ref.id;
-    });
-    await Promise.all(
-      Array.from(targets, async ([target, map]) => {
-        const m = [...map];
-        const proofs = await this.getStorageProofs(
-          target,
-          m.map(([slot]) => slot)
+      return ref;
+    };
+    let target = ZeroAddress;
+    const order = needs.map((need) => {
+      if (isTargetNeed(need)) {
+        target = need.target;
+        return addSlot(
+          need.required ? ZKSYNC_ACCOUNT_CODEHASH : ZeroAddress,
+          BigInt(need.target)
         );
-        m.forEach(([, ref], i) => (ref.proof = encodeStorageProof(proofs[i])));
-      })
+      } else if (typeof need === 'bigint') {
+        return addSlot(target, need);
+      } else {
+        let ref = named.get(need.hash);
+        if (!ref) {
+          ref = createRef();
+          promises.push(
+            (async () => {
+              ref.proof = await unwrap(need.value);
+            })()
+          );
+          named.set(need.hash, ref);
+        }
+        return ref;
+      }
+    });
+    this.checkProofCount(refs.length);
+    await Promise.all(
+      promises.concat(
+        Array.from(buckets, async ([target, map]) => {
+          const m = [...map];
+          const proofs = await this.getStorageProofs(
+            target,
+            m.map(([slot]) => slot)
+          );
+          m.forEach(
+            ([, ref], i) => (ref.proof = encodeStorageProof(proofs[i]))
+          );
+        })
+      )
     );
     return {
       proofs: refs.map((x) => x.proof),
-      order: Uint8Array.from(order),
+      order: Uint8Array.from(order, (x) => x.id),
     };
   }
   async getStorageProofs(target: HexString, slots: bigint[]) {

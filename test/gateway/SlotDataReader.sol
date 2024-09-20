@@ -6,11 +6,15 @@ import {GatewayFetcher, GatewayRequest} from "../../contracts/GatewayFetcher.sol
 
 contract SlotDataReader is GatewayFetchTarget {
 	using GatewayFetcher for GatewayRequest;
-	IGatewayProofVerifier immutable _verifier;
-	address immutable _target;
+	IGatewayProofVerifier public _verifier;
+	address public _target;
+	address public _pointer;
 	constructor(IGatewayProofVerifier verifier, address target) {
 		_verifier = verifier;
 		_target = target;
+	}
+	function setPointer(address a) external {
+		_pointer = a;
 	}
 	function debugCallback(bytes[] memory m, uint8 exitCode, bytes memory) external pure returns (bytes[] memory, uint8) {
 		return (m, exitCode);
@@ -24,6 +28,12 @@ contract SlotDataReader is GatewayFetchTarget {
 
 	function readLatest() external view returns (uint256) {
 		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_target);
+		r.setSlot(0).read().setOutput(0);
+		fetch(_verifier, r, this.uint256Callback.selector, '');
+	}
+	function readLatestViaPointer() external view returns (uint256) {
+		GatewayRequest memory r = GatewayFetcher.newRequest(1).setTarget(_pointer);
+		r.setSlot(0).read().target();
 		r.setSlot(0).read().setOutput(0);
 		fetch(_verifier, r, this.uint256Callback.selector, '');
 	}

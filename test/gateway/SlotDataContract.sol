@@ -22,7 +22,7 @@ contract SlotDataContract {
 	}
 	Node root; // Slot 12-14
 
-	constructor(address _anotherAddress) {
+	constructor() {
 
 		name = "Satoshi";
 		highscores[0] = 1;
@@ -32,10 +32,10 @@ contract SlotDataContract {
 		realnames["Money Skeleton"] = "Vitalik Buterin";
 		realnames[highscorers[latest]] = "Hal Finney";
 		pointlessBytes = abi.encodePacked(uint8(0),uint8(0),uint8(49));
-		paddedAddress = abi.encodePacked(uint64(0), _anotherAddress);
-		addressIdentifiers[_anotherAddress] = "tom";
+		paddedAddress = abi.encodePacked(uint64(0), address(this));
+		addressIdentifiers[address(this)] = "tom";
 		stringStrings["tom"] = "clowes";
-		anotherAddress = _anotherAddress;
+		anotherAddress = address(this);
 
 		//tom => 0x746f6d
 		//tomiscool => 0x746f6d6973636f6f6c

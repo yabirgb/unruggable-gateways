@@ -1,16 +1,17 @@
-import {
-  type JsonRpcPayload,
-  makeError,
-  AbiCoder,
-  id as keccakStr,
-} from 'ethers';
+import { AbiCoder } from 'ethers/abi';
+import { makeError } from 'ethers/utils';
+import { id as keccakStr } from 'ethers/hash';
+import { type JsonRpcPayload, JsonRpcProvider } from 'ethers/providers';
 import type { Provider, BigNumberish, HexString } from './types.js';
+import type { RPCEthGetBlock } from './eth/types.js';
 
 export const ABI_CODER = AbiCoder.defaultAbiCoder();
 
 // https://adraffy.github.io/keccak.js/test/demo.html#algo=keccak-256&s=&escape=1&encoding=utf8
 // "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
 export const NULL_CODE_HASH = keccakStr('');
+
+export const EVM_BLOCKHASH_DEPTH = 256;
 
 // hex-prefixed without any zero-padding
 export function toString16(x: BigNumberish): HexString {
@@ -58,11 +59,14 @@ export async function sendImmediate<T>(
   method: string,
   params: any[]
 ): Promise<T> {
-  if (provider._getOption('batchMaxCount') == 1) {
+  if (
+    !(provider instanceof JsonRpcProvider) ||
+    provider._getOption('batchMaxCount') == 1
+  ) {
     return provider.send(method, params);
   }
-  // https://github.com/ethers-io/ethers.js/issues/4819
-  const id = ((Math.random() * 0x7fffffff) | 0x80000000) >>> 0;
+  //const id = ((Math.random() * 0x7fffffff) | 0x80000000) >>> 0;
+  const id = 1; // since this is fetch-based, it's okay to reuse id
   const payload: JsonRpcPayload = {
     method,
     params,
@@ -94,4 +98,13 @@ export async function sendImmediate<T>(
   } else {
     throw provider.getRpcError(payload, resp);
   }
+}
+
+export async function fetchBlock(provider: Provider, blockTag: HexString) {
+  const json: RPCEthGetBlock | null = await provider.send(
+    'eth_getBlockByNumber',
+    [blockTag, false]
+  );
+  if (!json) throw new Error(`no block: ${blockTag}`);
+  return json;
 }

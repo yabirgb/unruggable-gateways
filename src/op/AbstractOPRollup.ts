@@ -1,10 +1,9 @@
 import type { HexString } from '../types.js';
-import type { RPCEthGetBlock } from '../eth/types.js';
 import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
-import { ZeroHash } from 'ethers';
-import { ABI_CODER } from '../utils.js';
+import { ZeroHash } from 'ethers/constants';
+import { ABI_CODER, fetchBlock } from '../utils.js';
 
 const OutputRootProofType = `tuple(
   bytes32 version,
@@ -31,12 +30,8 @@ export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
     const prover = new EthProver(this.provider2, block);
     const [{ storageHash: passerRoot }, blockInfo] = await Promise.all([
       prover.fetchProofs(this.L2ToL1MessagePasser),
-      this.provider2.send('eth_getBlockByNumber', [
-        block,
-        false,
-      ]) as Promise<RPCEthGetBlock | null>,
+      fetchBlock(this.provider2, block),
     ]);
-    if (!blockInfo) throw new Error('no block');
     return {
       index,
       blockHash: blockInfo.hash,

@@ -1,4 +1,4 @@
-import { Interface } from 'ethers';
+import { Interface } from 'ethers/abi';
 import type { HexAddress, HexString32, HexString } from '../types.js';
 
 export type ZKSyncStorageProof = {

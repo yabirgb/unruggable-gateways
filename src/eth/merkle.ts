@@ -1,6 +1,8 @@
 import type { HexString, BigNumberish } from '../types.js';
 import type { EthProof } from './types.js';
-import { ZeroHash, keccak256, decodeRlp, toBeHex, zeroPadValue } from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { keccak256 } from 'ethers/crypto';
+import { decodeRlp, toBeHex, zeroPadValue } from 'ethers/utils';
 
 const BRANCH_NODE_SIZE = 17;
 const LEAF_NODE_SIZE = 2;

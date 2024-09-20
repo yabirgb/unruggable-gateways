@@ -3,6 +3,11 @@ import { EthProver } from '../../src/eth/EthProver.js';
 import { createProvider } from '../providers.js';
 
 const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));
+
+// console.log(
+//   await prover.getProofs('0x51050ec063d393217B436747617aD1C2285Aeeee', [1n, 2n])
+// );
+
 const A = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 
 prover.provider.on('debug', (e) => {

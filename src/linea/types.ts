@@ -1,4 +1,4 @@
-import { Interface } from 'ethers';
+import { Interface } from 'ethers/abi';
 import type { HexString, HexString32 } from '../types.js';
 
 export const ROLLUP_ABI = new Interface([

@@ -4,6 +4,7 @@ import { EZCCIP, serve } from '@resolverworks/ezccip';
 import { Gateway } from '../src/gateway.js';
 import { OPRollup } from '../src/op/OPRollup.js';
 import { OPFaultRollup } from '../src/op/OPFaultRollup.js';
+import { OPReverseRollup } from '../src/op/OPReverseRollup.js';
 import { NitroRollup } from '../src/nitro/NitroRollup.js';
 import { ScrollRollup } from '../src/scroll/ScrollRollup.js';
 import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
@@ -12,13 +13,22 @@ import { LineaGatewayV1 } from '../src/linea/LineaGatewayV1.js';
 import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 
+// TODO: add timer based pre-fetch for commit via cli-option
+// TODO: add names for all of the missing rollups (and testnets)
 const [, , name, port] = process.argv;
 let gateway: EZCCIP & { readonly rollup: Rollup };
 switch (name) {
   case 'op': {
     const config = OPFaultRollup.mainnetConfig;
     gateway = new Gateway(
-      await OPFaultRollup.create(createProviderPair(config), config)
+      new OPFaultRollup(createProviderPair(config), config)
+    );
+    break;
+  }
+  case 'reverse-op': {
+    const config = OPReverseRollup.mainnetConfig;
+    gateway = new Gateway(
+      new OPReverseRollup(createProviderPair(config), config)
     );
     break;
   }
@@ -35,7 +45,7 @@ switch (name) {
   case 'base-testnet': {
     const config = OPFaultRollup.baseTestnetConfig;
     gateway = new Gateway(
-      await OPFaultRollup.create(createProviderPair(config), config)
+      new OPFaultRollup(createProviderPair(config), config)
     );
     break;
   }
@@ -104,3 +114,7 @@ console.log({
   chain2: chainName(gateway.rollup.provider2._network.chainId),
 });
 await serve(gateway, { protocol: 'raw', port: parseInt(port) || 8000 });
+
+// TODO: https://github.com/ardatan/whatwg-node/blob/master/packages/server/src/createServerAdapter.ts
+// 20240920: i dont understand this design, it's just a file that default-exports
+// a function that takes a Request and returns a Response?

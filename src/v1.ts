@@ -1,5 +1,6 @@
 import type { HexString, BigNumberish, BytesLike } from './types.js';
-import { ZeroAddress, hexlify, toBeHex, toUtf8Bytes, getBytes } from 'ethers';
+import { ZeroAddress } from 'ethers/constants';
+import { hexlify, toBeHex, getBytes, toUtf8Bytes } from 'ethers/utils';
 import { GatewayRequest } from './vm.js';
 
 // export const GATEWAY_ABI = new ethers.Interface([

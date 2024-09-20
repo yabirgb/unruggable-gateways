@@ -1,11 +1,17 @@
 import { Contract } from 'ethers';
 import { expect, test } from 'bun:test';
 
-export function runSlotDataTests(reader: Contract) {
+// imo better to expect(await) than expect().resolves
+export function runSlotDataTests(reader: Contract, pointer = false) {
   test('latest = 49', async () => {
     expect(await reader.readLatest({ enableCcipRead: true })).toStrictEqual(
       49n
     );
+  });
+  test.skipIf(!pointer)('pointer => latest = 49', async () => {
+    expect(
+      await reader.readLatestViaPointer({ enableCcipRead: true })
+    ).toStrictEqual(49n);
   });
   test('name = "Satoshi"', async () => {
     expect(await reader.readName({ enableCcipRead: true })).toStrictEqual(

@@ -6,6 +6,8 @@ import {NOT_A_CONTRACT, NULL_CODE_HASH} from "../ProofUtils.sol";
 
 error InvalidProof();
 
+//import "forge-std/console2.sol";
+
 library LineaTrieHooks {
 
 	uint256 constant LAST_LEAF_INDEX = 41;
@@ -17,39 +19,46 @@ library LineaTrieHooks {
 	}
 
 	function proveAccountState(bytes32 stateRoot, address target, bytes memory encodedProof) internal pure returns (bytes32) {
+		//uint256 g = gasleft();
 		Proof[] memory proofs = abi.decode(encodedProof, (Proof[]));
 		bytes32 hKey = SparseMerkleProof.mimcHash(abi.encode(target));
 		if (proofs.length == 1) {
 			Proof memory proof = proofs[0];
 			_requireExistance(stateRoot, hKey, SparseMerkleProof.hashAccountValue(proof.value), proof);
 			SparseMerkleProof.Account memory account = SparseMerkleProof.getAccount(proof.value);
+			//console2.log("account exists: %s (%d)", g - gasleft(), proof.nodes.length);
 			return account.keccakCodeHash == NULL_CODE_HASH ? NOT_A_CONTRACT : account.storageRoot;
 		} else {
 			_requireAbsence(stateRoot, hKey, proofs);
 			return NOT_A_CONTRACT;
-		}
+		}		
 	}
 
 	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory encodedProof) internal pure returns (bytes32) {
+		//uint256 g = gasleft();
 		Proof[] memory proofs = abi.decode(encodedProof, (Proof[]));
 		bytes32 hKey = SparseMerkleProof.hashStorageValue(bytes32(slot));
 		if (proofs.length == 1) {
 			Proof memory proof = proofs[0];
 			bytes32 value = bytes32(proof.value);
 			_requireExistance(storageRoot, hKey, SparseMerkleProof.hashStorageValue(value), proof);
+			//console2.log("storage exists: %s (%d)", g - gasleft(), proof.nodes.length);
 			return value;
 		} else {
 			_requireAbsence(storageRoot, hKey, proofs);
+			//console2.log("storage abs: %s (%d+%d)", g - gasleft(), proofs[0].nodes.length, proofs[1].nodes.length);
 			return bytes32(0);
 		}
 	}
 
+	// 20240917: 1.3m gas
 	function _requireExistance(bytes32 root, bytes32 hKey, bytes32 hValue, Proof memory proof) internal pure {
 		if (!SparseMerkleProof.verifyProof(proof.nodes, proof.leafIndex, root)) revert InvalidProof();
 		SparseMerkleProof.Leaf memory leaf = SparseMerkleProof.getLeaf(proof.nodes[LAST_LEAF_INDEX]);
 		if (hKey != leaf.hKey || hValue != leaf.hValue) revert InvalidProof();
 	}
 
+	// 20240917: 2.5m gas
 	function _requireAbsence(bytes32 root, bytes32 hKey, Proof[] memory proofs) internal pure {
 		if (proofs.length != 2) revert InvalidProof();
 		Proof memory proofL = proofs[0];

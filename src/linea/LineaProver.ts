@@ -1,6 +1,7 @@
-import type { EncodedProof, HexString, Provider } from '../types.js';
+import type { HexString, Provider } from '../types.js';
 import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
-import { ZeroHash, dataSlice, toBeHex } from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { dataSlice, toBeHex } from 'ethers/utils';
 import {
   ABI_CODER,
   NULL_CODE_HASH,
@@ -96,69 +97,22 @@ export class LineaProver extends AbstractProver {
     }
   }
   override async prove(needs: Need[]) {
-    // reduce an ordered list of needs into a deduplicated list of proofs
-    // provide empty proofs for non-contract slots
-    type Ref = { id: number; proof: EncodedProof };
-    type RefMap = Ref & { map: Map<bigint, Ref> };
-    const targets = new Map<HexString, RefMap>();
-    const refs: Ref[] = [];
-    const order = needs.map(([target, slot]) => {
-      let bucket = targets.get(target);
-      if (typeof slot === 'boolean') {
-        // accountProof
-        // we must prove this value since it leads to a stateRoot
-        if (!bucket) {
-          bucket = { id: refs.length, proof: '0x', map: new Map() };
-          refs.push(bucket);
-          targets.set(target, bucket);
-        }
-        return bucket.id;
-      } else {
-        // storageProof (for targeted account)
-        // bucket can be undefined if a slot is read without a target
-        // this is okay because the initial machine state is NOT_A_CONTRACT
-        let ref = bucket?.map.get(slot);
-        if (!ref) {
-          ref = { id: refs.length, proof: '0x' };
-          refs.push(ref);
-          bucket?.map.set(slot, ref);
-        }
-        return ref.id;
+    return this.standardReduce(needs, async (target, accountRef, slotRefs) => {
+      const m = [...slotRefs];
+      const accountProof: LineaProof | undefined =
+        await this.proofLRU.peek(target);
+      if (accountProof && !isContract(accountProof)) m.length = 0;
+      const proofs = await this.getProofs(
+        target,
+        m.map(([slot]) => slot)
+      );
+      accountRef.proof = encodeProof(proofs.accountProof);
+      if (isContract(proofs.accountProof)) {
+        m.forEach(
+          ([, ref], i) => (ref.proof = encodeProof(proofs.storageProofs[i]))
+        );
       }
     });
-    if (refs.length > this.maxUniqueProofs) {
-      throw new Error(
-        `too many proofs: ${refs.length} > ${this.maxUniqueProofs}`
-      );
-    }
-    await Promise.all(
-      Array.from(targets, async ([target, bucket]) => {
-        let m = [...bucket.map];
-        try {
-          const accountProof: LineaProof | undefined =
-            await this.proofLRU.touch(target);
-          if (accountProof && !isContract(accountProof)) {
-            m = []; // if we know target isn't a contract, we only need accountProof
-          }
-        } catch (err) {
-          /*empty*/
-        }
-        const proofs = await this.getProofs(
-          target,
-          m.map(([slot]) => slot)
-        );
-        bucket.proof = encodeProof(proofs.accountProof);
-        if (isContract(proofs.accountProof)) {
-          m.forEach(
-            ([, ref], i) => (ref.proof = encodeProof(proofs.storageProofs[i]))
-          );
-        }
-      })
-    );
-    return {
-      proofs: refs.map((x) => x.proof),
-      order: Uint8Array.from(order),
-    };
   }
   async getProofs(
     target: HexString,

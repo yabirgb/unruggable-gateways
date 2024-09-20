@@ -21,6 +21,7 @@ uint8 constant OP_REQ_CONTRACT = 11;
 uint8 constant OP_READ_SLOTS = 20;
 uint8 constant OP_READ_BYTES = 21;
 uint8 constant OP_READ_ARRAY = 22;
+uint8 constant OP_READ_HASHED = 23;
 
 uint8 constant OP_SLOT_ZERO = 30;
 uint8 constant OP_SLOT_ADD = 31;

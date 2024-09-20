@@ -10,7 +10,8 @@ import {
   type ABIZKSyncCommitBatchInfo,
   type RPCZKSyncL1BatchDetails,
 } from './types.js';
-import { Contract, EventLog, ZeroHash } from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { Contract, EventLog } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import {
   type RollupDeployment,

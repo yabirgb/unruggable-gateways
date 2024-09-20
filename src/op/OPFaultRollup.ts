@@ -1,6 +1,6 @@
 import type { RollupDeployment } from '../rollup.js';
 import type { HexAddress, ProviderPair } from '../types.js';
-import { Contract } from 'ethers';
+import { Contract } from 'ethers/contract';
 import { PORTAL_ABI, GAME_FINDER_ABI } from './types.js';
 import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
@@ -38,27 +38,26 @@ export class OPFaultRollup extends AbstractOPRollup {
     GameFinder: '0x0f1449C980253b576aba379B11D453Ac20832a89',
   };
 
-  static async create(providers: ProviderPair, config: OPFaultConfig) {
-    const optimismPortal = new Contract(
+  // 20240917: delayed constructor not needed
+  readonly OptimismPortal: Contract;
+  readonly GameFinder: Contract;
+  readonly gameTypeBitMask: number;
+  constructor(providers: ProviderPair, config: OPFaultConfig) {
+    super(providers);
+    this.OptimismPortal = new Contract(
       config.OptimismPortal,
       PORTAL_ABI,
       providers.provider1
     );
-    const gameFinder = new Contract(
+    this.GameFinder = new Contract(
       config.GameFinder,
       GAME_FINDER_ABI,
       providers.provider1
     );
-    const bitMask = (config.gameTypes ?? []).reduce((a, x) => a | (1 << x), 0);
-    return new this(providers, optimismPortal, gameFinder, bitMask);
-  }
-  private constructor(
-    providers: ProviderPair,
-    readonly OptimismPortal: Contract,
-    readonly GameFinder: Contract,
-    readonly gameTypeBitMask: number
-  ) {
-    super(providers);
+    this.gameTypeBitMask = (config.gameTypes ?? []).reduce(
+      (a, x) => a | (1 << x),
+      0
+    );
   }
 
   async fetchRespectedGameType(): Promise<bigint> {
@@ -98,9 +97,7 @@ export class OPFaultRollup extends AbstractOPRollup {
       this.gameTypeBitMask,
       index
     );
-    if (!game.l2BlockNumber) {
-      throw new Error(`Commit(${index}) not finalized`);
-    }
+    if (!game.l2BlockNumber) throw new Error('not finalized');
     return this.createCommit(index, toString16(game.l2BlockNumber));
   }
 

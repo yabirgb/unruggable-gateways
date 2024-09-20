@@ -20,11 +20,11 @@ contract ScrollSelfVerifier {
 		));
 	}
 
-	function proveAccountState(bytes32 stateRoot, address target, bytes memory proof) internal view returns (bytes32) {
+	function proveAccountState(bytes32 stateRoot, address target, bytes memory proof) public view returns (bytes32) {
 		return ScrollTrieHooks.proveAccountState(_poseidon, stateRoot, target, abi.decode(proof, (bytes[])));
 	}
 
-	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) internal view returns (bytes32) {
+	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory proof) public view returns (bytes32) {
 		return ScrollTrieHooks.proveStorageValue(_poseidon, storageRoot, slot, abi.decode(proof, (bytes[])));
 	}
 

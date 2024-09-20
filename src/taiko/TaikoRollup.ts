@@ -9,7 +9,7 @@ import type {
   HexString32,
   ProviderPair,
 } from '../types.js';
-import { Contract } from 'ethers';
+import { Contract } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import {
@@ -17,8 +17,7 @@ import {
   type ABITaikoConfig,
   type ABITaikoLastSyncedBlock,
 } from './types.js';
-import { ABI_CODER, toString16 } from '../utils.js';
-import type { RPCEthGetBlock } from '../eth/types.js';
+import { ABI_CODER, fetchBlock, toString16 } from '../utils.js';
 import type { ProofSequence } from '../vm.js';
 
 // https://github.com/taikoxyz/taiko-mono/tree/main/packages/protocol/contracts
@@ -88,11 +87,7 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     return commit.index - this.commitStep;
   }
   protected override async _fetchCommit(index: bigint): Promise<TaikoCommit> {
-    const blockInfo: RPCEthGetBlock | null = await this.provider2.send(
-      'eth_getBlockByNumber',
-      [toString16(index), false]
-    );
-    if (!blockInfo) throw new Error('no block');
+    const blockInfo = await fetchBlock(this.provider2, toString16(index));
     const prover = new EthProver(this.provider2, blockInfo.number);
     return { index, prover, parentHash: blockInfo.parentHash };
   }

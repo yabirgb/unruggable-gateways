@@ -203,6 +203,34 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
         infura: 'blast-mainnet',
         alchemy: 'blast-mainnet',
       },
+      {
+        // https://docs-v2.mantle.xyz/devs/dev-guides/tools/endpoints
+        chain: CHAINS.MANTLE,
+        name: 'mantle',
+        rpc: 'https://rpc.mantle.xyz', // wss://wss.mantle.xyz
+      },
+      {
+        // https://docs.mode.network/general-info/network-details#mode-mainnet
+        chain: CHAINS.MODE,
+        name: 'mode',
+        rpc: 'https://mainnet.mode.network/',
+      },
+      {
+        // https://docs.cyber.co/build-on-cyber/connecting-wallet
+        chain: CHAINS.CYBER,
+        name: 'cyber',
+        rpc: 'https://cyber.alt.technology/',
+      },
+      {
+        chain: CHAINS.CYBER_SEPOLIA,
+        name: 'cyber-testnet',
+        rpc: 'https://cyber-testnet.alt.technology/',
+      },
+      {
+        chain: CHAINS.REDSTONE,
+        name: 'redstone',
+        rpc: 'https://rpc.redstonechain.com', // wss://rpc.redstonechain.com
+      },
     ] satisfies ChainInfo[]
   )
     .sort((a, b) => a.name.localeCompare(b.name))

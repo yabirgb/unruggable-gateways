@@ -1,4 +1,4 @@
-import { Interface } from 'ethers';
+import { Interface } from 'ethers/abi';
 
 // https://github.com/scroll-tech/scroll/tree/738c85759d0248c005469972a49fc983b031ff1c/contracts/src/L1
 

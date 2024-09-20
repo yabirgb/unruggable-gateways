@@ -5,7 +5,7 @@ import { Gateway } from '../../src/gateway.js';
 import { createProviderPair, providerURL, chainName } from '../providers.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { describe, afterAll } from 'bun:test';
+import { describe } from '../bun-describe-fix.js';
 import { runSlotDataTests } from './tests.js';
 import { type OPConfig, OPRollup } from '../../src/op/OPRollup.js';
 import {
@@ -30,7 +30,7 @@ export function testOP(
 ) {
   describe.skipIf(minor && !!process.env.IS_CI)(
     chainName(config.chain2),
-    async () => {
+    async (afterAll) => {
       const rollup = new OPRollup(createProviderPair(config), config);
       const foundry = await Foundry.launch({
         fork: providerURL(config.chain1),
@@ -64,11 +64,8 @@ export function testOPFault(
 ) {
   describe.skipIf(minor && !!process.env.IS_CI)(
     chainName(config.chain2),
-    async () => {
-      const rollup = await OPFaultRollup.create(
-        createProviderPair(config),
-        config
-      );
+    async (afterAll) => {
+      const rollup = new OPFaultRollup(createProviderPair(config), config);
       const foundry = await Foundry.launch({
         fork: providerURL(config.chain1),
         infoLog: false,

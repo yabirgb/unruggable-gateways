@@ -1,4 +1,4 @@
-import { Interface } from 'ethers';
+import { Interface } from 'ethers/abi';
 import type { HexString32 } from '../types.js';
 
 export const ROOT_CHAIN_ABI = new Interface([
@@ -21,7 +21,9 @@ export type ABIHeaderTuple = {
   readonly l2BlockNumberEnd: bigint;
 };
 
-// https://polygonscan.com/tx/0xff88715030e2a7332586df92bf77477ae6f989029017fcfd82d01f38c45ff70e#eventlog
-// export const POSTER_ABI = new Interface([
-//   `event NewRoot(bytes32 indexed prevBlockHash)`,
-// ]);
+// https://github.com/0xPolygonHermez/zkevm-contracts/blob/main/contracts/v2/PolygonRollupManager.sol
+export const ROLLUP_ABI = new Interface([
+  `function chainIDToRollupID(uint64 chainID) view returns (uint32)`,
+  `function getRollupBatchNumToStateRoot(uint32 rollupID, uint64 batchNum) view returns (bytes32)`,
+  `function getLastVerifiedBatch(uint32 rollupID) view returns (uint64)`,
+]);

@@ -10,7 +10,8 @@ import type {
   ProviderPair,
 } from '../types.js';
 import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
-import { Contract, concat, toBeHex } from 'ethers';
+import { Contract } from 'ethers/contract';
+import { concat, toBeHex } from 'ethers/utils';
 import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import { POSEIDON_ABI, ROLLUP_ABI, VERIFIER_ABI } from './types.js';

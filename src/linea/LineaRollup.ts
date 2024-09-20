@@ -1,4 +1,5 @@
-import { ZeroHash, Contract } from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { Contract } from 'ethers/contract';
 import type {
   HexAddress,
   HexString,

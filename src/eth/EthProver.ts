@@ -3,18 +3,25 @@ import type {
   EthAccountProof,
   EthProof,
   EthStorageProof,
-  RPCEthGetBlock,
   RPCEthGetProof,
 } from './types.js';
-import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
-import { ZeroHash, toBeHex } from 'ethers';
+import {
+  AbstractProver,
+  isTargetNeed,
+  makeStorageKey,
+  type Need,
+} from '../vm.js';
+import { ZeroHash } from 'ethers/constants';
+import { toBeHex } from 'ethers/utils';
 import {
   ABI_CODER,
+  fetchBlock,
   NULL_CODE_HASH,
   sendRetry,
   toString16,
   withResolvers,
 } from '../utils.js';
+import { unwrap } from '../wrap.js';
 
 function isContract(proof: EthAccountProof) {
   return (
@@ -22,8 +29,58 @@ function isContract(proof: EthAccountProof) {
   );
 }
 
-function encodeProof(proof: EthProof): EncodedProof {
+export function encodeProof(proof: EthProof): EncodedProof {
   return ABI_CODER.encode(['bytes[]'], [proof]);
+}
+
+export function reduceNeeds(needs: Need[]) {
+  // reduce an ordered list of needs into a deduplicated list of proofs
+  // provide empty proofs for non-contract slots
+  type Ref = { id: number; proof: EncodedProof };
+  type Bucket = { ref: Ref; map: Map<bigint, Ref> };
+  const promises: Promise<any>[] = [];
+  const named = new Map<HexString, Ref>();
+  const buckets = new Map<HexString, Bucket>();
+  const refs: Ref[] = [];
+  let nullRef: Ref | undefined;
+  const createRef = () => {
+    const ref = { id: refs.length, proof: '0x' };
+    refs.push(ref);
+    return ref;
+  };
+  let bucket: Bucket | undefined;
+  const order = needs.map((need) => {
+    if (isTargetNeed(need)) {
+      // accountProof
+      // we must prove this value since it leads to a stateRoot
+      bucket = buckets.get(need.target);
+      if (!bucket) {
+        bucket = { ref: createRef(), map: new Map() };
+        buckets.set(need.target, bucket);
+      }
+      return bucket.ref;
+    } else if (typeof need === 'bigint') {
+      // storageProof (for targeted account)
+      // bucket can be undefined if a slot is read without a target
+      // this is okay because the initial machine state is NOT_A_CONTRACT
+      if (!bucket) return (nullRef ??= createRef());
+      let ref = bucket.map.get(need);
+      if (!ref) {
+        ref = createRef();
+        bucket.map.set(need, ref);
+      }
+      return ref;
+    } else {
+      let ref = named.get(need.hash);
+      if (!ref) {
+        ref = createRef();
+        promises.push((async () => (ref.proof = await unwrap(need.value)))());
+        named.set(need.hash, ref);
+      }
+      return ref;
+    }
+  });
+  return { promises, named, buckets, refs, order };
 }
 
 export class EthProver extends AbstractProver {
@@ -39,10 +96,7 @@ export class EthProver extends AbstractProver {
   }
   async fetchStateRoot() {
     // this is just a convenience
-    const blockInfo: RPCEthGetBlock = await this.provider.send(
-      'eth_getBlockByNumber',
-      [this.block, false]
-    );
+    const blockInfo = await fetchBlock(this.provider, this.block);
     return blockInfo.stateRoot;
   }
   async fetchProofs(
@@ -170,69 +224,22 @@ export class EthProver extends AbstractProver {
     }
   }
   override async prove(needs: Need[]) {
-    // reduce an ordered list of needs into a deduplicated list of proofs
-    // provide empty proofs for non-contract slots
-    type Ref = { id: number; proof: EncodedProof };
-    type RefMap = Ref & { map: Map<bigint, Ref> };
-    const targets = new Map<HexString, RefMap>();
-    const refs: Ref[] = [];
-    const order = needs.map(([target, slot]) => {
-      let bucket = targets.get(target);
-      if (typeof slot === 'boolean') {
-        // accountProof
-        // we must prove this value since it leads to a stateRoot
-        if (!bucket) {
-          bucket = { id: refs.length, proof: '0x', map: new Map() };
-          refs.push(bucket);
-          targets.set(target, bucket);
-        }
-        return bucket.id;
-      } else {
-        // storageProof (for targeted account)
-        // bucket can be undefined if a slot is read without a target
-        // this is okay because the initial machine state is NOT_A_CONTRACT
-        let ref = bucket?.map.get(slot);
-        if (!ref) {
-          ref = { id: refs.length, proof: '0x' };
-          refs.push(ref);
-          bucket?.map.set(slot, ref);
-        }
-        return ref.id;
+    return this.standardReduce(needs, async (target, accountRef, slotRefs) => {
+      const m = [...slotRefs];
+      const accountProof: EthAccountProof | undefined =
+        await this.proofLRU.peek(target);
+      if (accountProof && !isContract(accountProof)) m.length = 0;
+      const proofs = await this.getProofs(
+        target,
+        m.map(([slot]) => slot)
+      );
+      accountRef.proof = encodeProof(proofs.accountProof);
+      if (isContract(proofs)) {
+        m.forEach(
+          ([, ref], i) =>
+            (ref.proof = encodeProof(proofs.storageProof[i].proof))
+        );
       }
     });
-    if (refs.length > this.maxUniqueProofs) {
-      throw new Error(
-        `too many proofs: ${refs.length} > ${this.maxUniqueProofs}`
-      );
-    }
-    await Promise.all(
-      Array.from(targets, async ([target, bucket]) => {
-        let m = [...bucket.map];
-        try {
-          const accountProof: EthAccountProof | undefined =
-            await this.proofLRU.touch(target);
-          if (accountProof && !isContract(accountProof)) {
-            m = []; // if we know target isn't a contract, we only need accountProof
-          }
-        } catch (err) {
-          /*empty*/
-        }
-        const proofs = await this.getProofs(
-          target,
-          m.map(([slot]) => slot)
-        );
-        bucket.proof = encodeProof(proofs.accountProof);
-        if (isContract(proofs)) {
-          m.forEach(
-            ([, ref], i) =>
-              (ref.proof = encodeProof(proofs.storageProof[i].proof))
-          );
-        }
-      })
-    );
-    return {
-      proofs: refs.map((x) => x.proof),
-      order: Uint8Array.from(order),
-    };
   }
 }

@@ -4,6 +4,16 @@ import { createProvider, createProviderPair } from '../providers.js';
 // this is just a worksheet
 
 if (0) {
+	const config = ZKSyncRollup.mainnetConfig;
+	const rollup = new ZKSyncRollup(createProviderPair(config), config);
+	//const commit = await rollup.fetchLatestCommit();
+	const commit = await rollup.fetchLatestCommit();
+	console.log(commit);
+	throw 1;
+}
+
+
+if (0) {
 	const config = OPRollup.baseMainnetConfig;
 	const rollup = new OPRollup(createProviderPair(config), config);
 	//const commit = await rollup.fetchLatestCommit();

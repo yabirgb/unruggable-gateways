@@ -1,4 +1,4 @@
-import { Interface } from 'ethers';
+import { Interface } from 'ethers/abi';
 import type { HexString32 } from '../types.js';
 
 export const ORACLE_ABI = new Interface([

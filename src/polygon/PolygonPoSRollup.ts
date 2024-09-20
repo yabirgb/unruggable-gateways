@@ -7,14 +7,11 @@ import type {
 import type { RPCEthGetBlock } from '../eth/types.js';
 import { type ABIHeaderTuple, ROOT_CHAIN_ABI } from './types.js';
 import type { ProofSequence } from '../vm.js';
-import {
-  ZeroHash,
-  Log,
-  getBytes,
-  Contract,
-  hexlify,
-  id as keccakStr,
-} from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { Contract } from 'ethers/contract';
+import { Log } from 'ethers/providers';
+import { id as keccakStr } from 'ethers/hash';
+import { getBytes, hexlify } from 'ethers/utils';
 import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import {

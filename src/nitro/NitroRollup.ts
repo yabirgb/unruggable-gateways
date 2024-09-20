@@ -6,7 +6,8 @@ import {
 import type { HexAddress, HexString, ProviderPair } from '../types.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
 import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
-import { ZeroHash, Contract, EventLog } from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { Contract, EventLog } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import { type ABINodeTuple, ROLLUP_ABI } from './types.js';

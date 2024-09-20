@@ -3,51 +3,99 @@ import {
   RollupCommit,
   type RollupDeployment,
 } from '../rollup.js';
-import type { HexAddress, HexString, ProviderPair } from '../types.js';
+import type {
+  EncodedProof,
+  HexAddress,
+  HexString,
+  ProviderPair,
+} from '../types.js';
 import { L1_BLOCK_ABI } from './types.js';
-import { Contract, keccak256 } from 'ethers';
 import { CHAINS } from '../chains.js';
-import { ABI_CODER, toString16 } from '../utils.js';
-import { RPCEthGetBlock } from '../eth/types.js';
-import { EthProver } from '../eth/EthProver.js';
+import {
+  ABI_CODER,
+  EVM_BLOCKHASH_DEPTH,
+  fetchBlock,
+  toString16,
+} from '../utils.js';
+import { EthProver, encodeProof } from '../eth/EthProver.js';
 import { encodeRlpBlock } from '../rlp.js';
 import { ProofSequence } from '../vm.js';
+import { dataSlice } from 'ethers/utils';
+import { Contract } from 'ethers/contract';
 
 export type OPReverseConfig = {
   L1Block?: HexAddress;
+  storageSlot?: bigint;
 };
+
+// https://github.com/ethereum-optimism/optimism/blob/develop/packages/contracts-bedrock/src/L2/L1Block.sol
+// TODO: should these be settings?
+// (the contract needs to know SLOT_HASH)
+const SLOT_NUMBER = 0n;
+const SLOT_HASH = 2n;
 
 export type OPReverseCommit = RollupCommit<EthProver> & {
-  readonly rlpEncodedBlock: HexString;
+  readonly rlpEncodedL1Block: HexString;
+  readonly rlpEncodedL2Block: HexString;
+  readonly accountProof: EncodedProof;
+  readonly storageProof: EncodedProof;
 };
 
-const L1Block = '0x4200000000000000000000000000000000000015';
+const L1Block = '0x4200000000000000000000000000000000000015'; // default deployment
 
+// TODO: switch this to using previousBeaconRoot
+// see: test/research/eip-4788/
+
+// TODO: im using chain1 as mainnet and chain2 as op
+// however the proving is from chain2 to chain1
+// either rename chain1/chain2 to chainCall/chainData
+// or add direction: 1=>2 or 2=>1
 export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
   // https://docs.optimism.io/chain/addresses#op-mainnet-l2
   static readonly mainnetConfig: RollupDeployment<OPReverseConfig> = {
-    chain1: CHAINS.OP,
-    chain2: CHAINS.MAINNET,
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.OP,
   };
   // https://docs.base.org/docs/base-contracts#base-mainnet
   static readonly baseMainnetConfig: RollupDeployment<OPReverseConfig> = {
-    chain1: CHAINS.BASE,
-    chain2: CHAINS.MAINNET,
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.BASE,
   };
-
   readonly L1Block: Contract;
+  //readonly storageSlot: bigint; // using const SLOT_* instead
   constructor(providers: ProviderPair, config: OPReverseConfig) {
     super(providers);
+    this.latestBlockTag = 'latest';
     this.L1Block = new Contract(
       config.L1Block ?? L1Block,
       L1_BLOCK_ABI,
-      this.provider1
+      this.provider2
     );
   }
 
+  async findL2Block(l1BlockNumber: bigint) {
+    let b = (await this.provider2.getBlockNumber()) + 1;
+    let a = Math.max(0, b - EVM_BLOCKHASH_DEPTH);
+    while (a < b) {
+      const middle = Math.floor((a + b) / 2);
+      const value = await this.provider2.getStorage(
+        this.L1Block.target,
+        SLOT_NUMBER,
+        middle
+      );
+      const block = BigInt(dataSlice(value, 24, 32)); // uint64
+      if (block == l1BlockNumber) return BigInt(middle);
+      if (block > l1BlockNumber) {
+        b = middle;
+      } else {
+        a = middle + 1;
+      }
+    }
+    throw new Error(`unable to find block: ${l1BlockNumber}`);
+  }
+
   override fetchLatestCommitIndex(): Promise<bigint> {
-    // L1Block only stores 1 value
-    return this.L1Block.number(); //{ blockTag: this.latestBlockTag });
+    return this.L1Block.number({ blockTag: this.latestBlockTag });
   }
   protected override async _fetchParentCommitIndex(
     commit: OPReverseCommit
@@ -57,14 +105,27 @@ export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
   protected override async _fetchCommit(
     index: bigint
   ): Promise<OPReverseCommit> {
-    const prover = new EthProver(this.provider2, toString16(index));
-    const blockInfo: RPCEthGetBlock | null = await this.provider2.send(
-      'eth_getBlockByNumber',
-      [prover.block, false]
-    );
-    if (!blockInfo) throw new Error('no block');
-    const rlpEncodedBlock = encodeRlpBlock(blockInfo);
-    return { index, rlpEncodedBlock, prover };
+    const l1BlockHex = toString16(index);
+    const l2BlockHex = toString16(await this.findL2Block(index));
+    const [l1BlockInfo, l2BlockInfo, proof] = await Promise.all([
+      fetchBlock(this.provider1, l1BlockHex),
+      fetchBlock(this.provider2, l2BlockHex),
+      new EthProver(this.provider2, l2BlockHex).fetchProofs(
+        this.L1Block.target as string,
+        [SLOT_HASH]
+      ),
+    ]);
+    const rlpEncodedL1Block = encodeRlpBlock(l1BlockInfo);
+    const rlpEncodedL2Block = encodeRlpBlock(l2BlockInfo);
+    const prover = new EthProver(this.provider1, l1BlockHex);
+    return {
+      index,
+      rlpEncodedL1Block,
+      rlpEncodedL2Block,
+      accountProof: encodeProof(proof.accountProof),
+      storageProof: encodeProof(proof.storageProof[0].proof),
+      prover,
+    };
   }
 
   override encodeWitness(
@@ -72,16 +133,23 @@ export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['bytes', 'bytes[]', 'bytes'],
-      [commit.rlpEncodedBlock, proofSeq.proofs, proofSeq.order]
+      ['tuple(bytes, bytes, bytes, bytes, bytes[], bytes)'],
+      [
+        [
+          commit.rlpEncodedL1Block,
+          commit.rlpEncodedL2Block,
+          commit.accountProof,
+          commit.storageProof,
+          proofSeq.proofs,
+          proofSeq.order,
+        ],
+      ]
     );
   }
 
   override windowFromSec(sec: number): number {
     // finalization is not on chain
-    // although L1 block time is 12 sec
-    // L1Block only stores one value
-    // so window is ignored
+    // L1 block time is 12 sec
     return Math.ceil(sec / 12);
   }
 }
