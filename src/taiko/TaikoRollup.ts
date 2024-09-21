@@ -18,7 +18,7 @@ import {
   type ABITaikoLastSyncedBlock,
 } from './types.js';
 import { ABI_CODER, fetchBlock, toString16 } from '../utils.js';
-import type { ProofSequence } from '../vm.js';
+import type { ProofSequence } from '../types.js';
 
 // https://github.com/taikoxyz/taiko-mono/tree/main/packages/protocol/contracts
 // https://docs.taiko.xyz/network-reference/differences-from-ethereum

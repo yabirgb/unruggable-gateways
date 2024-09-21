@@ -2,41 +2,53 @@ import { Foundry } from '@adraffy/blocksmith';
 import { GatewayRequest } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { ethers } from 'ethers';
-import { test, expect } from 'bun:test';
+import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
-describe('hashed', async (afterAll) => {
+describe('hashed', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({
     file: 'EthSelfVerifier',
   });
   const bytes = ethers.hexlify(ethers.randomBytes(12345));
-  const contract = await foundry.deploy({
-    sol: `
-      contract X {
-        struct Prefixed {
-          bytes32 hash;
-          bytes value;
-        }
-        Prefixed prefixedValue;
-        mapping (uint256 => Prefixed) prefixedMap;
-        mapping (uint256 => bytes32) hashMap;
-        mapping (uint256 => bytes) valueMap;
-        constructor(bytes memory v) {
-          update(prefixedValue, v);
-          update(prefixedMap[1337], v);
-          valueMap[123] = v;
-          hashMap[123] = keccak256(v);
-        }
-        function update(Prefixed storage p, bytes memory v) internal {
-          p.value = v;
-          p.hash = keccak2 56(v);
-        }
-      }
-    `,
-    args: [bytes],
-  });
+  async function deployContract(fast: boolean) {
+    return foundry.deploy({
+      sol: `
+		  contract ${fast ? 'Fast' : 'Slow'} {
+			struct Prefixed {
+			  bytes32 hash;
+			  bytes value;
+			}
+			Prefixed prefixedValue;
+			mapping (uint256 => Prefixed) prefixedMap;
+			mapping (uint256 => bytes32) hashMap;
+			mapping (uint256 => bytes) valueMap;
+			constructor(bytes memory v) {
+			  _update(prefixedValue, v);
+			  _update(prefixedMap[1337], v);
+			  valueMap[123] = v;
+			  hashMap[123] = keccak256(v);
+			}
+			function _update(Prefixed storage p, bytes memory v) internal {
+			  p.value = v;
+			  p.hash = keccak256(v);
+			}
+			function readBytesAt(uint256 slot) ${fast ? 'external' : 'private'} view returns (bytes memory) {
+			  bytes storage v;
+			  assembly { v.slot := slot }
+			  return v;
+			}
+		  }
+		`,
+      args: [bytes],
+    });
+  }
+
+  // deploy two versions of the contract
+  const slow = await deployContract(false); // w/o helper
+  const fast = await deployContract(true); // with helper
+
   async function verify(req: GatewayRequest) {
     const prover = await EthProver.latest(foundry.provider);
     const stateRoot = await prover.fetchStateRoot();
@@ -54,48 +66,50 @@ describe('hashed', async (afterAll) => {
     return { values, ...vm };
   }
 
-  test('prefixed: direct', async () => {
-    const { values } = await verify(
-      new GatewayRequest()
-        .setTarget(contract.target)
-        .setSlot(0) // prefixed.hash
-        .read()
-        .setSlot(1) // prefixed.value
-        .readHashedBytes()
-        .addOutput()
-    );
-    expect(values[0]).toEqual(bytes);
-  });
-
-  test('prefixed: mapped', async () => {
-    const { values } = await verify(
-      new GatewayRequest()
-        .setTarget(contract.target)
-        .setSlot(2)
-        .push(1337)
-        .follow() // prefixedMap[1337]
-        .read()
-        .offset(1)
-        .readHashedBytes()
-        .addOutput()
-    );
-    expect(values[0]).toEqual(bytes);
-  });
-
-  test('split', async () => {
-    const { values } = await verify(
-      new GatewayRequest()
-        .setTarget(contract.target)
-        .setSlot(3)
-        .push(123)
-        .follow() // hashMap[123]
-        .read()
-        .setSlot(4)
-        .push(123)
-        .follow() // valueMap[123]
-        .readHashedBytes()
-        .addOutput()
-    );
-    expect(values[0]).toEqual(bytes);
-  });
+  for (const contract of [slow, fast]) {
+    describe(String(contract), () => {
+      test('prefixed: direct', async () => {
+        const { values } = await verify(
+          new GatewayRequest()
+            .setTarget(contract.target)
+            .setSlot(0) // prefixed.hash
+            .read()
+            .setSlot(1) // prefixed.value
+            .readHashedBytes()
+            .addOutput()
+        );
+        expect(values[0]).toEqual(bytes);
+      });
+      test('prefixed: mapped', async () => {
+        const { values } = await verify(
+          new GatewayRequest()
+            .setTarget(contract.target)
+            .setSlot(2)
+            .push(1337)
+            .follow() // prefixedMap[1337]
+            .read()
+            .offset(1)
+            .readHashedBytes()
+            .addOutput()
+        );
+        expect(values[0]).toEqual(bytes);
+      });
+      test('split', async () => {
+        const { values } = await verify(
+          new GatewayRequest()
+            .setTarget(contract.target)
+            .setSlot(3)
+            .push(123)
+            .follow() // hashMap[123]
+            .read()
+            .setSlot(4)
+            .push(123)
+            .follow() // valueMap[123]
+            .readHashedBytes()
+            .addOutput()
+        );
+        expect(values[0]).toEqual(bytes);
+      });
+    });
+  }
 });

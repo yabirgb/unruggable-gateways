@@ -5,10 +5,11 @@ import { Foundry } from '@adraffy/blocksmith';
 import { providerURL, createProviderPair, chainName } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
 import { deployProxy } from './common.js';
+import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
 const config = NitroRollup.arb1MainnetConfig;
-describe(chainName(config.chain2), async (afterAll) => {
+describe(chainName(config.chain2), async () => {
   const rollup = new NitroRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),

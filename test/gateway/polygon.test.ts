@@ -6,9 +6,10 @@ import { chainName, createProviderPair, providerURL } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
 import { deployProxy } from './common.js';
 import { describe } from '../bun-describe-fix.js';
+import { afterAll } from 'bun:test';
 
 const config = PolygonPoSRollup.mainnetConfig;
-describe(chainName(config.chain2), async (afterAll) => {
+describe(chainName(config.chain2), async () => {
   const rollup = new PolygonPoSRollup(createProviderPair(config), config);
   rollup.configure = (c) => {
     c.prover.proofRetryCount = 5; // hack for failing eth_getProof

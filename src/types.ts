@@ -6,6 +6,7 @@ export type HexString = string;
 export type HexString32 = HexString;
 export type HexAddress = HexString;
 export type EncodedProof = HexString;
+export type ProofRef = { id: number; proof: EncodedProof };
 
 export type Provider = JsonRpcApiProvider;
 export type ProviderPair = {
@@ -17,4 +18,13 @@ export type Chain = bigint;
 export type ChainPair = {
   chain1: Chain;
   chain2: Chain;
+};
+
+export type ProofSequence = {
+  readonly proofs: EncodedProof[];
+  readonly order: Uint8Array;
+};
+export type ProofSequenceV1 = {
+  readonly accountProof: EncodedProof;
+  readonly storageProofs: EncodedProof[];
 };

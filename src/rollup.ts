@@ -1,6 +1,8 @@
 import type { BlockTag } from 'ethers/providers';
 import type { ChainPair, HexString, Provider, ProviderPair } from './types.js';
-import type { AbstractProver, ProofSequence, ProofSequenceV1 } from './vm.js';
+import type { AbstractProver } from './vm.js';
+import type { ProofSequenceV1 } from './types.js';
+import type { ProofSequence } from './types.js';
 
 export type RollupDeployment<Config> = Readonly<ChainPair & Config>;
 

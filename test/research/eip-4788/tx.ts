@@ -3,7 +3,7 @@
 import { ethers } from 'ethers';
 import { CHAINS } from '../../../src/chains.js';
 import { createProvider } from '../../providers.js';
-import { ABI_CODER, toString16 } from '../../../src/utils.js';
+import { ABI_CODER } from '../../../src/utils.js';
 import { HexString } from '@resolverworks/ezccip';
 
 const provider1 = createProvider(CHAINS.MAINNET);
@@ -14,6 +14,7 @@ const L1Block = new ethers.Contract(
   ['function number() view returns (uint256)'],
   provider2
 );
+console.log(L1Block);
 
 const SystemConfig = new ethers.Contract(
   '0x229047fed2591dbec1eF1118d64F7aF3dB9EB290',

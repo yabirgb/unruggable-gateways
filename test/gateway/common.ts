@@ -12,6 +12,7 @@ import {
   type OPFaultConfig,
   OPFaultRollup,
 } from '../../src/op/OPFaultRollup.js';
+import { afterAll } from 'bun:test';
 
 export async function deployProxy(foundry: Foundry, verifier: Contract) {
   const wallet = foundry.wallets.admin;
@@ -30,7 +31,7 @@ export function testOP(
 ) {
   describe.skipIf(minor && !!process.env.IS_CI)(
     chainName(config.chain2),
-    async (afterAll) => {
+    async () => {
       const rollup = new OPRollup(createProviderPair(config), config);
       const foundry = await Foundry.launch({
         fork: providerURL(config.chain1),
@@ -64,7 +65,7 @@ export function testOPFault(
 ) {
   describe.skipIf(minor && !!process.env.IS_CI)(
     chainName(config.chain2),
-    async (afterAll) => {
+    async () => {
       const rollup = new OPFaultRollup(createProviderPair(config), config);
       const foundry = await Foundry.launch({
         fork: providerURL(config.chain1),

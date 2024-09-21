@@ -9,7 +9,8 @@ import type {
   HexString32,
   ProviderPair,
 } from '../types.js';
-import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
+import type { ProofSequenceV1 } from '../types.js';
+import type { ProofSequence } from '../types.js';
 import { Contract } from 'ethers/contract';
 import { concat, toBeHex } from 'ethers/utils';
 import { CHAINS } from '../chains.js';

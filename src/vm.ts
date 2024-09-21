@@ -1,11 +1,16 @@
 import type {
-  HexString,
-  BytesLike,
   BigNumberish,
-  EncodedProof,
+  BytesLike,
   HexAddress,
+  HexString,
+  ProofRef,
+  ProofSequence,
+  ProofSequenceV1,
+  Provider,
 } from './types.js';
 import { ZeroAddress } from 'ethers/constants';
+import { Contract } from 'ethers/contract';
+import { Interface } from 'ethers/abi';
 import { keccak256 } from 'ethers/crypto';
 import { solidityPackedKeccak256 } from 'ethers/hash';
 import {
@@ -18,7 +23,7 @@ import {
   toUtf8String,
 } from 'ethers/utils';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
-import { ABI_CODER } from './utils.js';
+import { ABI_CODER, fetchBlock, toString16 } from './utils.js';
 import { CachedMap, LRU } from './cached.js';
 
 // all addresses are lowercase
@@ -71,11 +76,13 @@ const OP_CONCAT = 61;
 const OP_SLICE = 62;
 
 function uint256FromHex(hex: string) {
-  // the following should be equivalent to ProofUtils.uint256FromBytes(hex)
+  // the following should be equivalent to:
+  // ProofUtils.uint256FromBytes(hex)
   return hex === '0x' ? 0n : BigInt(hex.slice(0, 66));
 }
 function addressFromHex(hex: string) {
-  // the following should be equivalent to: address(uint160(ProofUtils.uint256FromBytes(hex)))
+  // the following should be equivalent to:
+  // address(uint160(ProofUtils.uint256FromBytes(hex)))
   return (
     '0x' +
     (hex.length >= 66
@@ -87,7 +94,7 @@ function addressFromHex(hex: string) {
 function bigintRange(start: bigint, length: number) {
   return Array.from({ length }, (_, i) => start + BigInt(i));
 }
-function solidityArraySlots(slot: BigNumberish, length: number) {
+export function solidityArraySlots(slot: BigNumberish, length: number) {
   return length
     ? bigintRange(BigInt(solidityPackedKeccak256(['uint256'], [slot])), length)
     : [];
@@ -421,16 +428,6 @@ export type HashedNeed = {
 };
 export type Need = TargetNeed | bigint | HashedNeed;
 
-// TODO: move these to types?
-export type ProofSequence = {
-  readonly proofs: EncodedProof[];
-  readonly order: Uint8Array;
-};
-export type ProofSequenceV1 = {
-  readonly accountProof: EncodedProof;
-  readonly storageProofs: EncodedProof[];
-};
-
 // tracks the state of an program evaluation
 // registers: [slot, target, stack]
 // outputs are shared across eval()
@@ -515,25 +512,41 @@ function checkReadSize(size: bigint | number, limit: number) {
   return Number(size);
 }
 
-type ProofRef = { id: number; proof: EncodedProof };
+const GATEWAY_EXT_ABI = new Interface([
+  'function readBytesAt(uint256 slot) view returns (bytes)',
+]);
+
+// standard caching protocol:
+// account proofs stored under 0x{HexAddress}
+// storage proofs stored under 0x{HexAddress}{HexSlot w/NoZeroPad} via makeStorageKey()
+export function makeStorageKey(target: HexAddress, slot: bigint) {
+  return `${target}${slot.toString(16)}`;
+}
 
 export abstract class AbstractProver {
+  // general proof cache
+  readonly proofLRU = new LRU<string, any>(10000);
+  // general async cache
+  // default: deduplicates in-flight but does not cache
+  readonly cache: CachedMap<string, any> = new CachedMap(0);
+  // remember if contract supports readBytesAt()
+  readonly readBytesAtSupported = new Map<HexAddress, boolean>();
   // maximum number of proofs (M account + N storage)
   // note: if this number is too small, protocol can be changed to uint16
   maxUniqueProofs = 128; // max = 256
   // maximum number of targets (accountProofs)
   maxUniqueTargets = 32; // max = maxUniqueProofs
+  // maximum number of proofs per _getProof
   proofBatchSize = 64; // max = unlimited
-  // general proof cache
-  readonly proofLRU = new LRU<string, any>(10000);
-  // use getCode() / getStorage() if no proof is cached yet
-  // default: deduplicate in-flight, do not cache
-  fastCache: CachedMap<string, any> | undefined = new CachedMap(0);
   // maximum bytes from single readHashedBytes(), readFetchedBytes()
-  maxSuppliedBytes = 1 << 20; // max = unlimited
+  // when readBytesAt() is not available
+  maxSuppliedBytes = 13125 << 5; // max = unlimited, ~420KB @ 30m gas
   // maximum bytes from single read(), readBytes()
-  // (ultimately constrained by proof count)
-  maxProvableBytes = 32 << 5;
+  maxProvableBytes = 64 << 5; // max = 32 * proof count
+  // use getCode() / getStorage() if no proof is cached yet
+  fast = true;
+
+  constructor(readonly provider: Provider) {}
 
   checkProofCount(size: number) {
     if (size > this.maxUniqueProofs) {
@@ -555,8 +568,14 @@ export abstract class AbstractProver {
     }
     return map;
   }
-  abstract isContract(target: HexString): Promise<boolean>;
-  abstract getStorage(target: HexString, slot: bigint): Promise<HexString>;
+
+  // abstract interface
+  abstract isContract(target: HexAddress): Promise<boolean>;
+  abstract getStorage(
+    target: HexAddress,
+    slot: bigint,
+    fast?: boolean
+  ): Promise<HexString>;
   abstract prove(needs: Need[]): Promise<ProofSequence>;
   async proveV1(needs: Need[]): Promise<ProofSequenceV1> {
     requireV1Needs(needs);
@@ -566,6 +585,8 @@ export abstract class AbstractProver {
       storageProofs: Array.from(order.subarray(1), (i) => proofs[i]),
     };
   }
+
+  // machine interface
   async evalDecoded(ops: HexString, inputs: HexString[]) {
     return this.evalReader(new ProgramReader(getBytes(ops), inputs));
   }
@@ -688,7 +709,7 @@ export abstract class AbstractProver {
           // args: [] / stack: 0 (-hash, +value)
           const hash = await unwrap(vm.pop());
           const { target, slot } = vm;
-          const { value } = await this.getStorageBytes(target, slot, true);
+          const value = await this.getUnprovenStorageBytes(target, slot);
           vm.needs.push({ hash, value });
           vm.push(value);
           continue;
@@ -808,6 +829,28 @@ export abstract class AbstractProver {
       }
     }
   }
+  async getUnprovenStorageBytes(
+    target: HexAddress,
+    slot: bigint
+  ): Promise<HexFuture> {
+    target = target.toLowerCase();
+    return new Wrapped(async () => {
+      const can = this.readBytesAtSupported.get(target);
+      if (can !== false) {
+        try {
+          const contract = new Contract(target, GATEWAY_EXT_ABI, this.provider);
+          const v = await contract.readBytesAt(slot);
+          if (!can) this.readBytesAtSupported.set(target, true);
+          return v;
+        } catch (err) {
+          // TODO: only update this on CALL_EXCEPTION?
+          if (!can) this.readBytesAtSupported.set(target, false);
+        }
+      }
+      const { value } = await this.getStorageBytes(target, slot, true);
+      return unwrap(value);
+    });
+  }
   async getStorageBytes(
     target: HexAddress,
     slot: bigint,
@@ -817,7 +860,7 @@ export abstract class AbstractProver {
     size: number;
     slots: bigint[];
   }> {
-    const first = await this.getStorage(target, slot);
+    const first = await this.getStorage(target, slot, fast);
     let size = parseInt(first.slice(64), 16); // last byte
     if ((size & 1) == 0) {
       // small
@@ -829,28 +872,55 @@ export abstract class AbstractProver {
       BigInt(first) >> 1n,
       fast ? this.maxSuppliedBytes : this.maxProvableBytes
     );
+    if (size < 31) {
+      throw new Error(`invalid storage encoding: ${target} @ ${slot}`);
+    }
     const slots = solidityArraySlots(slot, (size + 31) >> 5);
-    const value = new Wrapped(async () =>
-      dataSlice(
-        concat(await Promise.all(slots.map((x) => this.getStorage(target, x)))),
-        0,
-        size
-      )
-    );
+    const value = new Wrapped(async () => {
+      const v = await Promise.all(
+        slots.map((x) => this.getStorage(target, x, fast))
+      );
+      return dataSlice(concat(v), 0, size);
+    });
     return { value, size, slots };
   }
+}
 
-  async standardReduce(
-    needs: Need[],
-    fn: (
-      target: HexAddress,
-      accountRef: ProofRef,
-      slotRefs: Map<bigint, ProofRef>
-    ) => Promise<void>
+export abstract class BlockProver extends AbstractProver {
+  // absolutely disgusting typescript
+  static async latest<T extends InstanceType<typeof BlockProver>>(
+    this: new (...a: ConstructorParameters<typeof BlockProver>) => T,
+    provider: Provider,
+    offset = 0
   ) {
+    const blockNumber = await provider.getBlockNumber();
+    return new this(provider, toString16(blockNumber - offset));
+  }
+  constructor(
+    provider: Provider,
+    readonly block: HexString
+  ) {
+    super(provider);
+  }
+  async fetchBlock() {
+    return fetchBlock(this.provider, this.block);
+  }
+  async fetchStateRoot() {
+    return (await this.fetchBlock()).stateRoot;
+  }
+  protected abstract _proveNeed(
+    need: TargetNeed,
+    accountRef: ProofRef,
+    storageRefs: Map<bigint, ProofRef>
+  ): Promise<void>;
+  override async prove(needs: Need[]) {
     // reduce an ordered list of needs into a deduplicated list of proofs
     // provide empty proofs for non-contract slots
-    type Bucket = { ref: ProofRef; map: Map<bigint, ProofRef> };
+    type Bucket = {
+      need: TargetNeed;
+      ref: ProofRef;
+      map: Map<bigint, ProofRef>;
+    };
     const promises: Promise<any>[] = [];
     const named = new Map<HexString, ProofRef>();
     const buckets = new Map<HexString, Bucket>();
@@ -868,7 +938,11 @@ export abstract class AbstractProver {
         // we must prove this value since it leads to a stateRoot
         bucket = buckets.get(need.target);
         if (!bucket) {
-          bucket = { ref: createRef(), map: new Map() };
+          bucket = {
+            need,
+            ref: createRef(),
+            map: new Map(),
+          };
           buckets.set(need.target, bucket);
         }
         return bucket.ref;
@@ -884,6 +958,7 @@ export abstract class AbstractProver {
         }
         return ref;
       } else {
+        // currently, this is just HashedNeed
         let ref = named.get(need.hash);
         if (!ref) {
           ref = createRef();
@@ -894,8 +969,8 @@ export abstract class AbstractProver {
       }
     });
     this.checkProofCount(refs.length);
-    for (const [target, bucket] of buckets) {
-      promises.push(fn(target, bucket.ref, bucket.map));
+    for (const bucket of buckets.values()) {
+      promises.push(this._proveNeed(bucket.need, bucket.ref, bucket.map));
     }
     await Promise.all(promises);
     return {
@@ -903,12 +978,4 @@ export abstract class AbstractProver {
       order: Uint8Array.from(order, (x) => x.id),
     };
   }
-}
-
-// standard caching protocol:
-// account proofs stored under 0x{HexAddress}
-// storage proofs stored under 0x{HexAddress}{HexSlot w/NoZeroPad} via makeStorageKey()
-
-export function makeStorageKey(target: HexAddress, slot: bigint) {
-  return `${target}${slot.toString(16)}`;
 }

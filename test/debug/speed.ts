@@ -7,7 +7,7 @@ const rollup = new OPRollup(createProviderPair(config), config);
 const commit = await logTime('fetchLatestCommit', rollup.fetchLatestCommit());
 await logTime('fetchParentCommit', rollup.fetchParentCommit(commit));
 
-await logTime('prove(cold)', commit.prover.prove([[config.L2OutputOracle, true]]));
+await logTime('prove(cold)', commit.prover.prove([{target: config.L2OutputOracle, required: true}]));
 
 commit.prover.proofLRU.clear();
 
@@ -16,8 +16,8 @@ await logTime('getProofs(warm)', commit.prover.getProofs(config.L2OutputOracle, 
 await logTime('getStorage(hot)', commit.prover.getStorage(config.L2OutputOracle, 0n));
 
 await logTime('prove(hot)', commit.prover.prove([
-	[config.L2OutputOracle, true],
-	[config.L2OutputOracle, 1n]
+	{target: config.L2OutputOracle, required: true},
+	1n
 ]));
 
 async function logTime<T>(label: string, promise: Promise<T>): Promise<T> {

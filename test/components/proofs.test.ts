@@ -1,9 +1,9 @@
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { test, expect } from 'bun:test';
+import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
-describe('proofs', async (afterAll) => {
+describe('proofs', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const contract = await foundry.deploy({

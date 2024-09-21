@@ -13,7 +13,7 @@ import { CHAINS } from '../chains.js';
 import { ROLLUP_ABI } from './types.js';
 import { Contract } from 'ethers/contract';
 import { ZKEVMProver } from './ZKEVMProver.js';
-import { ProofSequence } from '../vm.js';
+import { ProofSequence } from '../types.js';
 import { ZeroHash } from 'ethers/constants';
 import { ABI_CODER, toString16 } from '../utils.js';
 
@@ -21,9 +21,7 @@ export type ZKEVMConfig = {
   RollupManager: HexAddress;
 };
 
-export type ZKEVMCommit = RollupCommit<ZKEVMProver> & {
-  readonly chonk: number;
-};
+export type ZKEVMCommit = RollupCommit<ZKEVMProver>; // & {};
 
 // https://hackmd.io/@4cbvqzFdRBSWMHNeI8Wbwg/Syz8PeEo0
 // https://github.com/0xPolygonHermez/cdk-erigon/commit/33acc63073f16a13398ef868bb4dbdd49da720ae
@@ -72,15 +70,25 @@ export class ZKEVMRollup extends AbstractRollup<ZKEVMCommit> {
   ): Promise<bigint> {
     return commit.index - 1n;
   }
+  private fetchBatchStateRoot(batchIndex: bigint): Promise<HexString32> {
+    return this.RollupManager.getRollupBatchNumToStateRoot(
+      this.rollupID,
+      batchIndex
+    );
+  }
+  private fetchBatchInfo(batchIndex: bigint): Promise<{ number: HexString }> {
+    return this.provider2.send('zkevm_getBatchByNumber', [
+      toString16(batchIndex),
+    ]);
+  }
   protected override async _fetchCommit(index: bigint): Promise<ZKEVMCommit> {
-    const stateRoot: HexString32 =
-      await this.RollupManager.getRollupBatchNumToStateRoot(
-        this.rollupID,
-        index
-      );
+    const [batchInfo, stateRoot] = await Promise.all([
+      this.fetchBatchInfo(index),
+      this.fetchBatchStateRoot(index),
+    ]);
     if (stateRoot == ZeroHash) throw new Error('not finalized');
-    const prover = new ZKEVMProver(this.provider2, toString16(index));
-    return { index, prover, chonk: 1 };
+    const prover = new ZKEVMProver(this.provider2, batchInfo.number);
+    return { index, prover };
   }
   override encodeWitness(
     commit: ZKEVMCommit,

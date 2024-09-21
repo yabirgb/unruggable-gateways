@@ -19,7 +19,7 @@ import {
 } from '../utils.js';
 import { EthProver, encodeProof } from '../eth/EthProver.js';
 import { encodeRlpBlock } from '../rlp.js';
-import { ProofSequence } from '../vm.js';
+import { ProofSequence } from '../types.js';
 import { dataSlice } from 'ethers/utils';
 import { Contract } from 'ethers/contract';
 

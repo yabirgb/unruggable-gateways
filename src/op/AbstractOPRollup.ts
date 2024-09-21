@@ -1,5 +1,6 @@
 import type { HexString } from '../types.js';
-import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
+import type { ProofSequenceV1 } from '../types.js';
+import type { ProofSequence } from '../types.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
 import { ZeroHash } from 'ethers/constants';

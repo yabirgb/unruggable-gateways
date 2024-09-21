@@ -1,5 +1,5 @@
-import type { HexString, Provider } from '../types.js';
-import { AbstractProver, makeStorageKey, type Need } from '../vm.js';
+import type { HexString, ProofRef } from '../types.js';
+import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
 import { ZeroHash } from 'ethers/constants';
 import { dataSlice, toBeHex } from 'ethers/utils';
 import {
@@ -46,13 +46,7 @@ function encodeProof(proof: LineaProof) {
   );
 }
 
-export class LineaProver extends AbstractProver {
-  constructor(
-    readonly provider: Provider,
-    readonly block: HexString
-  ) {
-    super();
-  }
+export class LineaProver extends BlockProver {
   override async getStorage(
     target: HexString,
     slot: bigint
@@ -74,8 +68,8 @@ export class LineaProver extends AbstractProver {
         : ZeroHash;
     }
     // we didn't have the proof
-    if (this.fastCache) {
-      return this.fastCache.get(storageKey, () =>
+    if (this.cache) {
+      return this.cache.get(storageKey, () =>
         this.provider.getStorage(target, slot, this.block)
       );
     }
@@ -86,8 +80,8 @@ export class LineaProver extends AbstractProver {
       : ZeroHash;
   }
   override async isContract(target: HexString) {
-    if (this.fastCache) {
-      return this.fastCache.get(target, async () => {
+    if (this.cache) {
+      return this.cache.get(target, async () => {
         const code = await this.provider.getCode(target, this.block);
         return code.length > 2;
       });
@@ -96,23 +90,26 @@ export class LineaProver extends AbstractProver {
       return isContract(accountProof);
     }
   }
-  override async prove(needs: Need[]) {
-    return this.standardReduce(needs, async (target, accountRef, slotRefs) => {
-      const m = [...slotRefs];
-      const accountProof: LineaProof | undefined =
-        await this.proofLRU.peek(target);
-      if (accountProof && !isContract(accountProof)) m.length = 0;
-      const proofs = await this.getProofs(
-        target,
-        m.map(([slot]) => slot)
+  protected override async _proveNeed(
+    need: TargetNeed,
+    accountRef: ProofRef,
+    slotRefs: Map<bigint, ProofRef>
+  ) {
+    const m = [...slotRefs];
+    const accountProof: LineaProof | undefined = await this.proofLRU.peek(
+      need.target
+    );
+    if (accountProof && !isContract(accountProof)) m.length = 0;
+    const proofs = await this.getProofs(
+      need.target,
+      m.map(([slot]) => slot)
+    );
+    accountRef.proof = encodeProof(proofs.accountProof);
+    if (isContract(proofs.accountProof)) {
+      m.forEach(
+        ([, ref], i) => (ref.proof = encodeProof(proofs.storageProofs[i]))
       );
-      accountRef.proof = encodeProof(proofs.accountProof);
-      if (isContract(proofs.accountProof)) {
-        m.forEach(
-          ([, ref], i) => (ref.proof = encodeProof(proofs.storageProofs[i]))
-        );
-      }
-    });
+    }
   }
   async getProofs(
     target: HexString,

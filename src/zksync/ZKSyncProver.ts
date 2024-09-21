@@ -1,17 +1,12 @@
 import type { RPCZKSyncGetProof, ZKSyncStorageProof } from './types.js';
-import type {
-  Provider,
-  HexAddress,
-  HexString,
-  EncodedProof,
-} from '../types.js';
+import type { Provider, HexAddress, HexString, ProofRef } from '../types.js';
 import {
   AbstractProver,
   isTargetNeed,
   makeStorageKey,
   type Need,
-  type ProofSequence,
 } from '../vm.js';
+import { type ProofSequence } from '../types.js';
 import { ZeroAddress } from 'ethers/constants';
 import { toBeHex } from 'ethers/utils';
 import { ABI_CODER, withResolvers } from '../utils.js';
@@ -29,6 +24,7 @@ export function encodeStorageProof(proof: ZKSyncStorageProof) {
   );
 }
 
+// zksync proofs are relative to a *batch* not a *block*
 export class ZKSyncProver extends AbstractProver {
   static async latest(provider: Provider) {
     return new this(
@@ -37,10 +33,10 @@ export class ZKSyncProver extends AbstractProver {
     );
   }
   constructor(
-    readonly provider: Provider,
+    provider: Provider,
     readonly batchIndex: number
   ) {
-    super();
+    super(provider);
   }
   override async isContract(target: HexAddress): Promise<boolean> {
     const storageProof: ZKSyncStorageProof | undefined =
@@ -61,8 +57,8 @@ export class ZKSyncProver extends AbstractProver {
     if (storageProof) {
       return storageProof.value;
     }
-    if (this.fastCache) {
-      return this.fastCache.get(storageKey, () =>
+    if (this.cache) {
+      return this.cache.get(storageKey, () =>
         this.provider.getStorage(target, slot)
       );
     }
@@ -70,12 +66,11 @@ export class ZKSyncProver extends AbstractProver {
     return vs[0].value;
   }
   override async prove(needs: Need[]): Promise<ProofSequence> {
-    type Ref = { id: number; proof: EncodedProof };
     const promises: Promise<void>[] = [];
-    const named = new Map<HexString, Ref>();
-    const buckets = new Map<HexString, Map<bigint, Ref>>();
-    const refs: Ref[] = [];
-    let nullRef: Ref | undefined;
+    const named = new Map<HexString, ProofRef>();
+    const buckets = new Map<HexAddress, Map<bigint, ProofRef>>();
+    const refs: ProofRef[] = [];
+    let nullRef: ProofRef | undefined;
     const createRef = () => {
       const ref = { id: refs.length, proof: '0x' };
       refs.push(ref);

@@ -6,7 +6,7 @@ import type {
   HexString32,
   ProviderPair,
 } from '../types.js';
-import type { ProofSequence } from '../vm.js';
+import type { ProofSequence } from '../types.js';
 import { LineaProver } from './LineaProver.js';
 import { ROLLUP_ABI } from './types.js';
 import { CHAINS } from '../chains.js';

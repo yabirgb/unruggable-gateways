@@ -19,7 +19,7 @@ import {
   AbstractRollup,
 } from '../rollup.js';
 import { ABI_CODER } from '../utils.js';
-import { ProofSequence } from '../vm.js';
+import { ProofSequence } from '../types.js';
 
 // https://docs.zksync.io/zk-stack/concepts/finality
 // https://github.com/matter-labs/era-contracts/tree/main/

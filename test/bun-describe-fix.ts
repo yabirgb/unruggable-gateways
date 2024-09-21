@@ -1,30 +1,19 @@
-import { afterAll, describe as describe0 } from 'bun:test';
+import { test, describe as describe0 } from 'bun:test';
 
 // bun:test is shit
 // using a beforeAll() is disgusting for test setup
-// this technique replaces afterAll() and ensures proper shutdown
+// this technique makes the describe() an implicit beforeAll()
+// and enables async test() construction
 
-type DeferredFn = () => any;
-type RegisterFn = (fn: DeferredFn) => any;
-type OriginalFn = (defer: RegisterFn) => void;
-
-export function describe(label: string, fn0: OriginalFn) {
+export function describe(label: string, fn: () => void) {
   describe0(label, async () => {
-    const v: DeferredFn[] = [];
     try {
-      await fn0((fn) => {
-        v.push(fn);
-        afterAll(fn);
-      });
+      await fn(); // must be awaited
     } catch (cause) {
-      while (v.length) {
-        try {
-          await v.pop()!();
-        } catch (ignored) {
-          //
-        }
-      }
-      throw new Error(`describe() "${label}" failed`, { cause });
+      test('init()', () => {
+        // failure shows up as a synthetic test
+        throw cause;
+      });
     }
   });
 }

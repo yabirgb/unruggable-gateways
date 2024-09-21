@@ -5,7 +5,8 @@ import {
 } from '../rollup.js';
 import type { HexAddress, HexString, ProviderPair } from '../types.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
-import type { ProofSequence, ProofSequenceV1 } from '../vm.js';
+import type { ProofSequenceV1 } from '../types.js';
+import type { ProofSequence } from '../types.js';
 import { ZeroHash } from 'ethers/constants';
 import { Contract, EventLog } from 'ethers/contract';
 import { CHAINS } from '../chains.js';

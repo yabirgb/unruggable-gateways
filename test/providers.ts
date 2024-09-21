@@ -17,7 +17,7 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         chain: CHAINS.MAINNET,
         name: 'mainnet',
-        rpc: 'https://rpc.ankr.com/eth/',
+        rpc: 'https://rpc.ankr.com/eth/', // https://cloudflare-eth.com is too rate limited
         ankr: 'eth',
         infura: 'mainnet',
         alchemy: 'eth-mainnet',

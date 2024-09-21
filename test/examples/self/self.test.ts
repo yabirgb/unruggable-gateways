@@ -3,9 +3,9 @@ import { Foundry } from '@adraffy/blocksmith';
 import { EthSelfGateway } from '../../../src/eth/EthSelfGateway.js';
 import { deployProxy } from '../../gateway/common.js';
 import { describe } from '../../bun-describe-fix.js';
-import { expect, test } from 'bun:test';
+import { afterAll, expect, test } from 'bun:test';
 
-describe('self', async (afterAll) => {
+describe('self', async () => {
   const foundry = await Foundry.launch({
     infoLog: false,
   });
@@ -34,12 +34,12 @@ describe('self', async (afterAll) => {
   });
 
   test('key = 0', async () => {
-    expect(frontend.get(0, { enableCcipRead: true })).resolves.toEqual('');
+    expect(await frontend.get(0, { enableCcipRead: true })).toEqual('');
   });
   test('key = 1', async () => {
-    expect(frontend.get(1, { enableCcipRead: true })).resolves.toEqual('chonk');
+    expect(await frontend.get(1, { enableCcipRead: true })).toEqual('chonk');
   });
   test('key = 2', async () => {
-    expect(frontend.get(2, { enableCcipRead: true })).resolves.toEqual('raffy');
+    expect(await frontend.get(2, { enableCcipRead: true })).toEqual('raffy');
   });
 });

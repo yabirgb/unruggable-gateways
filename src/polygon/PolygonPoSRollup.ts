@@ -6,7 +6,7 @@ import type {
 } from '../types.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
 import { type ABIHeaderTuple, ROOT_CHAIN_ABI } from './types.js';
-import type { ProofSequence } from '../vm.js';
+import type { ProofSequence } from '../types.js';
 import { ZeroHash } from 'ethers/constants';
 import { Contract } from 'ethers/contract';
 import { Log } from 'ethers/providers';

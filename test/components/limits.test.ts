@@ -2,10 +2,10 @@ import { GatewayRequest, MAX_STACK } from '../../src/vm.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
 import { EthProver } from '../../src/eth/EthProver.js';
-import { test, expect } from 'bun:test';
+import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
-describe('limits', async (afterAll) => {
+describe('limits', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const MAX_BYTES = 257;

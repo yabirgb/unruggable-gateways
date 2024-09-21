@@ -7,7 +7,7 @@ import {
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ethers } from 'ethers';
-import { test, expect } from 'bun:test';
+import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
 function hexStr(s: string) {
@@ -17,7 +17,7 @@ function uint256(x: BigNumberish) {
   return ethers.toBeHex(x, 32);
 }
 
-describe('ops', async (afterAll) => {
+describe('ops', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const verifier = await foundry.deploy({

@@ -6,9 +6,10 @@ import { providerURL, createProviderPair, chainName } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
 import { deployProxy } from './common.js';
 import { describe } from '../bun-describe-fix.js';
+import { afterAll } from 'bun:test';
 
 const config = TaikoRollup.mainnetConfig;
-describe(chainName(config.chain2), async (afterAll) => {
+describe(chainName(config.chain2), async () => {
   const rollup = await TaikoRollup.create(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
