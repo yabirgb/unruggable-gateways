@@ -8,14 +8,14 @@ import type {
   HexString,
   HexString32,
   ProviderPair,
+  ProofSequence,
 } from '../types.js';
 import { CHAINS } from '../chains.js';
 import { ROLLUP_ABI } from './types.js';
 import { Contract } from 'ethers/contract';
 import { ZKEVMProver } from './ZKEVMProver.js';
-import { ProofSequence } from '../types.js';
 import { ZeroHash } from 'ethers/constants';
-import { ABI_CODER, toString16 } from '../utils.js';
+import { ABI_CODER, toUnpaddedHex } from '../utils.js';
 
 export type ZKEVMConfig = {
   RollupManager: HexAddress;
@@ -78,7 +78,7 @@ export class ZKEVMRollup extends AbstractRollup<ZKEVMCommit> {
   }
   private fetchBatchInfo(batchIndex: bigint): Promise<{ number: HexString }> {
     return this.provider2.send('zkevm_getBatchByNumber', [
-      toString16(batchIndex),
+      toUnpaddedHex(batchIndex),
     ]);
   }
   protected override async _fetchCommit(index: bigint): Promise<ZKEVMCommit> {

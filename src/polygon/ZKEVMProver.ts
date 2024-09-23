@@ -1,47 +1,18 @@
-import { toBeHex } from 'ethers/utils';
 import { ZeroHash } from 'ethers/constants';
-import type {
-  EncodedProof,
-  HexAddress,
-  HexString,
-  HexString32,
-  ProofRef,
-} from '../types.js';
+import { HexAddress, HexString, ProofRef } from '../types.js';
 import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
-import { ABI_CODER } from '../utils.js';
-
-export type ZKEVMProof = HexString[];
-
-export type RPCZKEVMGetProof = {
-  address: HexAddress;
-  balance: HexString;
-  codeHash: HexString32;
-  codeLength: HexString;
-  nonce: HexString;
-  balanceProof: ZKEVMProof;
-  nonceProof: ZKEVMProof;
-  codeHashProof: ZKEVMProof;
-  codeLengthProof: ZKEVMProof;
-  storageProof: ZKEVMStorageProof[];
-};
-
-export type ZKEVMAccountProof = Omit<RPCZKEVMGetProof, 'storageProof'>;
-
-export type ZKEVMStorageProof = {
-  key: HexString32;
-  value: HexString;
-  proof: ZKEVMProof;
-};
-
-function isContract(proof: ZKEVMAccountProof) {
-  return parseInt(proof.codeLength) > 0;
-}
-
-function encodeProof(proof: ZKEVMProof): EncodedProof {
-  return ABI_CODER.encode(['bytes[]'], [proof]);
-}
+import { toPaddedHex } from '../utils.js';
+import {
+  type ZKEVMAccountProof,
+  type ZKEVMStorageProof,
+  type RPCZKEVMGetProof,
+  isContract,
+  encodeProof,
+} from './types.js';
 
 export class ZKEVMProver extends BlockProver {
+  static readonly isContract = isContract;
+  static readonly encodeProof = encodeProof;
   override async isContract(target: HexAddress): Promise<boolean> {
     target = target.toLowerCase();
     if (this.fast) {
@@ -55,7 +26,7 @@ export class ZKEVMProver extends BlockProver {
   override async getStorage(
     target: HexAddress,
     slot: bigint,
-    fast: boolean
+    fast?: boolean
   ): Promise<HexString> {
     target = target.toLowerCase();
     // check to see if we know this target isn't a contract without invoking provider
@@ -70,7 +41,7 @@ export class ZKEVMProver extends BlockProver {
     const storageProof: ZKEVMStorageProof | undefined =
       await this.proofLRU.touch(storageKey);
     if (storageProof) {
-      return toBeHex(storageProof.value, 32);
+      return toPaddedHex(storageProof.value);
     }
     if (fast || this.fast) {
       return this.cache.get(storageKey, () =>
@@ -115,7 +86,7 @@ export class ZKEVMProver extends BlockProver {
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
-            .map((slot) => toBeHex(slot, 32)),
+            .map((slot) => toPaddedHex(slot)),
           this.block,
         ])
       );

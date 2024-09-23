@@ -1,5 +1,11 @@
+import type {
+  EncodedProof,
+  HexAddress,
+  HexString,
+  HexString32,
+} from '../types.js';
 import { Interface } from 'ethers/abi';
-import type { HexString32 } from '../types.js';
+import { ABI_CODER } from '../utils.js';
 
 export const ROOT_CHAIN_ABI = new Interface([
   //   `event NewHeaderBlock(
@@ -27,3 +33,34 @@ export const ROLLUP_ABI = new Interface([
   `function getRollupBatchNumToStateRoot(uint32 rollupID, uint64 batchNum) view returns (bytes32)`,
   `function getLastVerifiedBatch(uint32 rollupID) view returns (uint64)`,
 ]);
+
+export type ZKEVMProof = HexString[];
+
+export type RPCZKEVMGetProof = {
+  address: HexAddress;
+  balance: HexString;
+  codeHash: HexString32;
+  codeLength: HexString;
+  nonce: HexString;
+  balanceProof: ZKEVMProof;
+  nonceProof: ZKEVMProof;
+  codeHashProof: ZKEVMProof;
+  codeLengthProof: ZKEVMProof;
+  storageProof: ZKEVMStorageProof[];
+};
+
+export type ZKEVMAccountProof = Omit<RPCZKEVMGetProof, 'storageProof'>;
+
+export type ZKEVMStorageProof = {
+  key: HexString32;
+  value: HexString;
+  proof: ZKEVMProof;
+};
+
+export function isContract(proof: ZKEVMAccountProof) {
+  return parseInt(proof.codeLength) > 0;
+}
+
+export function encodeProof(proof: ZKEVMProof): EncodedProof {
+  return ABI_CODER.encode(['bytes[]'], [proof]);
+}

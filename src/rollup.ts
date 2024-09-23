@@ -1,8 +1,13 @@
-import type { BlockTag } from 'ethers/providers';
-import type { ChainPair, HexString, Provider, ProviderPair } from './types.js';
+import type {
+  ChainPair,
+  HexString,
+  Provider,
+  ProviderPair,
+  ProofSequenceV1,
+  ProofSequence,
+  BigNumberish,
+} from './types.js';
 import type { AbstractProver } from './vm.js';
-import type { ProofSequenceV1 } from './types.js';
-import type { ProofSequence } from './types.js';
 
 export type RollupDeployment<Config> = Readonly<ChainPair & Config>;
 
@@ -20,11 +25,11 @@ export type RollupCommitType<R extends Rollup> = Parameters<
 export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   // allows configuration of commit and prover
   // "expand LRU cache" => prover.proofLRU.maxCached = 1_000_000
-  // "disable fast cache" => prover.fastCache = undefined
-  // "keep fast cache around longer" => prover.fastCache?.cacheMs = Infinity
+  // "disable fast lookups" => prover.fast = false
+  // "keep fast cache around longer" => prover.cache.cacheMs = Infinity
   // "limit targets" => prover.maxUniqueTargets = 1
   configure: (<T extends C>(commit: T) => void) | undefined;
-  latestBlockTag: BlockTag = 'finalized';
+  latestBlockTag: BigNumberish = 'finalized';
   getLogsStepSize = 1000n;
   readonly provider1: Provider;
   readonly provider2: Provider;

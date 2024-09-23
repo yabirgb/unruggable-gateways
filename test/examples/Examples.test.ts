@@ -1,8 +1,9 @@
 import { GatewayRequest } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { hexlify, toBeHex, randomBytes, concat, dataSlice } from 'ethers';
+import { hexlify, randomBytes, concat, dataSlice } from 'ethers';
 import { test, afterAll, expect } from 'bun:test';
+import { toPaddedHex } from '../../src/utils.js';
 
 test('ClowesConcatSlice', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
@@ -51,10 +52,10 @@ test('ClowesConcatSlice', async () => {
 
   expect(values).toHaveLength(2);
   expect(values[0]).toStrictEqual(data);
-  expect(values[1]).toStrictEqual(toBeHex(VALUE, 32));
+  expect(values[1]).toStrictEqual(toPaddedHex(VALUE));
 });
 
-test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
+test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
   const contract = await foundry.deploy({
@@ -67,31 +68,64 @@ test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT_ZERO SLOT_ADD', async () => {
       }
     `,
   });
-  const prover = await EthProver.latest(foundry.provider);
+  await compare(
+    await EthProver.latest(foundry.provider),
+    new GatewayRequest()
+      .setTarget(contract.target)
+      .push(1)
+      .follow()
+      .read()
+      .addOutput(),
+    new GatewayRequest()
+      .setTarget(contract.target)
+      .push(1)
+      .pushSlot()
+      .concat()
+      .keccak()
+      .slot()
+      .read()
+      .addOutput()
+  );
+});
 
-  const req1 = new GatewayRequest()
-    .setTarget(contract.target)
-    .push(1)
-    .follow()
-    .read()
-    .addOutput();
+test('SLOT_ADD === PUSH_SLOT PLUS SLOT', async () => {
+  const foundry = await Foundry.launch({ infoLog: false });
+  afterAll(() => foundry.shutdown());
+  const contract = await foundry.deploy({
+    sol: `
+      contract X { 
+        uint256 pad; 
+        uint256 x = 1;
+      }`,
+  });
+  await compare(
+    await EthProver.latest(foundry.provider),
+    new GatewayRequest()
+      .setTarget(contract.target)
+      .push(1)
+      .addSlot()
+      .read()
+      .addOutput(),
+    new GatewayRequest()
+      .setTarget(contract.target)
+      .pushSlot()
+      .push(1)
+      .plus()
+      .slot()
+      .read()
+      .addOutput()
+  );
+});
 
-  const req2 = new GatewayRequest()
-    .setTarget(contract.target)
-    .push(1)
-    .pushSlot()
-    .concat()
-    .keccak()
-    .zeroSlot()
-    .addSlot()
-    .read()
-    .addOutput();
-
+async function compare(
+  prover: EthProver,
+  req1: GatewayRequest,
+  req2: GatewayRequest
+) {
   // the requests should be different
   expect(req1.ops).not.toStrictEqual(req2.ops);
-
   // the outputs should be the same
   const v1 = await prover.evalRequest(req1).then((x) => x.resolveOutputs());
   const v2 = await prover.evalRequest(req2).then((x) => x.resolveOutputs());
   expect(v1).toStrictEqual(v2);
-});
+}

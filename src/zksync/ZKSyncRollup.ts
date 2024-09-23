@@ -3,6 +3,7 @@ import type {
   HexString,
   HexString32,
   ProviderPair,
+  ProofSequence,
 } from '../types.js';
 import { ZKSyncProver } from './ZKSyncProver.js';
 import {
@@ -19,7 +20,6 @@ import {
   AbstractRollup,
 } from '../rollup.js';
 import { ABI_CODER } from '../utils.js';
-import { ProofSequence } from '../types.js';
 
 // https://docs.zksync.io/zk-stack/concepts/finality
 // https://github.com/matter-labs/era-contracts/tree/main/

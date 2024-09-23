@@ -1,5 +1,6 @@
-import { Interface } from 'ethers/abi';
 import type { HexAddress, HexString32, HexString } from '../types.js';
+import { Interface } from 'ethers/abi';
+import { ABI_CODER } from '../utils.js';
 
 export type ZKSyncStorageProof = {
   index: number;
@@ -146,3 +147,10 @@ export const DIAMOND_ABI = new Interface([
     bytes32 indexed commitment
   )`,
 ]);
+
+export function encodeProof(proof: ZKSyncStorageProof) {
+  return ABI_CODER.encode(
+    ['bytes32', 'uint64', 'bytes32[]'],
+    [proof.value, proof.index, proof.proof]
+  );
+}

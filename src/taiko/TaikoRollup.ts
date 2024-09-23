@@ -8,6 +8,7 @@ import type {
   HexString,
   HexString32,
   ProviderPair,
+  ProofSequence,
 } from '../types.js';
 import { Contract } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
@@ -17,8 +18,7 @@ import {
   type ABITaikoConfig,
   type ABITaikoLastSyncedBlock,
 } from './types.js';
-import { ABI_CODER, fetchBlock, toString16 } from '../utils.js';
-import type { ProofSequence } from '../types.js';
+import { ABI_CODER, fetchBlock, toUnpaddedHex } from '../utils.js';
 
 // https://github.com/taikoxyz/taiko-mono/tree/main/packages/protocol/contracts
 // https://docs.taiko.xyz/network-reference/differences-from-ethereum
@@ -87,7 +87,7 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     return commit.index - this.commitStep;
   }
   protected override async _fetchCommit(index: bigint): Promise<TaikoCommit> {
-    const blockInfo = await fetchBlock(this.provider2, toString16(index));
+    const blockInfo = await fetchBlock(this.provider2, toUnpaddedHex(index));
     const prover = new EthProver(this.provider2, blockInfo.number);
     return { index, prover, parentHash: blockInfo.parentHash };
   }

@@ -3,15 +3,19 @@ import {
   type RollupCommit,
   type RollupDeployment,
 } from '../rollup.js';
-import type { HexAddress, HexString, ProviderPair } from '../types.js';
+import type {
+  HexAddress,
+  HexString,
+  ProviderPair,
+  ProofSequence,
+  ProofSequenceV1,
+} from '../types.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
-import type { ProofSequenceV1 } from '../types.js';
-import type { ProofSequence } from '../types.js';
+import { type ABINodeTuple, ROLLUP_ABI } from './types.js';
 import { ZeroHash } from 'ethers/constants';
 import { Contract, EventLog } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
-import { type ABINodeTuple, ROLLUP_ABI } from './types.js';
 import { ABI_CODER } from '../utils.js';
 import { encodeRlpBlock } from '../rlp.js';
 

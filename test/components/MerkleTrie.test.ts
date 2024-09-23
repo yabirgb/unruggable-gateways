@@ -6,8 +6,8 @@ import {
   NULL_TRIE_HASH,
 } from '../../src/eth/merkle.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { ethers } from 'ethers';
 import { afterAll, test, expect } from 'bun:test';
+import { toPaddedHex } from '../../src/utils.js';
 
 async function setup() {
   const foundry = await Foundry.launch({ infoLog: false });
@@ -33,7 +33,7 @@ async function setup() {
           slot: BigNumberish,
           expected: BigNumberish
         ) {
-          slot = ethers.getUint(slot);
+          slot = BigInt(slot);
           const {
             accountProof,
             storageHash,
@@ -44,10 +44,10 @@ async function setup() {
             accountProof,
             stateRoot
           );
-          expect(accountState?.storageRoot).toBe(storageHash);
+          expect(accountState?.storageRoot).toEqual(storageHash);
           const slotValue = proveStorageValue(slot, proof, storageHash);
-          expect(slotValue).toBe(ethers.toBeHex(value, 32));
-          expect(slotValue).toBe(ethers.toBeHex(expected, 32));
+          expect(slotValue).toEqual(toPaddedHex(value));
+          expect(slotValue).toEqual(toPaddedHex(expected));
           const liveValue = await prover.provider.getStorage(target, slot);
           return {
             nullRoot: storageHash === NULL_TRIE_HASH,
@@ -65,7 +65,7 @@ test(`nonexistent EOAs don't exist`, async () => {
   const T = await setup();
   const P = await T.prover();
   for (let i = 0; i < 5; i++) {
-    await P.assertDoesNotExist(ethers.toBeHex(1, 20));
+    await P.assertDoesNotExist(toPaddedHex(1, 20));
   }
 });
 

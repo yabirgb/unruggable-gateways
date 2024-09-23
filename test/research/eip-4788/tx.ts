@@ -161,7 +161,7 @@ console.log(ethers.keccak256(ethers.concat(['0x7E', rlp(calldata)])));
 
 // console.log(await provider2.call({
 // 	to: '0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02',
-// 	data: ethers.toBeHex(b.timestamp, 32)
+// 	data: toPaddedHex(b.timestamp)
 // }));
 
 // console.log(b.parentBeaconBlockRoot);

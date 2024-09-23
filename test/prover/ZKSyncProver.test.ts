@@ -1,8 +1,10 @@
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
 import { ZKSyncRollup } from '../../src/zksync/ZKSyncRollup.js';
-import { ethers } from 'ethers';
-import { describe, test, expect, afterAll } from 'bun:test';
+import { test, expect, afterAll } from 'bun:test';
+import { toPaddedHex } from '../../src/utils.js';
+import { describe } from '../bun-describe-fix.js';
+import { ZeroHash } from 'ethers/constants';
 
 describe('ZKSyncProver', async () => {
   const config = ZKSyncRollup.mainnetConfig;
@@ -37,7 +39,7 @@ describe('ZKSyncProver', async () => {
       target,
       proof.proofs[0]
     );
-    expect(stateRoot).toStrictEqual(ethers.ZeroHash);
+    expect(stateRoot).toStrictEqual(ZeroHash);
   });
 
   test('eoa', async () => {
@@ -49,7 +51,7 @@ describe('ZKSyncProver', async () => {
       target,
       proof.proofs[0]
     );
-    expect(stateRoot).toStrictEqual(ethers.ZeroHash);
+    expect(stateRoot).toStrictEqual(ZeroHash);
   });
 
   test('contract', async () => {
@@ -68,6 +70,6 @@ describe('ZKSyncProver', async () => {
       0n,
       proof.proofs[1]
     );
-    expect(storageValue).toStrictEqual(ethers.toBeHex(49, 32));
+    expect(storageValue).toStrictEqual(toPaddedHex(49));
   });
 });

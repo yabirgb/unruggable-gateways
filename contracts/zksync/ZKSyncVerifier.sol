@@ -25,7 +25,6 @@ struct StoredBatchInfo {
 contract ZKSyncVerifier is AbstractVerifier {
 
 	IZKSyncSMT immutable _smt;
-
 	constructor(IZKSyncSMT smt) {
 		_smt = smt;
 	}

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-uint256 constant MAX_STACK = 64;
-uint256 constant MAX_OPS = 2048;
-uint8 constant MAX_INPUTS = 64;
+uint256 constant MAX_STACK = 64; // max = unlimited
+uint256 constant MAX_OPS = 2048; // max = unlimited
+uint8 constant MAX_INPUTS = 64; // max = 256
 
 uint8 constant STOP_ON_SUCCESS = 1;
 uint8 constant STOP_ON_FAILURE = 2;
@@ -23,14 +23,16 @@ uint8 constant OP_READ_BYTES = 21;
 uint8 constant OP_READ_ARRAY = 22;
 uint8 constant OP_READ_HASHED = 23;
 
-uint8 constant OP_SLOT_ZERO = 30;
+uint8 constant OP_SLOT_ZERO = 30; // deprecated 
 uint8 constant OP_SLOT_ADD = 31;
 uint8 constant OP_SLOT_FOLLOW = 32;
+uint8 constant OP_SLOT = 33;
 
 uint8 constant OP_PUSH_INPUT = 40;
 uint8 constant OP_PUSH_OUTPUT = 41;
 uint8 constant OP_PUSH_SLOT = 42;
 uint8 constant OP_PUSH_TARGET = 43;
+uint8 constant OP_PUSH_BYTE = 44;
 
 uint8 constant OP_DUP = 50;
 uint8 constant OP_POP = 51;
@@ -39,6 +41,16 @@ uint8 constant OP_SWAP = 52;
 uint8 constant OP_KECCAK = 60;
 uint8 constant OP_CONCAT = 61;
 uint8 constant OP_SLICE	= 62;
+
+uint8 constant OP_PLUS = 63;
+uint8 constant OP_TIMES = 64;
+uint8 constant OP_DIVIDE = 65;
+uint8 constant OP_AND = 66;
+uint8 constant OP_OR = 67;
+
+uint8 constant OP_NOT = 68;
+uint8 constant OP_SHIFT_LEFT = 69;
+uint8 constant OP_SHIFT_RIGHT = 70;
 
 struct GatewayRequest {
 	bytes ops;
@@ -57,6 +69,7 @@ struct ProofSequence {
 // the limits are very high so RequestOverflow() is unlikely
 // the typical fetch request is incredibly small relative to the proof
 // so there's no need for data-saving operations (like PUSH_BYTE)
+// 20240922: PUSH_BYTE is useful for compact ESP
 // currently, inputs are not embedded into the ops buffer
 // but they could be to further simplify the protocol
 error RequestOverflow();

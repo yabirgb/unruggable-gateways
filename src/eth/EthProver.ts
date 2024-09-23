@@ -1,36 +1,18 @@
-import type {
-  EncodedProof,
-  HexAddress,
-  HexString,
-  ProofRef,
-} from '../types.js';
-import type {
-  EthAccountProof,
-  EthProof,
-  EthStorageProof,
-  RPCEthGetProof,
+import type { HexAddress, HexString, ProofRef } from '../types.js';
+import {
+  type EthAccountProof,
+  type EthStorageProof,
+  type RPCEthGetProof,
+  isContract,
+  encodeProof,
 } from './types.js';
 import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
 import { ZeroHash } from 'ethers/constants';
-import { toBeHex } from 'ethers/utils';
-import {
-  ABI_CODER,
-  NULL_CODE_HASH,
-  sendRetry,
-  withResolvers,
-} from '../utils.js';
-
-function isContract(proof: EthAccountProof) {
-  return (
-    proof.codeHash !== NULL_CODE_HASH && proof.keccakCodeHash !== NULL_CODE_HASH
-  );
-}
-
-export function encodeProof(proof: EthProof): EncodedProof {
-  return ABI_CODER.encode(['bytes[]'], [proof]);
-}
+import { sendRetry, withResolvers, toPaddedHex } from '../utils.js';
 
 export class EthProver extends BlockProver {
+  static readonly encodeProof = encodeProof;
+  static readonly isContract = isContract;
   proofRetryCount = 0;
   override async isContract(target: HexAddress) {
     target = target.toLowerCase();
@@ -60,7 +42,7 @@ export class EthProver extends BlockProver {
     const storageProof: EthStorageProof | undefined =
       await this.proofLRU.touch(storageKey);
     if (storageProof) {
-      return toBeHex(storageProof.value, 32);
+      return toPaddedHex(storageProof.value);
     }
     if (fast || this.fast) {
       return this.cache.get(storageKey, () =>
@@ -163,7 +145,7 @@ export class EthProver extends BlockProver {
             target,
             slots
               .slice(i, (i += this.proofBatchSize))
-              .map((slot) => toBeHex(slot, 32)),
+              .map((slot) => toPaddedHex(slot)),
             this.block,
           ],
           this.proofRetryCount

@@ -53,9 +53,12 @@ library GatewayProver {
 
 	using GatewayProver for Machine;
 
+	function pushUint256(Machine memory vm, uint256 x) internal pure { vm.push(abi.encode(x)); }
+	function pushCopy(Machine memory vm, bytes memory v) internal pure { vm.push(abi.encodePacked(v)); }
 	function push(Machine memory vm, bytes memory v) internal pure {
 		vm.stack[vm.stackSize++] = v;
 	}
+	function popUint256(Machine memory vm) internal pure returns (uint256) { return uint256FromBytes(vm.pop()); }
 	function pop(Machine memory vm) internal pure returns (bytes memory) {
 		return vm.stack[--vm.stackSize];
 	}
@@ -188,40 +191,66 @@ library GatewayProver {
 				vm.push(vm.proveBytes());
 			} else if (op == OP_READ_HASHED) {
 				bytes memory v = vm.readProof();
-				if (keccak256(v) != bytes32(vm.pop())) revert RequestInvalid();
+				if (keccak256(v) != bytes32(vm.pop())) revert RequestInvalid(); // TODO: should be more specific
 				vm.push(v);
 			} else if (op == OP_READ_ARRAY) {
 				vm.push(vm.proveArray(vm.readShort()));
+			} else if (op == OP_SLOT) {
+				vm.slot = uint256FromBytes(vm.pop());
+			} else if (op == OP_SLOT_ADD) {
+				vm.slot += uint256FromBytes(vm.pop());
+			} else if (op == OP_SLOT_FOLLOW) {
+				vm.slot = uint256(keccak256(abi.encodePacked(vm.pop(), vm.slot)));
+			} else if (op == OP_SLOT_ZERO) { // deprecated
+				vm.slot = 0;
 			} else if (op == OP_PUSH_INPUT) {
-				vm.push(abi.encodePacked(vm.inputs[vm.readByte()]));
+				vm.pushCopy(vm.inputs[vm.readByte()]);
 			} else if (op == OP_PUSH_OUTPUT) {
-				vm.push(abi.encodePacked(outputs[vm.readByte()]));
+				vm.pushCopy(outputs[vm.readByte()]);
+			} else if (op == OP_PUSH_BYTE) {
+				bytes memory v = new bytes(32);
+				v[31] = bytes1(vm.readByte());
+				vm.push(v);
 			} else if (op == OP_PUSH_SLOT) {
-				vm.push(abi.encode(vm.slot));
+				vm.pushUint256(vm.slot);
 			} else if (op == OP_PUSH_TARGET) {
-				vm.push(abi.encodePacked(vm.target));
+				vm.push(abi.encodePacked(vm.target)); // NOTE: 20 bytes
 			} else if (op == OP_DUP) {
-				vm.push(abi.encodePacked(vm.stack[vm.readBack()]));
+				vm.pushCopy(vm.stack[vm.readBack()]);
 			} else if (op == OP_POP) {
 				if (vm.stackSize != 0) --vm.stackSize;
 			} else if (op == OP_SWAP) {
 				uint256 i = vm.readBack();
 				uint256 j = vm.stackSize - 1;
 				(vm.stack[i], vm.stack[j]) = (vm.stack[j], vm.stack[i]);
-			} else if (op == OP_SLOT_ZERO) {
-				vm.slot = 0;
-			} else if (op == OP_SLOT_ADD) {
-				vm.slot += uint256FromBytes(vm.pop());
-			} else if (op == OP_SLOT_FOLLOW) {
-				vm.slot = uint256(keccak256(abi.encodePacked(vm.pop(), vm.slot)));
 			} else if (op == OP_SLICE) {
 				vm.push(Bytes.slice(vm.pop(), vm.readShort(), vm.readShort()));
 			} else if (op == OP_KECCAK) {
-				vm.push(abi.encodePacked(keccak256(vm.pop())));
+				vm.pushUint256(uint256(keccak256(vm.pop())));
 			} else if (op == OP_CONCAT) {
-				if (vm.stackSize < 2) revert RequestInvalid();
 				bytes memory last = vm.pop();
 				vm.push(bytes.concat(vm.pop(), last));
+			} else if (op == OP_PLUS) {
+				uint256 last = vm.popUint256();
+				unchecked { vm.pushUint256(vm.popUint256() + last); }
+			} else if (op == OP_TIMES) {
+				uint256 last = vm.popUint256();
+				unchecked { vm.pushUint256(vm.popUint256() * last); }
+			} else if (op == OP_DIVIDE) {
+				uint256 last = vm.popUint256();
+				unchecked { vm.pushUint256(vm.popUint256() / last); }
+			} else if (op == OP_AND) {
+				uint256 last = vm.popUint256();
+				unchecked { vm.pushUint256(vm.popUint256() & last); }
+			} else if (op == OP_OR) {
+				uint256 last = vm.popUint256();
+				unchecked { vm.pushUint256(vm.popUint256() | last); }
+			} else if (op == OP_NOT) {
+				vm.pushUint256(~vm.popUint256());
+			} else if (op == OP_SHIFT_LEFT) {
+				vm.pushUint256(vm.popUint256() << vm.readByte());
+			} else if (op == OP_SHIFT_RIGHT) {
+				vm.pushUint256(vm.popUint256() >> vm.readByte());
 			} else if (op == OP_EVAL_INLINE) {
 				bytes memory program = vm.pop();
 				// save program

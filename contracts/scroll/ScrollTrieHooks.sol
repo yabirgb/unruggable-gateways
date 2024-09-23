@@ -9,7 +9,7 @@ interface IPoseidon {
 	function poseidon(uint256[2] memory, uint256) external view returns (bytes32);
 }
 
-import "forge-std/console2.sol";
+//import "forge-std/console2.sol";
 
 library ScrollTrieHooks {
 

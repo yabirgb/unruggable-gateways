@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
+import { toPaddedHex } from '../../src/utils.js';
 
 describe('limits', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
@@ -39,7 +40,7 @@ describe('limits', async () => {
     prover.maxUniqueTargets = 10;
     const req = new GatewayRequest();
     for (let i = 0; i < prover.maxUniqueTargets; i++) {
-      req.setTarget(ethers.toBeHex(i, 20));
+      req.setTarget(toPaddedHex(i, 20));
     }
     expect(exec(prover, req)).resolves.toBeDefined();
     req.setTarget('0x51050ec063d393217B436747617aD1C2285Aeeee'); // one more

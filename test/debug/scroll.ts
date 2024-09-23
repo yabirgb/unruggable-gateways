@@ -1,6 +1,6 @@
 import { Foundry } from '@adraffy/blocksmith';
 import { CHAINS } from '../../src/chains.js';
-import { EthProver, encodeProof } from '../../src/eth/EthProver.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import { createProvider, providerURL } from '../providers.js';
 import { ZeroAddress } from 'ethers/constants';
 
@@ -31,9 +31,9 @@ const verifier = await foundry.deploy({
 console.log(proof.accountProof.length);
 
 try {
-	const storageRoot = await verifier.proveAccountState(stateRoot, target, encodeProof(proof.accountProof));
+	const storageRoot = await verifier.proveAccountState(stateRoot, target, EthProver.encodeProof(proof.accountProof));
 	console.log({storageRoot});
-	const storageValue = await verifier.proveStorageValue(storageRoot, ZeroAddress, storageProof.key, encodeProof(storageProof.proof));
+	const storageValue = await verifier.proveStorageValue(storageRoot, ZeroAddress, storageProof.key, EthProver.encodeProof(storageProof.proof));
 	console.log({storageValue});
 } catch (err) {
 	console.log(err);

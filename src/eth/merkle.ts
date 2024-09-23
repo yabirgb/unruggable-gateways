@@ -2,7 +2,8 @@ import type { HexString, BigNumberish } from '../types.js';
 import type { EthProof } from './types.js';
 import { ZeroHash } from 'ethers/constants';
 import { keccak256 } from 'ethers/crypto';
-import { decodeRlp, toBeHex, zeroPadValue } from 'ethers/utils';
+import { decodeRlp, zeroPadValue } from 'ethers/utils';
+import { toPaddedHex } from '../utils.js';
 
 const BRANCH_NODE_SIZE = 17;
 const LEAF_NODE_SIZE = 2;
@@ -40,7 +41,7 @@ export function proveStorageValue(
   storageRoot: HexString
 ) {
   const rlp = proveMerkleTrieValue(
-    toBeHex(slot, 32),
+    toPaddedHex(slot),
     storageProof,
     storageRoot,
     true

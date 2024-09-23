@@ -1,6 +1,6 @@
 // https://eips.ethereum.org/EIPS/eip-4788#beacon-block-root-instead-of-state-root
 
-import { ethers } from 'ethers';
+import { toPaddedHex } from '../../../src/utils.js';
 import { CHAINS } from '../../../src/chains.js';
 import { createProvider } from '../../providers.js';
 
@@ -19,7 +19,7 @@ console.log(blockInfo.parentBeaconBlockRoot);
 console.log(
   await provider.call({
     to: BEACON_ROOTS_ADDRESS,
-    data: ethers.toBeHex(blockInfo.timestamp, 32),
+    data: toPaddedHex(blockInfo.timestamp),
   })
 );
 console.log(

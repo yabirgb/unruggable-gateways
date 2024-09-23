@@ -1,55 +1,23 @@
 import type { HexString, ProofRef } from '../types.js';
 import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
 import { ZeroHash } from 'ethers/constants';
-import { dataSlice, toBeHex } from 'ethers/utils';
+import { sendImmediate, withResolvers, toPaddedHex } from '../utils.js';
 import {
-  ABI_CODER,
-  NULL_CODE_HASH,
-  sendImmediate,
-  withResolvers,
-} from '../utils.js';
-import {
-  isExistanceProof,
   type LineaProof,
   type RPCLineaGetProof,
+  isExistanceProof,
+  isContract,
+  encodeProof,
 } from './types.js';
 
-//const NULL_CODE_HASH = '0x0134373b65f439c874734ff51ea349327c140cde2e47a933146e6f9f2ad8eb17'; // mimc(ZeroHash)
-
-function isContract(accountProof: LineaProof) {
-  return (
-    isExistanceProof(accountProof) &&
-    // https://github.com/Consensys/linea-monorepo/blob/a001342170768a22988a29b2dca8601199c6e205/contracts/contracts/lib/SparseMerkleProof.sol#L23
-    dataSlice(accountProof.proof.value, 128, 160) !== NULL_CODE_HASH
-  );
-}
-
-function encodeProof(proof: LineaProof) {
-  return ABI_CODER.encode(
-    ['tuple(uint256, bytes, bytes[])[]'],
-    [
-      isExistanceProof(proof)
-        ? [[proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes]]
-        : [
-            [
-              proof.leftLeafIndex,
-              proof.leftProof.value,
-              proof.leftProof.proofRelatedNodes,
-            ],
-            [
-              proof.rightLeafIndex,
-              proof.rightProof.value,
-              proof.rightProof.proofRelatedNodes,
-            ],
-          ],
-    ]
-  );
-}
-
 export class LineaProver extends BlockProver {
+  static readonly isExistanceProof = isExistanceProof;
+  static readonly isContract = isContract;
+  static readonly encodeProof = encodeProof;
   override async getStorage(
     target: HexString,
-    slot: bigint
+    slot: bigint,
+    fast?: boolean
   ): Promise<HexString> {
     target = target.toLowerCase();
     // check to see if we know this target isn't a contract
@@ -68,10 +36,10 @@ export class LineaProver extends BlockProver {
         : ZeroHash;
     }
     // we didn't have the proof
-    if (this.cache) {
-      return this.cache.get(storageKey, () =>
-        this.provider.getStorage(target, slot, this.block)
-      );
+    if (fast || this.fast) {
+      return this.cache.get(storageKey, () => {
+        return this.provider.getStorage(target, slot, this.block);
+      });
     }
     const proof = await this.getProofs(target, [slot]);
     return isContract(proof.accountProof) &&
@@ -80,15 +48,14 @@ export class LineaProver extends BlockProver {
       : ZeroHash;
   }
   override async isContract(target: HexString) {
-    if (this.cache) {
+    if (this.fast) {
       return this.cache.get(target, async () => {
         const code = await this.provider.getCode(target, this.block);
         return code.length > 2;
       });
-    } else {
-      const { accountProof } = await this.getProofs(target);
-      return isContract(accountProof);
     }
+    const { accountProof } = await this.getProofs(target);
+    return isContract(accountProof);
   }
   protected override async _proveNeed(
     need: TargetNeed,
@@ -186,7 +153,7 @@ export class LineaProver extends BlockProver {
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
-            .map((slot) => toBeHex(slot, 32)),
+            .map((slot) => toPaddedHex(slot)),
           this.block,
         ])
       );

@@ -1,21 +1,21 @@
-import { ZeroHash } from 'ethers/constants';
-import { Contract } from 'ethers/contract';
-import type {
-  HexAddress,
-  HexString,
-  HexString32,
-  ProviderPair,
-} from '../types.js';
-import type { ProofSequence } from '../types.js';
-import { LineaProver } from './LineaProver.js';
-import { ROLLUP_ABI } from './types.js';
-import { CHAINS } from '../chains.js';
 import {
   type RollupDeployment,
   type RollupCommit,
   AbstractRollup,
 } from '../rollup.js';
-import { ABI_CODER, toString16 } from '../utils.js';
+import type {
+  HexAddress,
+  HexString,
+  HexString32,
+  ProviderPair,
+  ProofSequence,
+} from '../types.js';
+import { ZeroHash } from 'ethers/constants';
+import { Contract } from 'ethers/contract';
+import { LineaProver } from './LineaProver.js';
+import { ROLLUP_ABI } from './types.js';
+import { CHAINS } from '../chains.js';
+import { ABI_CODER, toUnpaddedHex } from '../utils.js';
 
 // https://docs.linea.build/developers/quickstart/ethereum-differences
 // https://github.com/Consensys/linea-contracts
@@ -88,7 +88,7 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
     const stateRoot: HexString32 =
       await this.L1MessageService.stateRootHashes(index);
     if (stateRoot === ZeroHash) throw new Error('not finalized');
-    const prover = new LineaProver(this.provider2, toString16(index));
+    const prover = new LineaProver(this.provider2, toUnpaddedHex(index));
     return { index, stateRoot, prover };
   }
   override encodeWitness(

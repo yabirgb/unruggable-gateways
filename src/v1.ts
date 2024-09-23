@@ -1,6 +1,7 @@
 import type { HexString, BigNumberish, BytesLike } from './types.js';
 import { ZeroAddress } from 'ethers/constants';
-import { hexlify, toBeHex, getBytes, toUtf8Bytes } from 'ethers/utils';
+import { hexlify, getBytes, toUtf8Bytes } from 'ethers/utils';
+import { toPaddedHex } from './utils.js';
 import { GatewayRequest } from './vm.js';
 
 // export const GATEWAY_ABI = new ethers.Interface([
@@ -65,8 +66,8 @@ export class GatewayRequestV1 {
     this.buf.push(OP_FOLLOW_REF | i);
     return this;
   }
-  element(x: BigNumberish) {
-    return this.elementBytes(toBeHex(x, 32));
+  element(x: BigNumberish | boolean) {
+    return this.elementBytes(toPaddedHex(x));
   }
   elementStr(s: string) {
     return this.elementBytes(toUtf8Bytes(s));
@@ -76,7 +77,7 @@ export class GatewayRequestV1 {
     return this;
   }
   offset(x: BigNumberish) {
-    this.buf.push(OP_ADD_CONST | this.addConst(toBeHex(x, 32)));
+    this.buf.push(OP_ADD_CONST | this.addConst(toPaddedHex(x)));
     return this;
   }
   // encodeCall() {
@@ -98,7 +99,7 @@ export class GatewayRequestV1 {
           const operand = op & OPERAND_MASK;
           switch (op & 0xe0) {
             case OP_ADD_CONST: {
-              req.pushBytes(this.constants[operand]).addSlot();
+              req.push(this.constants[operand]).addSlot();
               continue;
             }
             case OP_FOLLOW_CONST: {

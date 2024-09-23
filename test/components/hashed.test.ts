@@ -15,32 +15,33 @@ describe('hashed', async () => {
   async function deployContract(fast: boolean) {
     return foundry.deploy({
       sol: `
-		  contract ${fast ? 'Fast' : 'Slow'} {
-			struct Prefixed {
-			  bytes32 hash;
-			  bytes value;
-			}
-			Prefixed prefixedValue;
-			mapping (uint256 => Prefixed) prefixedMap;
-			mapping (uint256 => bytes32) hashMap;
-			mapping (uint256 => bytes) valueMap;
-			constructor(bytes memory v) {
-			  _update(prefixedValue, v);
-			  _update(prefixedMap[1337], v);
-			  valueMap[123] = v;
-			  hashMap[123] = keccak256(v);
-			}
-			function _update(Prefixed storage p, bytes memory v) internal {
-			  p.value = v;
-			  p.hash = keccak256(v);
-			}
-			function readBytesAt(uint256 slot) ${fast ? 'external' : 'private'} view returns (bytes memory) {
-			  bytes storage v;
-			  assembly { v.slot := slot }
-			  return v;
-			}
-		  }
-		`,
+        contract ${fast ? 'Fast' : 'Slow'} {
+          struct Prefixed {
+            bytes32 hash;
+            bytes value;
+          }
+          Prefixed prefixed;
+          mapping (uint256 => Prefixed) prefixedMap;
+          mapping (uint256 => bytes32) hashMap;
+          mapping (uint256 => bytes) valueMap;
+          constructor(bytes memory v) {
+            _update(prefixed, v);
+            _update(prefixedMap[1337], v);
+            valueMap[123] = v;
+            hashMap[123] = keccak256(v);
+          }
+          function _update(Prefixed storage p, bytes memory v) internal {
+            p.value = v;
+            p.hash = keccak256(v);
+          }
+          // gateway extension (optional)
+          function readBytesAt(uint256 slot) ${fast ? 'external' : 'private'} view returns (bytes memory) {
+            bytes storage v;
+            assembly { v.slot := slot }
+            return v;
+          }
+        }
+      `,
       args: [bytes],
     });
   }
@@ -105,6 +106,17 @@ describe('hashed', async () => {
             .setSlot(4)
             .push(123)
             .follow() // valueMap[123]
+            .readHashedBytes()
+            .addOutput()
+        );
+        expect(values[0]).toEqual(bytes);
+      });
+      test('inline hash', async () => {
+        const { values } = await verify(
+          new GatewayRequest()
+            .setTarget(contract.target)
+            .setSlot(1) // prefixed.value
+            .push(ethers.keccak256(bytes)) // inline hash
             .readHashedBytes()
             .addOutput()
         );

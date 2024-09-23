@@ -13,11 +13,21 @@ export const NULL_CODE_HASH = keccakStr('');
 
 export const EVM_BLOCKHASH_DEPTH = 256;
 
-// hex-prefixed without any zero-padding
-export function toString16(x: BigNumberish): HexString {
+// hex-prefixed w/o zero-padding
+export function toUnpaddedHex(x: BigNumberish | boolean): HexString {
   return '0x' + BigInt(x).toString(16);
 }
+// hex-prefixed left-pad w/truncation
+export function toPaddedHex(x: BigNumberish | boolean, width = 32) {
+  return (
+    '0x' +
+    BigInt.asUintN(width << 3, BigInt(x))
+      .toString(16)
+      .padStart(width << 1, '0')
+  );
+}
 
+// manual polyfill: ES2024
 export function withResolvers<T = void>() {
   let resolve!: (value: T) => void;
   let reject!: (reason?: any) => void;

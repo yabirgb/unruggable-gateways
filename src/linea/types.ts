@@ -1,5 +1,7 @@
-import { Interface } from 'ethers/abi';
 import type { HexString, HexString32 } from '../types.js';
+import { Interface } from 'ethers/abi';
+import { ABI_CODER, NULL_CODE_HASH } from '../utils.js';
+import { dataSlice } from 'ethers/utils';
 
 export const ROLLUP_ABI = new Interface([
   // ZkEvmV2.sol
@@ -37,11 +39,43 @@ export type LineaProofExistance = {
 
 export type LineaProof = LineaProofAbsence | LineaProofExistance;
 
-export function isExistanceProof(proof: LineaProof) {
-  return 'leafIndex' in proof;
-}
-
 export type RPCLineaGetProof = {
   accountProof: LineaProof;
   storageProofs: LineaProof[]; // note: this is plural
 };
+
+export function isExistanceProof(proof: LineaProof) {
+  return 'leafIndex' in proof;
+}
+
+//const NULL_CODE_HASH = '0x0134373b65f439c874734ff51ea349327c140cde2e47a933146e6f9f2ad8eb17'; // mimc(ZeroHash)
+
+export function isContract(accountProof: LineaProof) {
+  return (
+    isExistanceProof(accountProof) &&
+    // https://github.com/Consensys/linea-monorepo/blob/a001342170768a22988a29b2dca8601199c6e205/contracts/contracts/lib/SparseMerkleProof.sol#L23
+    dataSlice(accountProof.proof.value, 128, 160) !== NULL_CODE_HASH
+  );
+}
+
+export function encodeProof(proof: LineaProof) {
+  return ABI_CODER.encode(
+    ['tuple(uint256, bytes, bytes[])[]'],
+    [
+      isExistanceProof(proof)
+        ? [[proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes]]
+        : [
+            [
+              proof.leftLeafIndex,
+              proof.leftProof.value,
+              proof.leftProof.proofRelatedNodes,
+            ],
+            [
+              proof.rightLeafIndex,
+              proof.rightProof.value,
+              proof.rightProof.proofRelatedNodes,
+            ],
+          ],
+    ]
+  );
+}

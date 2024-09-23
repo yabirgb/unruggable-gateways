@@ -8,6 +8,7 @@ import type {
   HexAddress,
   HexString,
   ProviderPair,
+  ProofSequence,
 } from '../types.js';
 import { L1_BLOCK_ABI } from './types.js';
 import { CHAINS } from '../chains.js';
@@ -15,11 +16,10 @@ import {
   ABI_CODER,
   EVM_BLOCKHASH_DEPTH,
   fetchBlock,
-  toString16,
+  toUnpaddedHex,
 } from '../utils.js';
-import { EthProver, encodeProof } from '../eth/EthProver.js';
+import { EthProver } from '../eth/EthProver.js';
 import { encodeRlpBlock } from '../rlp.js';
-import { ProofSequence } from '../types.js';
 import { dataSlice } from 'ethers/utils';
 import { Contract } from 'ethers/contract';
 
@@ -50,6 +50,7 @@ const L1Block = '0x4200000000000000000000000000000000000015'; // default deploym
 // however the proving is from chain2 to chain1
 // either rename chain1/chain2 to chainCall/chainData
 // or add direction: 1=>2 or 2=>1
+
 export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
   // https://docs.optimism.io/chain/addresses#op-mainnet-l2
   static readonly mainnetConfig: RollupDeployment<OPReverseConfig> = {
@@ -65,7 +66,7 @@ export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
   //readonly storageSlot: bigint; // using const SLOT_* instead
   constructor(providers: ProviderPair, config: OPReverseConfig) {
     super(providers);
-    this.latestBlockTag = 'latest';
+    //this.latestBlockTag = 'latest'; // 20240922: not necessary
     this.L1Block = new Contract(
       config.L1Block ?? L1Block,
       L1_BLOCK_ABI,
@@ -105,8 +106,8 @@ export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
   protected override async _fetchCommit(
     index: bigint
   ): Promise<OPReverseCommit> {
-    const l1BlockHex = toString16(index);
-    const l2BlockHex = toString16(await this.findL2Block(index));
+    const l1BlockHex = toUnpaddedHex(index);
+    const l2BlockHex = toUnpaddedHex(await this.findL2Block(index));
     const [l1BlockInfo, l2BlockInfo, proof] = await Promise.all([
       fetchBlock(this.provider1, l1BlockHex),
       fetchBlock(this.provider2, l2BlockHex),
@@ -122,8 +123,8 @@ export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
       index,
       rlpEncodedL1Block,
       rlpEncodedL2Block,
-      accountProof: encodeProof(proof.accountProof),
-      storageProof: encodeProof(proof.storageProof[0].proof),
+      accountProof: EthProver.encodeProof(proof.accountProof),
+      storageProof: EthProver.encodeProof(proof.storageProof[0].proof),
       prover,
     };
   }

@@ -1,15 +1,23 @@
-import type { RPCZKSyncGetProof, ZKSyncStorageProof } from './types.js';
-import type { Provider, HexAddress, HexString, ProofRef } from '../types.js';
+import type {
+  Provider,
+  HexAddress,
+  HexString,
+  ProofRef,
+  ProofSequence,
+} from '../types.js';
+import {
+  type RPCZKSyncGetProof,
+  type ZKSyncStorageProof,
+  encodeProof,
+} from './types.js';
 import {
   AbstractProver,
   isTargetNeed,
   makeStorageKey,
   type Need,
 } from '../vm.js';
-import { type ProofSequence } from '../types.js';
 import { ZeroAddress } from 'ethers/constants';
-import { toBeHex } from 'ethers/utils';
-import { ABI_CODER, withResolvers } from '../utils.js';
+import { toPaddedHex, withResolvers } from '../utils.js';
 import { unwrap } from '../wrap.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
@@ -17,15 +25,9 @@ import { unwrap } from '../wrap.js';
 export const ZKSYNC_ACCOUNT_CODEHASH =
   '0x0000000000000000000000000000000000008002';
 
-export function encodeStorageProof(proof: ZKSyncStorageProof) {
-  return ABI_CODER.encode(
-    ['bytes32', 'uint64', 'bytes32[]'],
-    [proof.value, proof.index, proof.proof]
-  );
-}
-
 // zksync proofs are relative to a *batch* not a *block*
 export class ZKSyncProver extends AbstractProver {
+  static readonly encodeProof = encodeProof;
   static async latest(provider: Provider) {
     return new this(
       provider,
@@ -48,7 +50,8 @@ export class ZKSyncProver extends AbstractProver {
   }
   override async getStorage(
     target: HexAddress,
-    slot: bigint
+    slot: bigint,
+    fast?: boolean
   ): Promise<HexString> {
     target = target.toLowerCase();
     const storageKey = makeStorageKey(target, slot);
@@ -57,17 +60,16 @@ export class ZKSyncProver extends AbstractProver {
     if (storageProof) {
       return storageProof.value;
     }
-    if (this.cache) {
-      return this.cache.get(storageKey, () =>
-        this.provider.getStorage(target, slot)
-      );
+    if (fast || this.fast) {
+      return this.cache.get(storageKey, () => {
+        return this.provider.getStorage(target, slot);
+      });
     }
     const vs = await this.getStorageProofs(target, [slot]);
     return vs[0].value;
   }
   override async prove(needs: Need[]): Promise<ProofSequence> {
     const promises: Promise<void>[] = [];
-    const named = new Map<HexString, ProofRef>();
     const buckets = new Map<HexAddress, Map<bigint, ProofRef>>();
     const refs: ProofRef[] = [];
     let nullRef: ProofRef | undefined;
@@ -93,6 +95,8 @@ export class ZKSyncProver extends AbstractProver {
     let target = ZeroAddress;
     const order = needs.map((need) => {
       if (isTargetNeed(need)) {
+        // codehash for contract A is not stored in A
+        // it is stored in the global codehash contract
         target = need.target;
         return addSlot(
           need.required ? ZKSYNC_ACCOUNT_CODEHASH : ZeroAddress,
@@ -101,16 +105,12 @@ export class ZKSyncProver extends AbstractProver {
       } else if (typeof need === 'bigint') {
         return addSlot(target, need);
       } else {
-        let ref = named.get(need.hash);
-        if (!ref) {
-          ref = createRef();
-          promises.push(
-            (async () => {
-              ref.proof = await unwrap(need.value);
-            })()
-          );
-          named.set(need.hash, ref);
-        }
+        const ref = createRef();
+        promises.push(
+          (async () => {
+            ref.proof = await unwrap(need.value);
+          })()
+        );
         return ref;
       }
     });
@@ -123,9 +123,7 @@ export class ZKSyncProver extends AbstractProver {
             target,
             m.map(([slot]) => slot)
           );
-          m.forEach(
-            ([, ref], i) => (ref.proof = encodeStorageProof(proofs[i]))
-          );
+          m.forEach(([, ref], i) => (ref.proof = encodeProof(proofs[i])));
         })
       )
     );
@@ -180,7 +178,7 @@ export class ZKSyncProver extends AbstractProver {
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
-            .map((slot) => toBeHex(slot, 32)),
+            .map((slot) => toPaddedHex(slot)),
           this.batchIndex,
         ])
       );
