@@ -1,4 +1,4 @@
-# Contributing to EVM Gateway v2
+# Contributing to Unruggable Gateways
 
 We welcome contributions from the community to help extend and improve the EVM Gateway codebase. Whether you want to report a bug, suggest a feature, or contribute code, your help is greatly appreciated. The premise behind the development of this software is to minimise duplication of effort and provide tooling that allows developers to interface with a simple, standardised API to read data from other chains.
 
@@ -6,12 +6,12 @@ We welcome contributions from the community to help extend and improve the EVM G
 
 To get started with contributing, please follow these steps:
 
-1. **Fork the Repository**: Fork the [repository](https://github.com/unruggable-labs/unruggable-gateways/tree/main/v2) to your own GitHub account.
+1. **Fork the Repository**: Fork the [repository](https://github.com/unruggable-labs/unruggable-gateways/tree/main) to your own GitHub account.
 2. **Clone Your Fork**: Clone your forked repository to your local machine.
 
    ```bash
    git clone https://github.com/your-username/unruggable-gateways.git
-   cd unruggable-gateways/v2
+   cd unruggable-gateways
    ```
 
 3. **Create a New Branch**: Create a new branch for your work. Make sure to give it a descriptive name that summarizes your changes.
@@ -84,4 +84,4 @@ Join the discussion and stay up to date with the community on our [Discord serve
 
 By contributing to this project, you agree that your contributions will be licensed under the MIT License.
 
-Thank you for your interest in contributing to EVM Gateway v2! Together, we can build a robust and efficient solution for the blockchain ecosystem.
+Thank you for your interest in contributing to Unruggable Gateways! Together, we can build a robust and efficient solution for the blockchain ecosystem.

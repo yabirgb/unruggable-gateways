@@ -1,10 +1,12 @@
 <p align="center">
-    <img src="./unruggable-logo-black.png" style = "width:300px;" alt = "Unruggable Gateways" />
+    <img src="https://raw.githubusercontent.com/unruggable-labs/unruggable-gateways/main/unruggable-logo-black.png" style = "width:300px;" alt = "Unruggable Gateways" />
 </p>
 
-# Unruggable Gateways
+# Unruggable Gateways 
 
 This repository provides an end-to-end code solution for resolving data from rollup chains and verifying it against state posted to Layer 1 Ethereum.
+
+![Unruggable Gateways CI](https://github.com/unruggable-labs/unruggable-gateways/actions/workflows/unruggable-gateways.yml/badge.svg)
 
 ## Quickstart
 
@@ -26,7 +28,7 @@ The core components of a chain solution are:
 - **Verifier**: A Solidity smart contract (deployed on Layer 1) that verifies the proofs returned by the gateway and returns the proven data values.
 - **Prover**: A Solidity library (deployed on Layer 1) that handles the chain-specific proving process.
 
-In addition to these core components, we have provided TypeScript implementations of the request builder ([vm.ts](https://github.com/unruggable-labs/unruggable-gateways/blob/main/v2/src/vm.ts)) and the provers (listed below) to allow smart contract implementors to quickly iterate and test when building solutions.
+In addition to these core components, we have provided TypeScript implementations of the request builder ([vm.ts](https://github.com/unruggable-labs/unruggable-gateways/blob/main/src/vm.ts)) and the provers (listed below) to allow smart contract implementors to quickly iterate and test when building solutions.
 
 ## Chain Support
 
@@ -131,7 +133,7 @@ We welcome contributions to this codebase.
 
 The premise behind the development of this software is to minimise duplication of effort and provide tooling that allows developers to interface with a simple, standardised API to read data from other chains.
 
-Please take a look at our [CONTRIBUTING.md](https://github.com/unruggable-labs/unruggable-gateways/blob/main/v2/CONTRIBUTING.md) file for a more in depth overview of our contribution process.
+Please take a look at our [CONTRIBUTING.md](https://github.com/unruggable-labs/unruggable-gateways/blob/main/CONTRIBUTING.md) file for a more in depth overview of our contribution process.
 
 ## Release Process
 

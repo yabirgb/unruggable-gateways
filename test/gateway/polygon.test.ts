@@ -9,7 +9,8 @@ import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
 const config = PolygonPoSRollup.mainnetConfig;
-describe(chainName(config.chain2), async () => {
+// 20240923: disabled until polygon has non-erigon rpcs
+describe.skipIf(!!process.env.IS_CI)(chainName(config.chain2), async () => {
   const rollup = new PolygonPoSRollup(createProviderPair(config), config);
   rollup.configure = (c) => {
     c.prover.proofRetryCount = 5; // hack for failing eth_getProof

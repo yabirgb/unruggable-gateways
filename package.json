@@ -1,6 +1,6 @@
 {
   "name": "@unruggable/gateways",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "publishConfig": {
     "access": "public"
   },
@@ -32,11 +32,11 @@
   "files": [
     "dist/",
     "src/",
-    "contracts/DataFetcher.sol",
-    "contracts/DataFetchTarget.sol",
-    "contracts/ProtocolData.sol",
-    "contracts/IDataProver.sol",
-    "contracts/IDataProofVerifier.sol"
+    "contracts/GatewayFetcher.sol",
+    "contracts/GatewayFetchTarget.sol",
+    "contracts/GatewayProtocol.sol",
+    "contracts/IGatewayProver.sol",
+    "contracts/IGatewayProofVerifier.sol"
   ],
   "devDependencies": {
     "@adraffy/blocksmith": "^0.0.35",

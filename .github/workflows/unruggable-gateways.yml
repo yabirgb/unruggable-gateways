@@ -1,4 +1,4 @@
-name: v2 CI
+name: Unruggable Gateways CI
 on: [push]
 defaults:
  run:
@@ -9,8 +9,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node: ['18.x', '20.x']
-        os: [ubuntu-latest, macOS-latest]
+        node: ['20.x']
+        os: [ubuntu-latest]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
