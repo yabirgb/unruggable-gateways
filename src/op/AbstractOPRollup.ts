@@ -1,9 +1,13 @@
-import type { HexString, ProofSequence, ProofSequenceV1 } from '../types.js';
+import type {
+  HexString,
+  BigNumberish,
+  ProofSequence,
+  ProofSequenceV1,
+} from '../types.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
 import { ZeroHash } from 'ethers/constants';
 import { ABI_CODER } from '../utils.js';
-import { BigNumberish } from 'ethers';
 
 const OutputRootProofType = `tuple(
   bytes32 version,
