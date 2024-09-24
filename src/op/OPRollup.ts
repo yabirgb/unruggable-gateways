@@ -4,7 +4,6 @@ import { type ABIOutputProposal, ORACLE_ABI } from './types.js';
 import { Contract } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
-import { toUnpaddedHex } from '../utils.js';
 
 // should this be named L2OutputOracleProxy?
 // most call it L2OutputOracle (meaning the Proxy)
@@ -95,7 +94,7 @@ export class OPRollup extends AbstractOPRollup {
     // this fails with ARRAY_RANGE_ERROR when invalid
     const output: ABIOutputProposal =
       await this.L2OutputOracle.getL2Output(index);
-    return this.createCommit(index, toUnpaddedHex(output.l2BlockNumber));
+    return this.createCommit(index, output.l2BlockNumber);
   }
 
   override windowFromSec(sec: number): number {

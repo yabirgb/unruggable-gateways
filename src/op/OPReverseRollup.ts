@@ -12,12 +12,7 @@ import type {
 } from '../types.js';
 import { L1_BLOCK_ABI } from './types.js';
 import { CHAINS } from '../chains.js';
-import {
-  ABI_CODER,
-  EVM_BLOCKHASH_DEPTH,
-  fetchBlock,
-  toUnpaddedHex,
-} from '../utils.js';
+import { ABI_CODER, EVM_BLOCKHASH_DEPTH } from '../utils.js';
 import { EthProver } from '../eth/EthProver.js';
 import { encodeRlpBlock } from '../rlp.js';
 import { dataSlice } from 'ethers/utils';
@@ -25,7 +20,7 @@ import { Contract } from 'ethers/contract';
 
 export type OPReverseConfig = {
   L1Block?: HexAddress;
-  storageSlot?: bigint;
+  //storageSlot?: bigint;
 };
 
 // https://github.com/ethereum-optimism/optimism/blob/develop/packages/contracts-bedrock/src/L2/L1Block.sol
@@ -62,6 +57,7 @@ export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.BASE,
   };
+
   readonly L1Block: Contract;
   //readonly storageSlot: bigint; // using const SLOT_* instead
   constructor(providers: ProviderPair, config: OPReverseConfig) {
@@ -106,19 +102,18 @@ export class OPReverseRollup extends AbstractRollup<OPReverseCommit> {
   protected override async _fetchCommit(
     index: bigint
   ): Promise<OPReverseCommit> {
-    const l1BlockHex = toUnpaddedHex(index);
-    const l2BlockHex = toUnpaddedHex(await this.findL2Block(index));
+    const prover = new EthProver(this.provider1, index);
+    const prover2 = new EthProver(
+      this.provider2,
+      await this.findL2Block(index)
+    );
     const [l1BlockInfo, l2BlockInfo, proof] = await Promise.all([
-      fetchBlock(this.provider1, l1BlockHex),
-      fetchBlock(this.provider2, l2BlockHex),
-      new EthProver(this.provider2, l2BlockHex).fetchProofs(
-        this.L1Block.target as string,
-        [SLOT_HASH]
-      ),
+      prover.fetchBlock(),
+      prover2.fetchBlock(),
+      prover2.fetchProofs(this.L1Block.target as string, [SLOT_HASH]),
     ]);
     const rlpEncodedL1Block = encodeRlpBlock(l1BlockInfo);
     const rlpEncodedL2Block = encodeRlpBlock(l2BlockInfo);
-    const prover = new EthProver(this.provider1, l1BlockHex);
     return {
       index,
       rlpEncodedL1Block,

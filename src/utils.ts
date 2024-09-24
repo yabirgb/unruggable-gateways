@@ -110,11 +110,11 @@ export async function sendImmediate<T>(
   }
 }
 
-export async function fetchBlock(provider: Provider, blockTag: HexString) {
+export async function fetchBlock(provider: Provider, block: BigNumberish) {
   const json: RPCEthGetBlock | null = await provider.send(
     'eth_getBlockByNumber',
-    [blockTag, false]
+    [typeof block === 'string' ? block : toUnpaddedHex(block), false]
   );
-  if (!json) throw new Error(`no block: ${blockTag}`);
+  if (!json) throw new Error(`no block: ${block}`);
   return json;
 }

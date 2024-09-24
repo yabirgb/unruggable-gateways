@@ -2,7 +2,8 @@ import type { HexString, ProofSequence, ProofSequenceV1 } from '../types.js';
 import { AbstractRollupV1, type RollupCommit } from '../rollup.js';
 import { EthProver } from '../eth/EthProver.js';
 import { ZeroHash } from 'ethers/constants';
-import { ABI_CODER, fetchBlock } from '../utils.js';
+import { ABI_CODER } from '../utils.js';
+import { BigNumberish } from 'ethers';
 
 const OutputRootProofType = `tuple(
   bytes32 version,
@@ -25,11 +26,11 @@ const L2ToL1MessagePasser = '0x4200000000000000000000000000000000000016';
 
 export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
   L2ToL1MessagePasser = L2ToL1MessagePasser;
-  async createCommit(index: bigint, block: HexString): Promise<OPCommit> {
+  async createCommit(index: bigint, block: BigNumberish): Promise<OPCommit> {
     const prover = new EthProver(this.provider2, block);
     const [{ storageHash: passerRoot }, blockInfo] = await Promise.all([
       prover.fetchProofs(this.L2ToL1MessagePasser),
-      fetchBlock(this.provider2, block),
+      prover.fetchBlock(),
     ]);
     return {
       index,

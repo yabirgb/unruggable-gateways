@@ -1,16 +1,19 @@
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { EthSelfGateway } from '../../../src/eth/EthSelfGateway.js';
+import { EthSelfRollup } from '../../../src/eth/EthSelfRollup.js';
+import { Gateway } from '../../../src/gateway.js';
 import { deployProxy } from '../../gateway/common.js';
 import { describe } from '../../bun-describe-fix.js';
 import { afterAll, expect, test } from 'bun:test';
 
-describe('self', async () => {
+describe('local self', async () => {
   const foundry = await Foundry.launch({
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const gateway = new EthSelfGateway(foundry.provider);
+  const rollup = new EthSelfRollup(foundry.provider);
+  rollup.latestBlockTag = 'latest';
+  const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, {
     protocol: 'raw',
     log: false,
@@ -21,6 +24,7 @@ describe('self', async () => {
   const verifier = await foundry.deploy({ file: 'EthSelfVerifier' });
   const proxy = await deployProxy(foundry, verifier);
   await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+  await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
 
   // setup backend contract (L2)
   const backend = await foundry.deploy({ file: 'Backend' });

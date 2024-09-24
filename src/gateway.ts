@@ -6,7 +6,8 @@ import {
 import type { HexString } from './types.js';
 import { Interface } from 'ethers/abi';
 import { solidityPackedKeccak256, id as keccakStr } from 'ethers/hash';
-import { getBytes, hexlify } from 'ethers/utils';
+import { getBytes } from 'ethers/utils';
+import { keccak256 } from 'ethers/crypto';
 import { CachedMap, CachedValue, LRU } from './cached.js';
 import { ABI_CODER } from './utils.js';
 import { GatewayRequestV1 } from './v1.js';
@@ -47,8 +48,11 @@ export class Gateway<R extends Rollup> extends EZCCIP {
           ['uint256', 'bytes', 'bytes[]'],
           [commit.index, ops, inputs]
         );
-        // TODO: ops could be hashed like a selector...
-        history.show = [commit.index, hexlify(ops), shortHash(hash)];
+        history.show = [
+          commit.index,
+          shortHash(keccak256(ops)), // ops is hashed: function selector
+          shortHash(hash), // request is hashed for counting
+        ];
         // NOTE: for a given commit + request, calls are pure
         return this.callLRU.cache(hash, async () => {
           const state = await commit.prover.evalDecoded(ops, inputs);

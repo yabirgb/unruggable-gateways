@@ -59,7 +59,7 @@ library GatewayFetcher {
 
 	function follow(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_SLOT_FOLLOW); }
 	//function follow(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.pushSlot().concat().keccak().slot(); }
-	function followIndex(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.pushSlot().keccak().slot().addSlot(); } // make this an op?
+	function followIndex(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.pushSlot().keccak().slot().addSlot(); }
 	function addSlot(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_SLOT_ADD); }
 	//function addSlot(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.pushSlot().add().slot(); } 
 	function slot(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_SLOT); }
@@ -67,9 +67,11 @@ library GatewayFetcher {
 	function offset(GatewayRequest memory r, uint256 dx) internal pure returns (GatewayRequest memory) { return r.push(dx).addSlot(); }
 	function pushSlot(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_PUSH_SLOT); }
 	//function zeroSlot(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_SLOT_ZERO); } // 20240922: deprecated
-	
+	//function zeroSlot(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.push(uint256(0)).slot(); } // alternative
+
 	function setOutput(GatewayRequest memory r, uint8 i) internal pure returns (GatewayRequest memory) { return r.addByte(OP_SET_OUTPUT).addByte(i); }
-	
+
+	function read(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.read(1); }
 	function read(GatewayRequest memory r, uint8 n) internal pure returns (GatewayRequest memory) { return r.addByte(OP_READ_SLOTS).addByte(n); }
 	function readBytes(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_READ_BYTES); }
 	function readArray(GatewayRequest memory r, uint8 step) internal pure returns (GatewayRequest memory) { return r.addByte(OP_READ_ARRAY).addByte(step); }
@@ -85,10 +87,13 @@ library GatewayFetcher {
 	function push(GatewayRequest memory r, bytes memory v) internal pure returns (GatewayRequest memory) { 
 		return r.addByte(OP_PUSH_INPUT).addByte(r.addInput(v)); 
 	}
-	
+
 	function pop(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_POP); }
+	function dup(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.dup(0); }
 	function dup(GatewayRequest memory r, uint8 back) internal pure returns (GatewayRequest memory) { return r.addByte(OP_DUP).addByte(back); }
+	function swap(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.swap(1); }
 	function swap(GatewayRequest memory r, uint8 back) internal pure returns (GatewayRequest memory) { return r.addByte(OP_SWAP).addByte(back); }
+	function requireNonzero(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.requireNonzero(0); }
 	function requireNonzero(GatewayRequest memory r, uint8 back) internal pure returns (GatewayRequest memory) { return r.addByte(OP_REQ_NONZERO).addByte(back); }
 
 	function pushInput(GatewayRequest memory r, uint8 i) internal pure returns (GatewayRequest memory) { return r.addByte(OP_PUSH_INPUT).addByte(i); }
@@ -117,15 +122,9 @@ library GatewayFetcher {
 
 	function eval(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_EVAL_INLINE); }
 	
+	function evalLoop(GatewayRequest memory r, uint8 flags) internal pure returns (GatewayRequest memory) { return r.evalLoop(flags, 255); }
 	function evalLoop(GatewayRequest memory r, uint8 flags, uint8 back) internal pure returns (GatewayRequest memory) {
 		return r.addByte(OP_EVAL_LOOP).addByte(back).addByte(flags);
 	}
-
-	// default arguments
-	function read(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.read(1); }
-	function dup(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.dup(0); }
-	function swap(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.swap(1); }
-	function requireNonzero(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.requireNonzero(0); }
-	function evalLoop(GatewayRequest memory r, uint8 flags) internal pure returns (GatewayRequest memory) { return r.evalLoop(flags, 255); }
 
 }

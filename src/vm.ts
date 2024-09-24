@@ -819,17 +819,14 @@ export abstract class BlockProver extends AbstractProver {
   // absolutely disgusting typescript
   static async latest<T extends InstanceType<typeof BlockProver>>(
     this: new (...a: ConstructorParameters<typeof BlockProver>) => T,
-    provider: Provider,
-    offset = 0 // experimental
+    provider: Provider
   ) {
-    const blockNumber = await provider.getBlockNumber();
-    return new this(provider, toUnpaddedHex(blockNumber - offset));
+    return new this(provider, await provider.getBlockNumber());
   }
-  constructor(
-    provider: Provider,
-    readonly block: HexString
-  ) {
+  readonly block: HexString;
+  constructor(provider: Provider, block: BigNumberish) {
     super(provider);
+    this.block = toUnpaddedHex(block);
   }
   async fetchBlock() {
     return fetchBlock(this.provider, this.block);

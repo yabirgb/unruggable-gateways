@@ -4,7 +4,6 @@ import { Contract } from 'ethers/contract';
 import { PORTAL_ABI, GAME_FINDER_ABI } from './types.js';
 import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
-import { toUnpaddedHex } from '../utils.js';
 
 // https://docs.optimism.io/chain/differences
 // https://specs.optimism.io/fault-proof/stage-one/bridge-integration.html
@@ -98,7 +97,7 @@ export class OPFaultRollup extends AbstractOPRollup {
       index
     );
     if (!game.l2BlockNumber) throw new Error('not finalized');
-    return this.createCommit(index, toUnpaddedHex(game.l2BlockNumber));
+    return this.createCommit(index, game.l2BlockNumber);
   }
 
   override windowFromSec(sec: number): number {

@@ -2,14 +2,14 @@ import { LineaRollup } from '../../src/linea/LineaRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { chainName, createProviderPair, providerURL } from '../providers.js';
+import { createProviderPair, providerURL } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
-import { deployProxy } from './common.js';
+import { deployProxy, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
 const config = LineaRollup.mainnetConfig;
-describe(chainName(config.chain2), async () => {
+describe(pairName(config), async () => {
   const rollup = new LineaRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),

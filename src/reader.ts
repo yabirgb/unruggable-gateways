@@ -2,10 +2,10 @@ import type { HexString } from './types.js';
 import { getBytes, hexlify, toUtf8String } from 'ethers/utils';
 import { ABI_CODER } from './utils.js';
 import { GatewayProgram, GatewayRequest } from './vm.js';
-import { GATEWAY_OP } from './ops.js';
+import { GATEWAY_OP as OP } from './ops.js';
 
 const NAMES: string[] = [];
-Object.entries(GATEWAY_OP).forEach(([name, op]) => (NAMES[op] = name));
+Object.entries(OP).forEach(([name, op]) => (NAMES[op] = name));
 
 type ProgramAction = {
   pos: number;
@@ -66,35 +66,34 @@ export class ProgramReader {
   private parseArgs(op: number) {
     // TODO: this is probably incomplete
     switch (op) {
-      case GATEWAY_OP.DEBUG:
+      case OP.DEBUG:
         return { label: this.readInputStr() };
-      case GATEWAY_OP.PUSH_BYTE:
-      case GATEWAY_OP.SET_OUTPUT:
-      case GATEWAY_OP.PUSH_INPUT:
-      case GATEWAY_OP.PUSH_OUTPUT:
+      case OP.PUSH_BYTE:
+      case OP.SET_OUTPUT:
+      case OP.PUSH_INPUT:
+      case OP.PUSH_OUTPUT:
         return { index: this.readByte() };
-      case GATEWAY_OP.READ_SLOTS:
+      case OP.READ_SLOTS:
         return { count: this.readByte() };
-      case GATEWAY_OP.DUP:
-      case GATEWAY_OP.SWAP:
-      case GATEWAY_OP.REQ_NONZERO:
+      case OP.DUP:
+      case OP.SWAP:
+      case OP.REQ_NONZERO:
         return { back: this.readByte() };
-      case GATEWAY_OP.SHIFT_LEFT:
-      case GATEWAY_OP.SHIFT_RIGHT:
+      case OP.SHIFT_LEFT:
+      case OP.SHIFT_RIGHT:
         return { shift: this.readByte() };
-      case GATEWAY_OP.EVAL_LOOP:
+      case OP.EVAL_LOOP:
         return { back: this.readByte(), flags: this.readByte() };
-      case GATEWAY_OP.SLICE:
+      case OP.SLICE:
         return { offset: this.readShort(), length: this.readShort() };
       default:
         return {};
     }
   }
   readAction(): ProgramAction {
-    const { pos } = this;
     const op = this.readByte();
     const name = NAMES[op];
     if (!name) throw new Error(`unknown op: ${op}`);
-    return { pos, op, name, ...this.parseArgs(op) };
+    return { pos: this.pos, op, name, ...this.parseArgs(op) };
   }
 }

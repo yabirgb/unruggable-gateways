@@ -191,7 +191,7 @@ library GatewayProver {
 				vm.push(vm.proveBytes());
 			} else if (op == OP_READ_HASHED) {
 				bytes memory v = vm.readProof();
-				if (keccak256(v) != bytes32(vm.pop())) revert RequestInvalid(); // TODO: should be more specific
+				require(keccak256(v) == bytes32(vm.pop()), "hashed proof");
 				vm.push(v);
 			} else if (op == OP_READ_ARRAY) {
 				vm.push(vm.proveArray(vm.readShort()));
@@ -208,9 +208,7 @@ library GatewayProver {
 			} else if (op == OP_PUSH_OUTPUT) {
 				vm.pushCopy(outputs[vm.readByte()]);
 			} else if (op == OP_PUSH_BYTE) {
-				bytes memory v = new bytes(32);
-				v[31] = bytes1(vm.readByte());
-				vm.push(v);
+				vm.pushUint256(vm.readByte());
 			} else if (op == OP_PUSH_SLOT) {
 				vm.pushUint256(vm.slot);
 			} else if (op == OP_PUSH_TARGET) {

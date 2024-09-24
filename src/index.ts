@@ -29,7 +29,7 @@ export * from './polygon/ZKEVMRollup.js';
 export * from './taiko/TaikoRollup.js';
 export * from './scroll/ScrollRollup.js';
 export * from './zksync/ZKSyncRollup.js';
+export * from './eth/EthSelfRollup.js';
 
 export * from './gateway.js';
 export * from './linea/LineaGatewayV1.js';
-export * from './eth/EthSelfGateway.js';

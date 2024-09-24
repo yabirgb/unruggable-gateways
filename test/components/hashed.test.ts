@@ -11,6 +11,7 @@ describe('hashed', async () => {
   const verifier = await foundry.deploy({
     file: 'EthSelfVerifier',
   });
+  // this is almost ~400 rpc calls!
   const bytes = ethers.hexlify(ethers.randomBytes(12345));
   async function deployContract(fast: boolean) {
     return foundry.deploy({
@@ -121,6 +122,18 @@ describe('hashed', async () => {
             .addOutput()
         );
         expect(values[0]).toEqual(bytes);
+      });
+      test('wrong hash', async () => {
+        expect(
+          verify(
+            new GatewayRequest()
+              .setTarget(contract.target)
+              .setSlot(1) // prefixed.value
+              .push(0) // wrong hash
+              .readHashedBytes()
+              .addOutput()
+          )
+        ).rejects.toThrow('hashed proof');
       });
     });
   }

@@ -70,7 +70,8 @@ async function read_code(need: string) {
 async function parse_needs(file: string) {
   const code = await read_code(file);
   return new Set(
-    [...code.matchAll(/import\s+(?:|{[^}]*}\s+from\s+)(["'])(.*?)\1/g)].map(
+    Array.from(
+      code.matchAll(/import\s+(?:|{[^}]*}\s+from\s+)(["'])(.*?)\1/g),
       (match) => {
         const frag = match[2];
         if (frag.startsWith(PREFIX)) {

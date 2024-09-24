@@ -1,5 +1,5 @@
 import type { Rollup } from '../src/rollup.js';
-import { createProviderPair, chainName } from './providers.js';
+import { createProviderPair, chainName, createProvider } from './providers.js';
 import { EZCCIP, serve } from '@resolverworks/ezccip';
 import { Gateway } from '../src/gateway.js';
 import { OPRollup } from '../src/op/OPRollup.js';
@@ -12,6 +12,8 @@ import { LineaRollup } from '../src/linea/LineaRollup.js';
 import { LineaGatewayV1 } from '../src/linea/LineaGatewayV1.js';
 import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
+import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
+import { CHAINS } from '../src/chains.js';
 
 // TODO: add timer based pre-fetch for commit via cli-option
 // TODO: add names for all of the missing rollups (and testnets)
@@ -102,6 +104,10 @@ switch (name) {
     gateway = new Gateway(new OPRollup(createProviderPair(config), config));
     break;
   }
+  case 'self-eth': {
+    gateway = new Gateway(new EthSelfRollup(createProvider(CHAINS.MAINNET)));
+    break;
+  }
   default: {
     throw new Error(`unknown gateway: ${name}`);
   }
@@ -118,3 +124,10 @@ await serve(gateway, { protocol: 'raw', port: parseInt(port) || 8000 });
 // TODO: https://github.com/ardatan/whatwg-node/blob/master/packages/server/src/createServerAdapter.ts
 // 20240920: i dont understand this design, it's just a file that default-exports
 // a function that takes a Request and returns a Response?
+
+// NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
+// 1. bun serve lineaV1
+// 2. https://adraffy.github.io/CCIPRewriter.sol/test/
+// 3. enter name: "raffy.eth.linea"
+// 4. enter endpoint: "http://localhost:8000"
+// 5. click (Resolve)

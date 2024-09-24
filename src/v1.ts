@@ -1,4 +1,9 @@
-import type { HexString, BigNumberish, BytesLike } from './types.js';
+import type {
+  HexString,
+  BigNumberish,
+  BytesLike,
+  HexAddress,
+} from './types.js';
 import { ZeroAddress } from 'ethers/constants';
 import { hexlify, getBytes, toUtf8Bytes } from 'ethers/utils';
 import { toPaddedHex } from './utils.js';
@@ -21,7 +26,7 @@ const OPERAND_MASK = 0x1f;
 
 export class GatewayRequestV1 {
   constructor(
-    public target: HexString = ZeroAddress,
+    public target: HexAddress = ZeroAddress,
     readonly commands: HexString[] = [],
     readonly constants: HexString[] = [],
     private readonly buf: number[] = []
@@ -120,9 +125,8 @@ export class GatewayRequestV1 {
           req.read();
         }
         req.addOutput();
-      } catch (err) {
-        Object.assign(err!, { cmd });
-        throw err;
+      } catch (cause) {
+        throw new Error(`command: ${cmd}`, { cause });
       }
     }
     return req;
