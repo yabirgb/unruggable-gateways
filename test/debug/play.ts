@@ -3,6 +3,8 @@ import { createProvider, createProviderPair } from '../providers.js';
 
 // this is just a worksheet
 
+//console.log(createProvider(1n)._getConnection())
+
 if (0) {
 	const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));
 	console.log(prover);

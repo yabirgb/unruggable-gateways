@@ -291,6 +291,27 @@ export type HashedNeed = {
 };
 export type Need = TargetNeed | bigint | HashedNeed;
 
+export function isTargetNeed(need: Need) {
+  return typeof need === 'object' && need && 'target' in need;
+}
+
+export function requireV1Needs(needs: Need[]) {
+  if (!needs.length) {
+    throw new Error('expected needs');
+  }
+  const need = needs[0];
+  if (!isTargetNeed(need)) {
+    throw new Error('first need must be account');
+  }
+  const slots = needs.slice(1).map((need) => {
+    if (typeof need !== 'bigint') {
+      throw new Error('remaining needs must be storage');
+    }
+    return need;
+  });
+  return { ...need, slots };
+}
+
 // tracks the state of an program evaluation
 // registers: [slot, target, stack]
 // outputs are shared across eval()
@@ -366,27 +387,6 @@ export class MachineState {
       })
     );
   }
-}
-
-export function isTargetNeed(need: Need) {
-  return typeof need === 'object' && need && 'target' in need;
-}
-
-export function requireV1Needs(needs: Need[]) {
-  if (!needs.length) {
-    throw new Error('expected needs');
-  }
-  const need = needs[0];
-  if (!isTargetNeed(need)) {
-    throw new Error('first need must be account');
-  }
-  const slots = needs.slice(1).map((need) => {
-    if (typeof need !== 'bigint') {
-      throw new Error('remaining needs must be storage');
-    }
-    return need;
-  });
-  return { ...need, slots };
 }
 
 function checkReadSize(size: bigint | number, limit: number) {

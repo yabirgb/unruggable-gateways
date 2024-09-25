@@ -19,8 +19,8 @@ export const CHAINS = {
   TAIKO_HEKLA: 167009n,
   SCROLL: 534352n,
   SCROLL_SEPOLIA: 534351n,
-  POLYGON_ZKEVM: 1101n,
-  POLYGON_ZKEVM_CARDONA: 2442n,
+  ZKEVM: 1101n,
+  ZKEVM_CARDONA: 2442n,
   POLYGON_POS: 137n,
   POLYGON_AMOY: 80002n,
   LINEA: 59144n,
@@ -36,3 +36,13 @@ export const CHAINS = {
   CYBER_SEPOLIA: 111557560n,
   REDSTONE: 690n,
 } as const satisfies Record<string, Chain>;
+
+const NAMES = new Map<Chain, string>(
+  Object.entries(CHAINS).map(([a, b]) => [b, a])
+);
+
+export function chainName(chain: Chain): string {
+  const name = NAMES.get(chain);
+  if (!name) throw new TypeError(`unknown chain: ${chain}`);
+  return name;
+}

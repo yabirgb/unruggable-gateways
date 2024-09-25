@@ -1,9 +1,9 @@
 import type { Chain, ChainPair, Provider, ProviderPair } from '../src/types.js';
-import { FetchRequest, JsonRpcProvider } from 'ethers';
 import { CHAINS } from '../src/chains.js';
+import { FetchRequest } from 'ethers/utils';
+import { JsonRpcProvider } from 'ethers/providers';
 
-export type ChainInfo = {
-  readonly name: string;
+export type RPCInfo = {
   readonly chain: Chain;
   readonly rpc: string;
   readonly ankr?: string;
@@ -11,12 +11,11 @@ export type ChainInfo = {
   readonly alchemy?: string;
 };
 
-export const CHAIN_MAP = new Map<Chain, ChainInfo>(
+export const RPC_INFO = new Map<Chain, RPCInfo>(
   (
     [
       {
         chain: CHAINS.MAINNET,
-        name: 'mainnet',
         rpc: 'https://rpc.ankr.com/eth/', // https://cloudflare-eth.com is too rate limited
         ankr: 'eth',
         infura: 'mainnet',
@@ -24,7 +23,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       },
       {
         chain: CHAINS.SEPOLIA,
-        name: 'sepolia',
         rpc: 'https://rpc.ankr.com/eth_sepolia/',
         ankr: 'eth_sepolia',
         infura: 'sepolia',
@@ -33,7 +31,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.optimism.io/chain/networks#op-mainnet
         chain: CHAINS.OP,
-        name: 'op',
         rpc: 'https://mainnet.optimism.io',
         ankr: 'optimism',
         infura: 'optimism-mainnet',
@@ -42,7 +39,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.optimism.io/chain/networks#op-sepolia
         chain: CHAINS.OP_SEPOLIA,
-        name: 'op-sepolia',
         rpc: 'https://sepolia.optimism.io',
         ankr: 'optimism_sepolia',
         infura: 'optimism-sepolia',
@@ -51,7 +47,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.base.org/docs/network-information#base-mainnet
         chain: CHAINS.BASE,
-        name: 'base',
         rpc: 'https://mainnet.base.org',
         ankr: 'base',
         infura: 'base-mainnet',
@@ -60,7 +55,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.base.org/docs/network-information#base-testnet-sepolia
         chain: CHAINS.BASE_SEPOLIA,
-        name: 'base-sepolia',
         rpc: 'https://sepolia.base.org',
         ankr: 'base_sepolia',
         infura: 'base-sepolia',
@@ -69,7 +63,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.arbitrum.io/build-decentralized-apps/reference/node-providers#arbitrum-public-rpc-endpoints
         chain: CHAINS.ARB1,
-        name: 'arb1',
         rpc: 'https://arb1.arbitrum.io/rpc',
         ankr: 'arbitrum',
         infura: 'arbitrum-mainnet',
@@ -77,14 +70,12 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       },
       {
         chain: CHAINS.ARB_NOVA,
-        name: 'arb-nova',
         rpc: 'https://nova.arbitrum.io/rpc',
         ankr: 'arbitrumnova',
         alchemy: 'arbnova-mainnet',
       },
       {
         chain: CHAINS.ARB_SEPOLIA,
-        name: 'arb-sepolia',
         rpc: 'https://sepolia-rollup.arbitrum.io/rpc',
         ankr: 'arbitrum_sepolia',
         infura: 'arbitrum-sepolia',
@@ -93,33 +84,28 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.scroll.io/en/developers/developer-quickstart/#scroll-mainnet
         chain: CHAINS.SCROLL,
-        name: 'scroll',
         rpc: 'https://rpc.scroll.io',
         ankr: 'scroll',
       },
       {
         chain: CHAINS.SCROLL_SEPOLIA,
-        name: 'scroll-sepolia',
         rpc: 'https://sepolia-rpc.scroll.io',
         ankr: 'scroll_sepolia_testnet',
       },
       {
         // https://docs.taiko.xyz/network-reference/rpc-configuration#taiko-mainnet
         chain: CHAINS.TAIKO,
-        name: 'taiko',
         rpc: 'https://rpc.mainnet.taiko.xyz',
         ankr: 'taiko',
       },
       {
         chain: CHAINS.TAIKO_HEKLA,
-        name: 'taiko',
         rpc: 'https://rpc.hekla.taiko.xyz',
         ankr: 'taiko_hekla',
       },
       {
         // https://docs.zksync.io/build/connect-to-zksync#mainnet-network-details
         chain: CHAINS.ZKSYNC,
-        name: 'zksync',
         rpc: 'https://mainnet.era.zksync.io',
         ankr: 'zksync_era',
         infura: 'zksync-mainnet',
@@ -127,7 +113,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       },
       {
         chain: CHAINS.ZKSYNC_SEPOLIA,
-        name: 'zksync-sepolia',
         rpc: 'https://sepolia.era.zksync.dev',
         ankr: 'zksync_era_sepolia',
         infura: 'zksync-sepolia',
@@ -136,7 +121,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.polygon.technology/pos/reference/rpc-endpoints/#mainnet
         chain: CHAINS.POLYGON_POS,
-        name: 'polygon',
         rpc: 'https://polygon-rpc.com/',
         ankr: 'polygon',
         infura: 'polygon-mainnet',
@@ -144,7 +128,6 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       },
       {
         chain: CHAINS.POLYGON_AMOY,
-        name: 'polygon-amoy',
         rpc: 'https://rpc-amoy.polygon.technology/',
         ankr: 'polygon_amoy',
         infura: 'polygon-amoy',
@@ -152,15 +135,13 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       },
       {
         // https://docs.polygon.technology/zkEVM/get-started/quick-start/#manually-add-network-to-wallet
-        chain: CHAINS.POLYGON_ZKEVM,
-        name: 'zkevm',
+        chain: CHAINS.ZKEVM,
         rpc: 'https://zkevm-rpc.com',
         ankr: 'polygon_zkevm',
         alchemy: 'polygonzkevm-mainnet',
       },
       {
-        chain: CHAINS.POLYGON_ZKEVM_CARDONA,
-        name: 'zkevm-cardona',
+        chain: CHAINS.ZKEVM_CARDONA,
         rpc: 'https://rpc.cardona.zkevm-rpc.com',
         ankr: 'polygon_zkevm_cardona',
         alchemy: 'polygonzkevm-cardona',
@@ -168,14 +149,12 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.linea.build/developers/quickstart/info-contracts
         chain: CHAINS.LINEA,
-        name: 'linea',
         rpc: 'https://rpc.linea.build',
         infura: 'linea-mainnet',
         //alchemy: 'linea-mainnet', // 20240901: eth_getProof doesn't work
       },
       {
         chain: CHAINS.LINEA_SEPOLIA,
-        name: 'linea-sepolia',
         rpc: 'https://rpc.sepolia.linea.build',
         infura: 'linea-sepolia',
         alchemy: 'linea-sepolia',
@@ -183,21 +162,18 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs.frax.com/fraxtal/network/network-information#fraxtal-mainnet
         chain: CHAINS.FRAXTAL,
-        name: 'fraxtal',
         rpc: 'https://rpc.frax.com',
         //alchemy: 'frax-mainnet', // 20240901: eth_getProof doesn't work
       },
       {
         // https://docs.zora.co/zora-network/network#zora-network-mainnet
         chain: CHAINS.ZORA,
-        name: 'zora',
         rpc: 'https://rpc.zora.energy',
         alchemy: 'zora-mainnet',
       },
       {
         // https://docs.blast.io/building/network-information#blast-mainnet
         chain: CHAINS.BLAST,
-        name: 'blast',
         rpc: 'https://rpc.blast.io',
         ankr: 'blast',
         infura: 'blast-mainnet',
@@ -206,45 +182,32 @@ export const CHAIN_MAP = new Map<Chain, ChainInfo>(
       {
         // https://docs-v2.mantle.xyz/devs/dev-guides/tools/endpoints
         chain: CHAINS.MANTLE,
-        name: 'mantle',
         rpc: 'https://rpc.mantle.xyz', // wss://wss.mantle.xyz
       },
       {
         // https://docs.mode.network/general-info/network-details#mode-mainnet
         chain: CHAINS.MODE,
-        name: 'mode',
         rpc: 'https://mainnet.mode.network/',
       },
       {
         // https://docs.cyber.co/build-on-cyber/connecting-wallet
         chain: CHAINS.CYBER,
-        name: 'cyber',
         rpc: 'https://cyber.alt.technology/',
       },
       {
         chain: CHAINS.CYBER_SEPOLIA,
-        name: 'cyber-testnet',
         rpc: 'https://cyber-testnet.alt.technology/',
       },
       {
         chain: CHAINS.REDSTONE,
-        name: 'redstone',
         rpc: 'https://rpc.redstonechain.com', // wss://rpc.redstonechain.com
       },
-    ] satisfies ChainInfo[]
-  )
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((x) => [x.chain, x])
+    ] satisfies RPCInfo[]
+  ).map((x) => [x.chain, x])
 );
 
-export function chainName(chain: Chain): string {
-  const info = CHAIN_MAP.get(chain);
-  if (!info) return 'unknown';
-  return `${info.name}<${chain}>`;
-}
-
 function decideProvider(chain: Chain) {
-  const info = CHAIN_MAP.get(chain);
+  const info = RPC_INFO.get(chain);
   if (!info) throw new Error(`unknown provider: ${chain}`);
   // 20240830: so far, alchemy has the best support
   let apiKey;
@@ -256,19 +219,19 @@ function decideProvider(chain: Chain) {
       apiKey,
     };
   }
-  if (info.ankr && (apiKey = process.env.ANKR_KEY)) {
-    return {
-      info,
-      type: 'ankr',
-      url: `https://rpc.ankr.com/${info.ankr}/${apiKey}`,
-      apiKey,
-    };
-  }
   if (info.infura && (apiKey = process.env.INFURA_KEY)) {
     return {
       info,
       type: 'infura',
       url: `https://${info.infura}.infura.io/v3/${apiKey}`,
+      apiKey,
+    };
+  }
+  if (info.ankr && (apiKey = process.env.ANKR_KEY)) {
+    return {
+      info,
+      type: 'ankr',
+      url: `https://rpc.ankr.com/${info.ankr}/${apiKey}`,
       apiKey,
     };
   }

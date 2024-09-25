@@ -22,7 +22,8 @@
     "test-gateways": "bun test test/gateway/* --timeout 25000",
     "test-fast": "bun run check && bun run lint && bun test test/gateway/op.test.ts && bun test test/gateway/reverse-op.test.ts",
     "lint": "eslint . --ext .ts",
-    "build": "bun build/dist.ts"
+    "build": "bun build/dist.ts",
+    "loc": "rg -c '^' -g 'src/**/*.ts' -g 'test/**/*.ts' --no-filename | jq -s 'add'"
   },
   "sideEffects": false,
   "exports": {

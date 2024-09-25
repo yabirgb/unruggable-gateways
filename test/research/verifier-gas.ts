@@ -1,7 +1,8 @@
 import type { ChainPair, HexAddress, ProviderPair } from '../../src/types.js';
 import type { Rollup, RollupCommitType } from '../../src/rollup.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { chainName, createProvider, providerURL } from '../providers.js';
+import { createProvider, providerURL } from '../providers.js';
+import { chainName } from '../../src/chains.js';
 import { deployProxy } from '../gateway/common.js';
 import { Contract } from 'ethers';
 import { GatewayRequest } from '../../src/vm.js';

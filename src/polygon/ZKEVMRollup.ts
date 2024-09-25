@@ -31,13 +31,13 @@ export class ZKEVMRollup extends AbstractRollup<ZKEVMCommit> {
   // https://docs.polygon.technology/zkEVM/architecture/high-level/smart-contracts/addresses/#mainnet-contracts
   static readonly mainnetConfig: RollupDeployment<ZKEVMConfig> = {
     chain1: CHAINS.MAINNET,
-    chain2: CHAINS.POLYGON_ZKEVM,
+    chain2: CHAINS.ZKEVM,
     RollupManager: '0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2',
   };
   // https://github.com/0xPolygonHermez/cdk-erigon/tree/zkevm#networks
   static readonly testnetConfig: RollupDeployment<ZKEVMConfig> = {
     chain1: CHAINS.SEPOLIA,
-    chain2: CHAINS.POLYGON_ZKEVM_CARDONA,
+    chain2: CHAINS.ZKEVM_CARDONA,
     RollupManager: '0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff',
   };
 

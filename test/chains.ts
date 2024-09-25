@@ -1,30 +1,32 @@
-import { CHAINS } from '../src/chains.js';
-import { CHAIN_MAP, providerURL } from './providers.js';
+import type { Chain } from '../src/types.js';
+import { CHAINS, chainName } from '../src/chains.js';
+import { RPC_INFO, providerURL } from './providers.js';
 
-const usingPublic: string[] = [];
-const leftoverChains = new Set<bigint>(Object.values(CHAINS));
+const usingPublic: Chain[] = [];
+const leftover = new Set<Chain>(Object.values(CHAINS));
 
-for (const info of CHAIN_MAP.values()) {
-  leftoverChains.delete(info.chain);
+for (const info of RPC_INFO.values()) {
+  leftover.delete(info.chain);
   const url = providerURL(info.chain);
   console.log(
-    info.chain.toString().padStart(8),
-    info.name.padEnd(16),
+    info.chain.toString().padStart(10),
+    chainName(info.chain).padEnd(16),
     `[${info.alchemy ? 'A' : ' '}${info.infura ? 'I' : ' '}${info.ankr ? 'K' : ' '}]`,
     url === info.rpc ? '!' : ' ',
     url
   );
   if (url === info.rpc) {
-    usingPublic.push(info.name);
+    usingPublic.push(info.chain);
   }
 }
 
 if (usingPublic.length) {
-  console.log(`\x1B[31mWARNING!\x1B[0m ${usingPublic.length} using public!`);
-  console.log(usingPublic);
+  console.error(`${usingPublic.length} using Public RPC!`);
+  console.error(usingPublic.map(chainName));
 }
 
-if (leftoverChains.size) {
-  console.log(leftoverChains);
-  throw new Error('missing ChainInfo');
+if (leftover.size) {
+  console.error(`${leftover.size} missing RPCInfo!`);
+  console.error(Array.from(leftover, chainName));
+  process.exit(1); // fatal
 }

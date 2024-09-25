@@ -2,7 +2,7 @@ import { CHAINS } from '../../src/chains.js';
 import { toPaddedHex } from '../../src/utils.js';
 import { createProvider } from '../providers.js';
 
-const p = createProvider(CHAINS.POLYGON_ZKEVM_CARDONA);
+const p = createProvider(CHAINS.ZKEVM_CARDONA);
 
 console.log(
   await p.send('eth_getProof', [

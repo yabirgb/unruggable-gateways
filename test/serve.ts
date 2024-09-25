@@ -1,5 +1,6 @@
 import type { Rollup } from '../src/rollup.js';
-import { createProviderPair, chainName, createProvider } from './providers.js';
+import { createProviderPair, createProvider } from './providers.js';
+import { chainName } from '../src/chains.js';
 import { EZCCIP, serve } from '@resolverworks/ezccip';
 import { Gateway } from '../src/gateway.js';
 import { OPRollup } from '../src/op/OPRollup.js';
