@@ -23,19 +23,28 @@ function shortHash(x: string): string {
   return x.slice(-8);
 }
 
+// default number of answers to keep in memory
+// (what is the distribution of real-load resolution counts?)
+// edit with: gateway.callLRU.max
+const callCapacity0 = 1000;
+// ms to wait until checking for a new commit
+// edit wth: gateway.latestCache.cacheMs
+const pollMs0 = 60000;
+
 export class Gateway<R extends Rollup> extends EZCCIP {
   // the max number of non-latest commitments to keep in memory
   commitDepth = 2;
-  // if true, requests beyond the commit depth are still supported
+  // if true, requests beyond the commit depth are supported
   allowHistorical = false;
-  readonly latestCache = new CachedValue(() =>
-    this.rollup.fetchLatestCommitIndex()
+  readonly latestCache = new CachedValue(
+    () => this.rollup.fetchLatestCommitIndex(),
+    pollMs0
   );
   readonly commitCacheMap = new CachedMap<bigint, RollupCommitType<R>>(
     Infinity
   );
   readonly parentCacheMap = new CachedMap<bigint, bigint>(Infinity);
-  readonly callLRU = new LRU<string, Uint8Array>(1000);
+  readonly callLRU = new LRU<string, Uint8Array>(callCapacity0);
   constructor(readonly rollup: R) {
     super();
     this.register(GATEWAY_ABI, {
@@ -101,40 +110,48 @@ export class Gateway<R extends Rollup> extends EZCCIP {
   }
   async getRecentCommit(index: bigint) {
     let commit = await this.getLatestCommit();
+    // check recent cache in linear order
     for (let depth = 0; ; ) {
       if (index >= commit.index) return commit;
       if (++depth >= this.commitDepth) break;
       const prevIndex = await this.cachedParentCommitIndex(commit);
       commit = await this.cachedCommit(prevIndex);
     }
+    // if older than that, consider one-off commit
+    // this can be unaligned but must be finalized
     if (this.allowHistorical) {
       return this.commitCacheMap.get(
         index,
         (i) => this.rollup.fetchCommit(i),
-        0 // dont cache it
+        250 // 20240926: maybe this should be cached for a bit (was 0)
       );
     }
     throw new Error(`too old: ${index}`);
   }
-  private async cachedParentCommitIndex(
+  private cachedParentCommitIndex(
     commit: RollupCommitType<R>
   ): Promise<bigint> {
     return this.parentCacheMap.get(commit.index, () => {
       return this.rollup.fetchParentCommitIndex(commit);
     });
   }
-  private async cachedCommit(index: bigint) {
+  private cachedCommit(index: bigint) {
     return this.commitCacheMap.get(index, (i) => this.rollup.fetchCommit(i));
   }
 }
 
-// assumption: serves latest finalized commit
 export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
   latestCommit: RollupCommitType<R> | undefined;
-  readonly latestCache = new CachedValue(() =>
-    this.rollup.fetchLatestCommitIndex()
-  );
-  readonly callLRU = new LRU<string, Uint8Array>();
+  readonly latestCache = new CachedValue(async () => {
+    const index = await this.rollup.fetchLatestCommitIndex();
+    // since we can only serve the latest commit
+    // we only keep the latest commit
+    if (!this.latestCommit || index != this.latestCommit.index) {
+      this.latestCommit = await this.rollup.fetchCommit(index);
+    }
+    return this.latestCommit;
+  }, pollMs0);
+  readonly callLRU = new LRU<string, Uint8Array>(callCapacity0);
   constructor(readonly rollup: R) {
     super();
     this.register(GATEWAY_ABI, {
@@ -153,12 +170,8 @@ export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
       },
     });
   }
-  async getLatestCommit() {
-    const index = await this.latestCache.get();
-    if (!this.latestCommit || index != this.latestCommit.index) {
-      this.latestCommit = await this.rollup.fetchCommit(index);
-    }
-    return this.latestCommit;
+  getLatestCommit() {
+    return this.latestCache.get();
   }
   // since every legacy gateway does "its own thing"
   // we forward the responsibility of generating a response
