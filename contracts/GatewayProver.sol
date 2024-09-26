@@ -175,7 +175,7 @@ library GatewayProver {
 		while (vm.pos < vm.buf.length) {
 			uint256 op = vm.readByte();
 			if (op == OP_TARGET) {
-				vm.target = address(uint160(uint256FromBytes(vm.pop())));
+				vm.target = address(uint160(vm.popUint256()));
 				vm.storageRoot = vm.proofs.proveAccountState(vm.proofs.stateRoot, vm.target, vm.readProof()); // TODO: balance?
 				vm.slot = 0;
 			} else if (op == OP_SET_OUTPUT) {
@@ -183,7 +183,6 @@ library GatewayProver {
 			} else if (op == OP_REQ_CONTRACT) {
 				if (vm.storageRoot == NOT_A_CONTRACT) return 1;
 			} else if (op == OP_REQ_NONZERO) {
-				//if (isZeros(vm.peek(vm.readByte()))) return 1;
 				if (isZeros(vm.stack[vm.readBack()])) return 1;
 			} else if (op == OP_READ_SLOTS) {
 				vm.push(vm.proveSlots(vm.readByte()));

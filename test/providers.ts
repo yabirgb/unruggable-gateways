@@ -199,9 +199,15 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         rpc: 'https://cyber-testnet.alt.technology/',
       },
       {
+        // https://redstone.xyz/docs/network-info
         chain: CHAINS.REDSTONE,
         rpc: 'https://rpc.redstonechain.com', // wss://rpc.redstonechain.com
       },
+      // {
+      //   // https://docs.gnosischain.com/about/networks/mainnet
+      //   chain: CHAINS.GNOSIS,
+      //   rpc: 'https://rpc.gnosischain.com',
+      // },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])
 );
@@ -254,7 +260,7 @@ export function providerType(chain: Chain): string {
 export function createProvider(chain: Chain): Provider {
   const fr = new FetchRequest(providerURL(chain));
   fr.timeout = 15000; // 5 minutes is too long
-  //fr.setThrottleParams({ maxAttempts: 20 });
+  //fr.setThrottleParams({ maxAttempts: 20 }); // default is 12
   return new JsonRpcProvider(fr, chain, {
     staticNetwork: true,
   });

@@ -1,7 +1,8 @@
 import { Foundry } from '@adraffy/blocksmith';
 import { GatewayRequest } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
-import { ethers } from 'ethers';
+import { hexlify } from 'ethers/utils';
+import { keccak256, randomBytes } from 'ethers/crypto';
 import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
@@ -12,7 +13,7 @@ describe('hashed', async () => {
     file: 'EthSelfVerifier',
   });
   // this is almost ~400 rpc calls!
-  const bytes = ethers.hexlify(ethers.randomBytes(12345));
+  const bytes = hexlify(randomBytes(12345));
   async function deployContract(fast: boolean) {
     return foundry.deploy({
       sol: `
@@ -117,7 +118,7 @@ describe('hashed', async () => {
           new GatewayRequest()
             .setTarget(contract.target)
             .setSlot(1) // prefixed.value
-            .push(ethers.keccak256(bytes)) // inline hash
+            .push(keccak256(bytes)) // inline hash
             .readHashedBytes()
             .addOutput()
         );

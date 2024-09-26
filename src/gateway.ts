@@ -28,13 +28,13 @@ export class Gateway<R extends Rollup> extends EZCCIP {
   commitDepth = 2;
   // if true, requests beyond the commit depth are still supported
   allowHistorical = false;
-  private readonly latestCache = new CachedValue(() =>
+  readonly latestCache = new CachedValue(() =>
     this.rollup.fetchLatestCommitIndex()
   );
-  private readonly commitCacheMap = new CachedMap<bigint, RollupCommitType<R>>(
+  readonly commitCacheMap = new CachedMap<bigint, RollupCommitType<R>>(
     Infinity
   );
-  private readonly parentCacheMap = new CachedMap<bigint, bigint>(Infinity);
+  readonly parentCacheMap = new CachedMap<bigint, bigint>(Infinity);
   readonly callLRU = new LRU<string, Uint8Array>(1000);
   constructor(readonly rollup: R) {
     super();
@@ -130,8 +130,8 @@ export class Gateway<R extends Rollup> extends EZCCIP {
 
 // assumption: serves latest finalized commit
 export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
-  private latestCommit: RollupCommitType<R> | undefined;
-  private readonly latestCache = new CachedValue(() =>
+  latestCommit: RollupCommitType<R> | undefined;
+  readonly latestCache = new CachedValue(() =>
     this.rollup.fetchLatestCommitIndex()
   );
   readonly callLRU = new LRU<string, Uint8Array>();

@@ -650,9 +650,7 @@ export abstract class AbstractProver {
         case OP.EVAL_INLINE: {
           // args: [] / stack: -1 (program) & <program logic>
           const program = ProgramReader.fromEncoded(await unwrap(vm.pop()));
-          const pos = reader.pos;
           await this.eval(program, vm);
-          reader.pos = pos;
           if (vm.exitCode) return;
           continue;
         }
@@ -801,7 +799,7 @@ export abstract class AbstractProver {
       BigInt(first) >> 1n,
       fast ? this.maxSuppliedBytes : this.maxProvableBytes
     );
-    if (size < 31) {
+    if (size < 32) {
       throw new Error(`invalid storage encoding: ${target} @ ${slot}`);
     }
     const slots = solidityArraySlots(slot, (size + 31) >> 5);

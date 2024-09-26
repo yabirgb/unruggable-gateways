@@ -59,8 +59,8 @@ export class OPRollup extends AbstractOPRollup {
   // https://docs.cyber.co/build-on-cyber/addresses-testnet
   static readonly cyberMainnetConfig: RollupDeployment<OPConfig> = {
     chain1: CHAINS.MAINNET,
-    chain2: CHAINS.MODE,
-    L2OutputOracle: '0xD94Ce9E4886A6dcEbC7cF993f4b38F5276516643',
+    chain2: CHAINS.CYBER,
+    L2OutputOracle: '0xa669A743b065828682eE16109273F5CFeF5e676d',
   };
 
   // https://redstone.xyz/docs/contract-addresses

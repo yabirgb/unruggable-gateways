@@ -16,7 +16,7 @@ describe('providers', async () => {
     // simulate a rpc server
     const server = createServer(async (req, reply) => {
       const { id }: JsonRpcPayload = await new Promise((ful) => {
-        const v: Buffer[] = [];
+        const v: Uint8Array[] = [];
         req.on('data', (x) => v.push(x));
         req.on('end', () => ful(JSON.parse(Buffer.concat(v).toString('utf8'))));
       });

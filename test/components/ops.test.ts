@@ -6,7 +6,9 @@ import {
 } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { ethers } from 'ethers';
+import { ZeroAddress } from 'ethers/constants';
+import { id as keccakStr } from 'ethers/hash';
+import { hexlify, dataSlice, toUtf8Bytes, concat } from 'ethers/utils';
 import { toPaddedHex } from '../../src/utils.js';
 import { readFileSync } from 'node:fs';
 import { GATEWAY_OP } from '../../src/ops.js';
@@ -14,7 +16,7 @@ import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
 function utf8Hex(s: string) {
-  return ethers.hexlify(ethers.toUtf8Bytes(s));
+  return hexlify(toUtf8Bytes(s));
 }
 
 describe('ops', async () => {
@@ -120,8 +122,8 @@ describe('ops', async () => {
     req.pushStr('').keccak().addOutput();
     req.pushStr('chonk').keccak().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(ethers.id(''));
-    expect(values[1]).toEqual(ethers.id('chonk'));
+    expect(values[0]).toEqual(keccakStr(''));
+    expect(values[1]).toEqual(keccakStr('chonk'));
   });
 
   test('slice', async () => {
@@ -132,8 +134,8 @@ describe('ops', async () => {
     req.pushBytes(big).slice(300, 5).addOutput();
     req.pushBytes('0x').slice(0, 0).addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(ethers.dataSlice(small, 4, 4 + 3));
-    expect(values[1]).toEqual(ethers.hexlify(big.slice(300, 300 + 5)));
+    expect(values[0]).toEqual(dataSlice(small, 4, 4 + 3));
+    expect(values[1]).toEqual(hexlify(big.slice(300, 300 + 5)));
     expect(values[2]).toEqual('0x');
   });
 
@@ -145,7 +147,7 @@ describe('ops', async () => {
   test('concat ints', async () => {
     const req = new GatewayRequest().push(1).push(2).concat().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(ethers.concat([toPaddedHex(1), toPaddedHex(2)]));
+    expect(values[0]).toEqual(concat([toPaddedHex(1), toPaddedHex(2)]));
   });
 
   test('concat string x2', async () => {
@@ -377,7 +379,7 @@ describe('ops', async () => {
       .read(2)
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(ethers.concat([toPaddedHex(1), toPaddedHex(2)]));
+    expect(values[0]).toEqual(concat([toPaddedHex(1), toPaddedHex(2)]));
   });
 
   test('readBytes small', async () => {
@@ -437,7 +439,7 @@ describe('ops', async () => {
 
   test('requireContract on null', async () => {
     const req = new GatewayRequest();
-    req.setTarget(ethers.ZeroAddress).requireContract();
+    req.setTarget(ZeroAddress).requireContract();
     const { exitCode } = await verify(req);
     expect(exitCode).toEqual(1);
   });

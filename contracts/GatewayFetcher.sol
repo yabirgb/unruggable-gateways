@@ -77,7 +77,7 @@ library GatewayFetcher {
 	function readArray(GatewayRequest memory r, uint8 step) internal pure returns (GatewayRequest memory) { return r.addByte(OP_READ_ARRAY).addByte(step); }
 	
 	function push(GatewayRequest memory r, bytes32 x) internal pure returns (GatewayRequest memory) { return r.push(uint256(x)); }
-	function push(GatewayRequest memory r, address x) internal pure returns (GatewayRequest memory) { return r.push(abi.encode(x)); }
+	function push(GatewayRequest memory r, address x) internal pure returns (GatewayRequest memory) { return r.push(uint160(x)); }
 	function push(GatewayRequest memory r, string memory s) internal pure returns (GatewayRequest memory) { return push(r, bytes(s)); }
 	function push(GatewayRequest memory r, GatewayRequest memory p) internal pure returns (GatewayRequest memory) { return push(r, p.encode()); }
 

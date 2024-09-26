@@ -1,6 +1,6 @@
 import { GatewayRequest, MAX_STACK } from '../../src/vm.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { ethers } from 'ethers';
+import { keccak256 } from 'ethers/crypto';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
@@ -69,12 +69,12 @@ describe('limits', async () => {
     prover.maxSuppliedBytes = MAX_BYTES;
     const passReq = new GatewayRequest()
       .setTarget(contract.target)
-      .push(ethers.keccak256(new Uint8Array(MAX_BYTES)))
+      .push(keccak256(new Uint8Array(MAX_BYTES)))
       .setSlot(0)
       .readHashedBytes();
     const failReq = new GatewayRequest()
       .setTarget(contract.target)
-      .push(ethers.keccak256(new Uint8Array(MAX_BYTES + 1)))
+      .push(keccak256(new Uint8Array(MAX_BYTES + 1)))
       .setSlot(1)
       .readHashedBytes();
     expect(exec(prover, passReq)).resolves.toBeDefined();

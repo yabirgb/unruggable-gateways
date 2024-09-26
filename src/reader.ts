@@ -16,10 +16,14 @@ type ProgramAction = {
 export class ProgramReader {
   static actions(program: GatewayProgram) {
     const reader = this.fromProgram(program);
-    if (program instanceof GatewayRequest) {
-      reader.readByte(); // skip outputCount
-    }
     const actions: ProgramAction[] = [];
+    if (program instanceof GatewayRequest) {
+      actions.push({
+        pos: 0,
+        op: reader.readByte(), // outputCount,
+        name: 'OUTPUT_COUNT',
+      });
+    }
     while (reader.remaining) {
       actions.push(reader.readAction());
     }
@@ -32,7 +36,7 @@ export class ProgramReader {
     const [ops, inputs] = ABI_CODER.decode(['bytes', 'bytes[]'], hex);
     return new this(getBytes(ops), [...inputs]);
   }
-  pos: number = 0;
+  pos = 0;
   constructor(
     readonly ops: Uint8Array,
     readonly inputs: HexString[]

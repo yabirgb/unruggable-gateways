@@ -6,7 +6,6 @@ import { createProviderPair, providerURL } from '../providers.js';
 import { chainName } from '../../src/chains.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { describe } from '../bun-describe-fix.js';
 import { runSlotDataTests } from './tests.js';
 import { type OPConfig, OPRollup } from '../../src/op/OPRollup.js';
 import {
@@ -14,6 +13,7 @@ import {
   OPFaultRollup,
 } from '../../src/op/OPFaultRollup.js';
 import { afterAll } from 'bun:test';
+import { describe } from '../bun-describe-fix.js';
 
 export function pairName(pair: ChainPair, reverse = false) {
   return `${chainName(pair.chain1)} ${reverse ? '<=' : '=>'} ${chainName(pair.chain2)}`;
@@ -29,23 +29,26 @@ export async function deployProxy(foundry: Foundry, verifier: Contract) {
   return new Contract(proxy.target, verifier.interface, wallet);
 }
 
+type TestOptions = {
+  skipCI?: boolean;
+  log?: boolean;
+};
+
 export function testOP(
   config: RollupDeployment<OPConfig>,
   slotDataReaderAddress: HexAddress,
-  minor = false
+  { skipCI = false, log = false }: TestOptions = {}
 ) {
-  describe.skipIf(minor && !!process.env.IS_CI)(pairName(config), async () => {
+  describe.skipIf(skipCI && !!process.env.IS_CI)(pairName(config), async () => {
     const rollup = new OPRollup(createProviderPair(config), config);
     const foundry = await Foundry.launch({
       fork: providerURL(config.chain1),
-      infoLog: false,
+      infoLog: log,
     });
+    //foundry.provider.on('debug', e => console.log(JSON.stringify(e)));
     afterAll(() => foundry.shutdown());
     const gateway = new Gateway(rollup);
-    const ccip = await serve(gateway, {
-      protocol: 'raw',
-      log: false,
-    });
+    const ccip = await serve(gateway, { protocol: 'raw', log });
     afterAll(() => ccip.http.close());
     const verifier = await foundry.deploy({ file: 'OPVerifier' });
     const proxy = await deployProxy(foundry, verifier);
@@ -63,20 +66,17 @@ export function testOP(
 export function testOPFault(
   config: RollupDeployment<OPFaultConfig>,
   slotDataReaderAddress: HexAddress,
-  minor = false
+  { skipCI = false, log = false }: TestOptions = {}
 ) {
-  describe.skipIf(minor && !!process.env.IS_CI)(pairName(config), async () => {
+  describe.skipIf(skipCI && !!process.env.IS_CI)(pairName(config), async () => {
     const rollup = new OPFaultRollup(createProviderPair(config), config);
     const foundry = await Foundry.launch({
       fork: providerURL(config.chain1),
-      infoLog: false,
+      infoLog: log,
     });
     afterAll(() => foundry.shutdown());
     const gateway = new Gateway(rollup);
-    const ccip = await serve(gateway, {
-      protocol: 'raw',
-      log: false,
-    });
+    const ccip = await serve(gateway, { protocol: 'raw', log });
     afterAll(() => ccip.http.close());
     const commit = await gateway.getLatestCommit();
     const gameFinder = await foundry.deploy({
