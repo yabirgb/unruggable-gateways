@@ -34,6 +34,7 @@ type HexFuture = Unwrappable<HexString>;
 // maximum number of items on stack
 // the following should not be larger than MAX_STACK in GatewayProtocol.sol
 export const MAX_STACK = 64;
+export const MAX_INPUTS = 256;
 
 // EVAL_LOOP flags
 // the following should be equivalent to GatewayProtocol.sol
@@ -41,10 +42,27 @@ const STOP_ON_SUCCESS = 1;
 const STOP_ON_FAILURE = 2;
 const ACQUIRE_STATE = 4;
 
+const EXIT = {
+  SUCCESS: 0, // do we need this?
+  NOT_A_CONTRACT: 254,
+  NOT_NONZERO: 253,
+};
+
+function isZeros(hex: HexString) {
+  return /^0x0*$/.test(hex);
+}
+function binarize(x: boolean) {
+  return x ? 1n : 0n;
+}
 function uint256FromHex(hex: string) {
   // the following should be equivalent to:
   // ProofUtils.uint256FromBytes(hex)
   return hex === '0x' ? 0n : BigInt(hex.slice(0, 66));
+}
+function numberFromHex(hex: string) {
+  const u = uint256FromHex(hex);
+  if (u > 0xffffff) throw new Error('numeric overflow');
+  return Number(u);
 }
 function addressFromHex(hex: string) {
   // the following should be equivalent to:
@@ -71,6 +89,8 @@ export function solidityFollowSlot(slot: BigNumberish, key: BytesLike) {
 }
 
 export class GatewayProgram {
+  static readonly Opcode = OP;
+  static readonly Exitcode = EXIT;
   constructor(
     readonly ops: number[] = [],
     readonly inputs: string[] = []
@@ -83,22 +103,23 @@ export class GatewayProgram {
     this.ops.push(x);
     return this;
   }
-  protected addShort(x: number) {
-    //return this.addByte(x >> 8).addByte(x & 0xFF);
-    if ((x & 0xffff) !== x) throw new Error(`expected short: ${x}`);
-    this.ops.push(x >> 8, x & 0xff);
+  protected addSmallBytes(v: BytesLike) {
+    const u = getBytes(v);
+    this.addByte(u.length);
+    this.ops.push(...u);
     return this;
   }
-  addInput(x: BigNumberish | boolean) {
-    return this.addInputBytes(toPaddedHex(x));
+  defineInput(x: BigNumberish | boolean) {
+    return this.defineInputBytes(toPaddedHex(x));
   }
-  addInputStr(s: string) {
-    return this.addInputBytes(toUtf8Bytes(s));
+  defineInputStr(s: string) {
+    return this.defineInputBytes(toUtf8Bytes(s));
   }
-  addInputBytes(v: BytesLike) {
+  defineInputBytes(v: BytesLike) {
     const hex = hexlify(v);
     const i = this.inputs.length;
-    this.inputs.push(hex); // note: no check, but blows up at 256
+    if (i == MAX_INPUTS) throw new Error('input overflow');
+    this.inputs.push(hex);
     return i;
   }
   toTuple() {
@@ -108,11 +129,13 @@ export class GatewayProgram {
     return ABI_CODER.encode(['bytes', 'bytes[]'], this.toTuple());
   }
   debug(label = '') {
-    return this.addByte(OP.DEBUG).addByte(this.addInputStr(label));
+    return this.addByte(OP.DEBUG).addSmallBytes(toUtf8Bytes(label));
   }
 
   read(n = 1) {
-    return this.addByte(OP.READ_SLOTS).addByte(n);
+    return n == 1
+      ? this.addByte(OP.READ_SLOT)
+      : this.push(n).addByte(OP.READ_SLOTS);
   }
   readBytes() {
     return this.addByte(OP.READ_BYTES);
@@ -121,14 +144,14 @@ export class GatewayProgram {
     return this.addByte(OP.READ_HASHED);
   }
   readArray(step: number) {
-    return this.addByte(OP.READ_ARRAY).addShort(step);
+    return this.push(step).addByte(OP.READ_ARRAY);
   }
 
   target() {
     return this.addByte(OP.TARGET);
   }
   setOutput(i: number) {
-    return this.addByte(OP.SET_OUTPUT).addByte(i);
+    return this.push(i).addByte(OP.SET_OUTPUT);
   }
   eval() {
     return this.addByte(OP.EVAL_INLINE);
@@ -147,15 +170,11 @@ export class GatewayProgram {
     if (opts.acquire) flags |= ACQUIRE_STATE;
     // TODO: add recursion limit
     // TODO: add can modify output
-    return this.addByte(OP.EVAL_LOOP)
-      .addByte(opts.back ?? 255)
+    return this.push(opts.back ?? 255)
+      .addByte(OP.EVAL_LOOP)
       .addByte(flags);
   }
 
-  // zeroSlot() {
-  //   //return this.addByte(OP.SLOT_ZERO); // old
-  //   return this.push(0).slot(); // new
-  // }
   addSlot() {
     return this.addByte(OP.SLOT_ADD);
     // same as: this.pushSlot().add().slot();
@@ -174,39 +193,43 @@ export class GatewayProgram {
   requireContract() {
     return this.addByte(OP.REQ_CONTRACT);
   }
-  requireNonzero(back = 0) {
-    return this.addByte(OP.REQ_NONZERO).addByte(back);
+  requireNonzero() {
+    return this.addByte(OP.REQ_NONZERO);
   }
 
   pop() {
     return this.addByte(OP.POP);
   }
   dup(back = 0) {
-    return this.addByte(OP.DUP).addByte(back);
+    return this.push(back).addByte(OP.DUP);
+  }
+  dup2() {
+    return this.dup(1).dup(2);
   }
   swap(back = 1) {
-    return this.addByte(OP.SWAP).addByte(back);
+    return this.push(back).addByte(OP.SWAP);
   }
 
   pushOutput(i: number) {
-    return this.addByte(OP.PUSH_OUTPUT).addByte(i);
+    return this.push(i).addByte(OP.PUSH_OUTPUT);
   }
   pushInput(i: number) {
-    return this.addByte(OP.PUSH_INPUT).addByte(i);
+    return this.push(i).addByte(OP.PUSH_INPUT);
   }
   push(x: BigNumberish | boolean) {
-    x = BigInt(x);
-    if (x >= 0 && x < 256) {
-      return this.addByte(OP.PUSH_BYTE).addByte(Number(x));
-    } else {
-      return this.addByte(OP.PUSH_INPUT).addByte(this.addInput(x));
-    }
+    const i = BigInt.asUintN(256, BigInt(x));
+    const hex = i ? i.toString(16) : '';
+    const prefix = hex.length & 1 ? '0x0' : '0x';
+    return this.addByte(OP.PUSH_VALUE).addSmallBytes(prefix + hex);
   }
   pushStr(s: string) {
-    return this.addByte(OP.PUSH_INPUT).addByte(this.addInputStr(s));
+    return this.pushBytes(toUtf8Bytes(s));
   }
   pushBytes(v: BytesLike) {
-    return this.addByte(OP.PUSH_INPUT).addByte(this.addInputBytes(v));
+    const u = getBytes(v);
+    return u.length < 256
+      ? this.addByte(OP.PUSH_BYTES).addSmallBytes(u)
+      : this.pushInput(this.defineInputBytes(u));
   }
   pushProgram(program: GatewayProgram) {
     return this.pushBytes(program.encode());
@@ -225,8 +248,9 @@ export class GatewayProgram {
     return this.addByte(OP.KECCAK);
   }
   slice(x: number, n: number) {
-    return this.addByte(OP.SLICE).addShort(x).addShort(n);
+    return this.push(x).push(n).addByte(OP.SLICE);
   }
+
   plus() {
     return this.addByte(OP.PLUS);
   }
@@ -236,20 +260,47 @@ export class GatewayProgram {
   divide() {
     return this.addByte(OP.DIVIDE);
   }
+  mod() {
+    return this.addByte(OP.MOD);
+  }
   and() {
     return this.addByte(OP.AND);
   }
   or() {
     return this.addByte(OP.OR);
   }
+  xor() {
+    return this.addByte(OP.XOR);
+  }
+  isNonzero() {
+    return this.addByte(OP.NONZERO);
+  }
   not() {
     return this.addByte(OP.NOT);
   }
-  shl(shift: number) {
-    return this.addByte(OP.SHIFT_LEFT).addByte(shift);
+  shl(shift: number | bigint) {
+    return this.push(shift).addByte(OP.SHIFT_LEFT);
   }
-  shr(shift: number) {
-    return this.addByte(OP.SHIFT_RIGHT).addByte(shift);
+  shr(shift: number | bigint) {
+    return this.push(shift).addByte(OP.SHIFT_RIGHT);
+  }
+  eq() {
+    return this.addByte(OP.EQ);
+  }
+  flip() {
+    return this.push(0).eq();
+  }
+  lt() {
+    return this.addByte(OP.LT);
+  }
+  gt() {
+    return this.addByte(OP.GT);
+  }
+  lte() {
+    return this.gt().flip();
+  }
+  gte() {
+    return this.lt().flip();
   }
 
   // shorthands?
@@ -334,7 +385,7 @@ export class MachineState {
     return i;
   }
   checkBack(back: number) {
-    if (back >= this.stack.length) throw new Error('stack underflow');
+    if (back >= this.stack.length) throw new Error('back overflow');
     return this.stack.length - 1 - back;
   }
   async resolveOutputs() {
@@ -351,6 +402,9 @@ export class MachineState {
   popSlice(n: number) {
     if (this.stack.length < n) throw new Error('stack underflow');
     return this.stack.splice(this.stack.length - n, n);
+  }
+  async popNumber() {
+    return numberFromHex(await unwrap(this.pop()));
   }
   changeTarget(target: HexString, max: number) {
     // IDEA: this could incrementally build the needs map
@@ -370,22 +424,29 @@ export class MachineState {
     }
     this.needs.push(need);
   }
-  binaryOp(fn: (a: bigint, b: bigint) => bigint) {
-    const v = this.popSlice(2);
-    this.push(
-      new Wrapped(async () => {
-        const [a, b] = await Promise.all(v.map(unwrap));
-        return toPaddedHex(fn(uint256FromHex(a), uint256FromHex(b)));
-      })
-    );
+  async binaryOp(fn: (a: bigint, b: bigint) => bigint) {
+    const [a, b] = await Promise.all(this.popSlice(2).map(unwrap));
+    this.push(toPaddedHex(fn(uint256FromHex(a), uint256FromHex(b))));
+    // const v = this.popSlice(2);
+    // if (typeof v[0] === 'string' && typeof v[1] === 'string') {
+    //   this.push(toPaddedHex(fn(uint256FromHex(v[0]), uint256FromHex(v[1]))));
+    // } else {
+    //   this.push(
+    //     new Wrapped(async () => {
+    //       const [a, b] = await Promise.all(v.map(unwrap));
+    //       return toPaddedHex(fn(uint256FromHex(a), uint256FromHex(b)));
+    //     })
+    //   );
+    // }
   }
-  unaryOp(fn: (x: bigint) => bigint) {
-    const x = this.pop();
-    this.push(
-      new Wrapped(async () => {
-        return toPaddedHex(fn(uint256FromHex(await unwrap(x))));
-      })
-    );
+  async unaryOp(fn: (x: bigint) => bigint) {
+    this.push(toPaddedHex(fn(uint256FromHex(await unwrap(this.pop())))));
+    // const x = this.pop();
+    // this.push(
+    //   new Wrapped(async () => {
+    //     return toPaddedHex(fn(uint256FromHex(await unwrap(x))));
+    //   })
+    // );
   }
 }
 
@@ -487,86 +548,76 @@ export abstract class AbstractProver {
       const op = reader.readByte();
       switch (op) {
         case OP.TARGET: {
-          // args: [] / stack: -1
           vm.target = addressFromHex(await unwrap(vm.pop()));
           vm.slot = 0n;
           vm.changeTarget(vm.target, this.maxUniqueTargets);
           continue;
         }
         case OP.SLOT_FOLLOW: {
-          // args: [] / stack: -1
           vm.slot = solidityFollowSlot(vm.slot, await unwrap(vm.pop()));
           continue;
         }
         case OP.SLOT: {
-          // args: [] / stack: -1
           vm.slot = uint256FromHex(await unwrap(vm.pop()));
           continue;
         }
         case OP.SLOT_ADD: {
-          // args: [] / stack: -1
           vm.slot += uint256FromHex(await unwrap(vm.pop()));
           continue;
         }
-        case OP.SLOT_ZERO: {
-          // args: [] / stack: 0 / *** DEPRECATED ***
-          vm.slot = 0n;
-          continue;
-        }
         case OP.SET_OUTPUT: {
-          // args: [outputIndex] / stack: -1
-          vm.outputs[vm.checkOutputIndex(reader.readByte())] = vm.pop();
+          vm.outputs[vm.checkOutputIndex(await vm.popNumber())] = vm.pop();
           continue;
         }
         case OP.PUSH_INPUT: {
-          // args: [inputIndex] / stack: 0
-          vm.push(reader.readInput());
+          vm.push(reader.inputAt(await vm.popNumber()));
           continue;
         }
         case OP.PUSH_OUTPUT: {
-          // args: [outputIndex] / stack: +1
-          vm.push(vm.outputs[vm.checkOutputIndex(reader.readByte())]);
+          vm.push(vm.outputs[vm.checkOutputIndex(await vm.popNumber())]);
           continue;
         }
-        case OP.PUSH_BYTE: {
-          // args: [byte] / stack: +1
-          vm.push(toPaddedHex(reader.readByte()));
+        case OP.PUSH_VALUE: {
+          vm.push(toPaddedHex(reader.readSmallBytes()));
+          continue;
+        }
+        case OP.PUSH_BYTES: {
+          vm.push(reader.readSmallBytes());
           continue;
         }
         case OP.PUSH_SLOT: {
-          // args: [] / stack: +1
           vm.push(toPaddedHex(vm.slot)); // current slot register
           continue;
         }
         case OP.PUSH_TARGET: {
-          // args: [] / stack: +1
           vm.push(vm.target); // current target address
           continue;
         }
         case OP.DUP: {
-          // args: [back] / stack: +1
-          const back = vm.checkBack(reader.readByte());
-          vm.push(vm.stack[back]);
+          vm.push(vm.stack[vm.checkBack(await vm.popNumber())]);
           continue;
         }
         case OP.POP: {
-          // args: [] / stack: upto(-1)
           vm.stack.pop();
           continue;
         }
         case OP.SWAP: {
-          // args: [back] / stack: 0
-          const back = vm.checkBack(reader.readByte());
+          const back = vm.checkBack(await vm.popNumber());
           const last = vm.stack.length - 1;
           const temp = vm.stack[back];
           vm.stack[back] = vm.stack[last];
           vm.stack[last] = temp;
           continue;
         }
-        case OP.READ_SLOTS: {
-          // args: [count] / stack: +1
+        case OP.READ_SLOT: {
           const { target, slot } = vm;
-          const count = reader.readByte();
+          vm.needs.push(slot);
+          vm.push(new Wrapped(() => this.getStorage(target, slot)));
+          continue;
+        }
+        case OP.READ_SLOTS: {
+          const { target, slot } = vm;
+          const count = await vm.popNumber();
           checkReadSize(count << 5, this.maxProvableBytes);
           const slots = bigintRange(slot, count);
           vm.needs.push(...slots);
@@ -584,7 +635,6 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.READ_BYTES: {
-          // args: [] / stack: +1
           // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
           const { target, slot } = vm;
           const { value, slots } = await this.getStorageBytes(target, slot);
@@ -593,7 +643,6 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.READ_HASHED: {
-          // args: [] / stack: 0 (-hash, +value)
           const { target, slot } = vm;
           const hash = vm.pop(); // we can technically ignore this value
           const value = this.fetchUnprovenStorageBytes(target, slot);
@@ -602,8 +651,7 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.READ_ARRAY: {
-          // args: [] / stack: +1
-          const step = reader.readShort();
+          const step = await vm.popNumber();
           if (!step) throw new Error('invalid element size');
           const { target, slot } = vm;
           let length = checkReadSize(
@@ -629,37 +677,44 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.REQ_CONTRACT: {
-          // args: [] / stack: 0
           const need = vm.targets.get(vm.target);
           if (need) need.required = true;
           if (!(await this.isContract(vm.target))) {
-            vm.exitCode = 1;
+            vm.exitCode = EXIT.NOT_A_CONTRACT;
             return;
           }
           continue;
         }
         case OP.REQ_NONZERO: {
-          // args: [back] / stack: 0
-          const back = vm.checkBack(reader.readByte());
-          if (/^0x0*$/.test(await unwrap(vm.stack[back]))) {
-            vm.exitCode = 1;
+          if (isZeros(await unwrap(vm.stack[vm.checkBack(0)]))) {
+            vm.exitCode = EXIT.NOT_NONZERO;
             return;
           }
           continue;
         }
+        case OP.NONZERO: {
+          vm.push(toPaddedHex(!isZeros(await unwrap(vm.pop()))));
+          // const value = vm.pop();
+          // vm.push(
+          //   new Wrapped(async () =>
+          //     isNullHex(await unwrap(value)) ? '0x01' : '0x'
+          //   )
+          // );
+          continue;
+        }
         case OP.EVAL_INLINE: {
-          // args: [] / stack: -1 (program) & <program logic>
           const program = ProgramReader.fromEncoded(await unwrap(vm.pop()));
           await this.eval(program, vm);
           if (vm.exitCode) return;
           continue;
         }
         case OP.EVAL_LOOP: {
-          // args: [count, flags] / stack: -1 (program) & -count (args)
-          let count = reader.readByte();
+          // [program, count] + flags => any[]
           const flags = reader.readByte();
-          const program = ProgramReader.fromEncoded(await unwrap(vm.pop()));
+          const [code, n] = await Promise.all(vm.popSlice(2).map(unwrap));
+          const program = ProgramReader.fromEncoded(code);
           const vm2 = new MachineState(vm.outputs, vm.needs, vm.targets);
+          let count = numberFromHex(n);
           for (; count && vm.stack.length; count--) {
             vm2.target = vm.target;
             vm2.slot = vm.slot;
@@ -681,69 +736,104 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.KECCAK: {
-          // args: [] / stack: 0
           vm.push(keccak256(await unwrap(vm.pop())));
+          //const value = vm.pop();
+          //vm.push(new Wrapped(async () => keccak256(await unwrap(value))));
           continue;
         }
         case OP.CONCAT: {
-          // args: [] / stack: -1
-          const v = vm.popSlice(2);
-          vm.push(
-            new Wrapped(async () => concat(await Promise.all(v.map(unwrap))))
-          );
+          vm.push(concat(await Promise.all(vm.popSlice(2).map(unwrap))));
+          // const v = vm.popSlice(2);
+          // vm.push(
+          //   new Wrapped(async () => concat(await Promise.all(v.map(unwrap))))
+          // );
           continue;
         }
         case OP.SLICE: {
-          // args: [off, size] / stack: 0
-          const x = reader.readShort();
-          const n = reader.readShort();
-          const v = await unwrap(vm.pop());
-          if (x + n > (v.length - 2) >> 1) throw new Error('slice overflow');
-          vm.push(dataSlice(v, x, x + n));
+          const [v, x, n] = await Promise.all(vm.popSlice(3).map(unwrap));
+          const pos = numberFromHex(x);
+          const size = numberFromHex(n);
+          const len = (v.length - 2) >> 1;
+          const end = pos + size;
+          if (len >= end) {
+            vm.push(dataSlice(v, pos, end));
+          } else {
+            const prefix = pos >= len ? '0x' : dataSlice(v, pos, len);
+            vm.push(prefix.padEnd((size + 1) << 1, '0'));
+          }
+          // const [pos, size] = await Promise.all(
+          //   vm.popSlice(2).map(async (x) => numberFromHex(await unwrap(x)))
+          // );
+          // const value = vm.pop();
+          // vm.push(
+          //   size
+          //     ? new Wrapped(async () => {
+          //         const v = await unwrap(value);
+          //         const len = (v.length - 2) >> 1;
+          //         const end = pos + size;
+          //         if (len >= end) return dataSlice(v, pos, end);
+          //         const prefix = pos >= len ? '0x' : dataSlice(v, pos, len);
+          //         return prefix.padEnd((size + 1) << 1, '0');
+          //       })
+          //     : '0x'
+          // );
           continue;
         }
         // all binary ops:
-        // args: [] / stack: -1 (f(a, b) => c)
         case OP.PLUS: {
-          vm.binaryOp((a, b) => a + b);
+          await vm.binaryOp((a, b) => a + b);
           continue;
         }
         case OP.TIMES: {
-          vm.binaryOp((a, b) => a * b);
+          await vm.binaryOp((a, b) => a * b);
           continue;
         }
         case OP.DIVIDE: {
-          vm.binaryOp((a, b) => a / b);
+          await vm.binaryOp((a, b) => a / b);
+          continue;
+        }
+        case OP.MOD: {
+          await vm.binaryOp((a, b) => a % b);
           continue;
         }
         case OP.AND: {
-          vm.binaryOp((a, b) => a & b);
+          await vm.binaryOp((a, b) => a & b);
           continue;
         }
         case OP.OR: {
-          vm.binaryOp((a, b) => a | b);
+          await vm.binaryOp((a, b) => a | b);
           continue;
         }
-        case OP.NOT: {
-          // args: [] / stack: 0
-          vm.unaryOp((x) => ~x);
+        case OP.XOR: {
+          await vm.binaryOp((a, b) => a ^ b);
           continue;
         }
         case OP.SHIFT_LEFT: {
-          // args: [shift] / stack: 0
-          const shift = reader.readByte();
-          vm.unaryOp((x) => x << BigInt(shift));
+          await vm.binaryOp((x, shift) => x << shift);
           continue;
         }
         case OP.SHIFT_RIGHT: {
-          // args: [shift] / stack: 0
-          const shift = reader.readByte();
-          vm.unaryOp((x) => x >> BigInt(shift));
+          await vm.binaryOp((x, shift) => x >> shift);
+          continue;
+        }
+        case OP.EQ: {
+          await vm.binaryOp((a, b) => binarize(a == b));
+          continue;
+        }
+        case OP.LT: {
+          await vm.binaryOp((a, b) => binarize(a < b));
+          continue;
+        }
+        case OP.GT: {
+          await vm.binaryOp((a, b) => binarize(a > b));
+          continue;
+        }
+        case OP.NOT: {
+          await vm.unaryOp((x) => ~x);
           continue;
         }
         case OP.DEBUG: {
-          // args: [string(label)] / stack: 0
-          console.log(`DEBUG(${reader.readInputStr()})`, {
+          console.log(`DEBUG(${reader.readSmallStr()})`, {
             target: vm.target,
             slot: vm.slot,
             exitCode: vm.exitCode,
@@ -826,7 +916,7 @@ export abstract class BlockProver extends AbstractProver {
     super(provider);
     this.block = toUnpaddedHex(block);
   }
-  async fetchBlock() {
+  fetchBlock() {
     return fetchBlock(this.provider, this.block);
   }
   async fetchStateRoot() {

@@ -21,7 +21,11 @@ describe('limits', async () => {
 
   async function exec(prover: EthProver, req: GatewayRequest) {
     const state = await prover.evalRequest(req);
-    return prover.prove(state.needs);
+    const [proof, values] = await Promise.all([
+      prover.prove(state.needs),
+      state.resolveOutputs(),
+    ]);
+    return { state, proof, values };
   }
 
   test('max stack', async () => {
@@ -30,7 +34,7 @@ describe('limits', async () => {
     for (let i = 0; i < MAX_STACK; i++) {
       req.push(0);
     }
-    expect(exec(prover, req)).resolves.toBeDefined();
+    await exec(prover, req);
     req.push(0); // one more
     expect(exec(prover, req)).rejects.toThrow('stack overflow');
   });
@@ -42,7 +46,7 @@ describe('limits', async () => {
     for (let i = 0; i < prover.maxUniqueTargets; i++) {
       req.setTarget(toPaddedHex(i, 20));
     }
-    expect(exec(prover, req)).resolves.toBeDefined();
+    await exec(prover, req);
     req.setTarget('0x51050ec063d393217B436747617aD1C2285Aeeee'); // one more
     expect(exec(prover, req)).rejects.toThrow('too many targets');
   });
@@ -59,7 +63,7 @@ describe('limits', async () => {
       .setTarget(contract.target)
       .setSlot(1)
       .readBytes();
-    expect(exec(prover, passReq)).resolves.toBeDefined();
+    await exec(prover, passReq);
     expect(exec(prover, failReq)).rejects.toThrow(/^too many bytes:/);
   });
 
@@ -77,7 +81,7 @@ describe('limits', async () => {
       .push(keccak256(new Uint8Array(MAX_BYTES + 1)))
       .setSlot(1)
       .readHashedBytes();
-    expect(exec(prover, passReq)).resolves.toBeDefined();
+    await exec(prover, passReq);
     expect(exec(prover, failReq)).rejects.toThrowError(/^too many bytes:/);
   });
 
@@ -89,7 +93,7 @@ describe('limits', async () => {
     for (let i = 1; i < prover.maxUniqueProofs; i++) {
       req.setSlot(i).read().pop(); // pop prevents stack overflow
     }
-    expect(exec(prover, req)).resolves.toBeDefined();
+    await exec(prover, req);
     req.setSlot(0).read(); // one more
     expect(exec(prover, req)).rejects.toThrow(/^too many proofs:/);
   });

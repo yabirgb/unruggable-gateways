@@ -18,36 +18,32 @@ const foundry = await Foundry.launch({
 //   `,
 // });
 
-await foundry.deploy({ file: 'EthSelfVerifier' });
-
+await foundry.deploy({
+  file: 'EthSelfVerifier',
+});
 await foundry.deploy({
   file: 'OPVerifier',
-  args: [[], 0, ethers.ZeroAddress],
 });
 await foundry.deploy({
   file: 'OPFaultVerifier',
-  args: [[], 0, ethers.ZeroAddress, ethers.ZeroAddress, 0],
+  args: [ethers.ZeroAddress],
 });
 await foundry.deploy({
   file: 'LineaVerifier',
-  args: [[], 0, ethers.ZeroAddress],
   libs: { SparseMerkleProof: ethers.ZeroAddress },
 });
 await foundry.deploy({
   file: 'NitroVerifier',
-  args: [[], 0, ethers.ZeroAddress],
 });
 await foundry.deploy({
   file: 'ScrollVerifier',
-  args: [[], 0, ethers.ZeroAddress],
 });
 await foundry.deploy({
   file: 'TaikoVerifier',
-  args: [[], 0, ethers.ZeroAddress],
 });
 await foundry.deploy({
   file: 'ZKSyncVerifier',
-  args: [[], 0, ethers.ZeroAddress, ethers.ZeroAddress],
+  args: [ethers.ZeroAddress]
 });
 
 foundry.shutdown();

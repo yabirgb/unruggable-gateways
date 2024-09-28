@@ -19,12 +19,8 @@ export function toUnpaddedHex(x: BigNumberish | boolean): HexString {
 }
 // hex-prefixed left-pad w/truncation
 export function toPaddedHex(x: BigNumberish | boolean, width = 32) {
-  return (
-    '0x' +
-    BigInt.asUintN(width << 3, BigInt(x))
-      .toString(16)
-      .padStart(width << 1, '0')
-  );
+  const i = x === '0x' ? 0n : BigInt.asUintN(width << 3, BigInt(x));
+  return '0x' + i.toString(16).padStart(width << 1, '0');
 }
 
 // manual polyfill: ES2024

@@ -5,6 +5,8 @@ import {AbstractVerifier} from "./AbstractVerifier.sol";
 import {GatewayRequest, GatewayProver, ProofSequence} from "./GatewayProver.sol";
 import {RLPReader, RLPReaderExt} from "./RLPReaderExt.sol";
 
+//import {GatewayProver} from "./GatewayProver2.sol";
+
 contract AbstractSelfVerifier is AbstractVerifier { 
 
 	function getLatestContext() external view returns (bytes memory) {

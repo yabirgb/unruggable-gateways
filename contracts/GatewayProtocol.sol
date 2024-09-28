@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-uint256 constant MAX_STACK = 64; // max = unlimited
-uint256 constant MAX_OPS = 2048; // max = unlimited
-uint8 constant MAX_INPUTS = 64; // max = 256
-
 uint8 constant STOP_ON_SUCCESS = 1;
 uint8 constant STOP_ON_FAILURE = 2;
 uint8 constant ACQUIRE_STATE = 4;
@@ -18,21 +14,22 @@ uint8 constant OP_EVAL_INLINE = 4;
 uint8 constant OP_REQ_NONZERO = 10;
 uint8 constant OP_REQ_CONTRACT = 11;
 
-uint8 constant OP_READ_SLOTS = 20;
+uint8 constant OP_READ_SLOT = 20;
 uint8 constant OP_READ_BYTES = 21;
 uint8 constant OP_READ_ARRAY = 22;
 uint8 constant OP_READ_HASHED = 23;
+uint8 constant OP_READ_SLOTS = 24;
 
-uint8 constant OP_SLOT_ZERO = 30; // deprecated 
+uint8 constant OP_SLOT = 30;
 uint8 constant OP_SLOT_ADD = 31;
 uint8 constant OP_SLOT_FOLLOW = 32;
-uint8 constant OP_SLOT = 33;
 
 uint8 constant OP_PUSH_INPUT = 40;
 uint8 constant OP_PUSH_OUTPUT = 41;
 uint8 constant OP_PUSH_SLOT = 42;
 uint8 constant OP_PUSH_TARGET = 43;
-uint8 constant OP_PUSH_BYTE = 44;
+uint8 constant OP_PUSH_VALUE = 44;
+uint8 constant OP_PUSH_BYTES = 45;
 
 uint8 constant OP_DUP = 50;
 uint8 constant OP_POP = 51;
@@ -42,15 +39,25 @@ uint8 constant OP_KECCAK = 60;
 uint8 constant OP_CONCAT = 61;
 uint8 constant OP_SLICE	= 62;
 
-uint8 constant OP_PLUS = 63;
-uint8 constant OP_TIMES = 64;
-uint8 constant OP_DIVIDE = 65;
-uint8 constant OP_AND = 66;
-uint8 constant OP_OR = 67;
+uint8 constant OP_PLUS = 70;
+uint8 constant OP_TIMES = 71;
+uint8 constant OP_DIVIDE = 72;
+uint8 constant OP_MOD = 73;
 
-uint8 constant OP_NOT = 68;
-uint8 constant OP_SHIFT_LEFT = 69;
-uint8 constant OP_SHIFT_RIGHT = 70;
+uint8 constant OP_AND = 80;
+uint8 constant OP_OR = 81;
+uint8 constant OP_XOR = 82;
+uint8 constant OP_SHIFT_LEFT = 83;
+uint8 constant OP_SHIFT_RIGHT = 84;
+uint8 constant OP_NOT = 85;
+
+uint8 constant OP_NONZERO = 90;
+uint8 constant OP_EQ = 91;
+uint8 constant OP_LT = 92;
+uint8 constant OP_GT = 93;
+
+uint8 constant EXIT_NOT_A_CONTRACT = 254;
+uint8 constant EXIT_NOT_NONZERO = 253;
 
 struct GatewayRequest {
 	bytes ops;

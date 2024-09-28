@@ -141,12 +141,12 @@ export class Gateway<R extends Rollup> extends EZCCIP {
 }
 
 export abstract class GatewayV1<R extends Rollup> extends EZCCIP {
-  latestCommit: RollupCommitType<R> | undefined;
+  private latestCommit: RollupCommitType<R> | undefined;
   readonly latestCache = new CachedValue(async () => {
     const index = await this.rollup.fetchLatestCommitIndex();
     // since we can only serve the latest commit
     // we only keep the latest commit
-    if (!this.latestCommit || index != this.latestCommit.index) {
+    if (index !== this.latestCommit?.index) {
       this.latestCommit = await this.rollup.fetchCommit(index);
     }
     return this.latestCommit;

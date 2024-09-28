@@ -12,21 +12,22 @@ export const GATEWAY_OP = {
   REQ_NONZERO: 10,
   REQ_CONTRACT: 11,
 
-  READ_SLOTS: 20,
+  READ_SLOT: 20,
   READ_BYTES: 21,
   READ_ARRAY: 22,
   READ_HASHED: 23,
+  READ_SLOTS: 24,
 
-  SLOT_ZERO: 30, // deprecated
+  SLOT: 30,
   SLOT_ADD: 31,
   SLOT_FOLLOW: 32,
-  SLOT: 33,
 
   PUSH_INPUT: 40,
   PUSH_OUTPUT: 41,
   PUSH_SLOT: 42,
   PUSH_TARGET: 43,
-  PUSH_BYTE: 44,
+  PUSH_VALUE: 44,
+  PUSH_BYTES: 45,
 
   DUP: 50,
   POP: 51,
@@ -35,12 +36,21 @@ export const GATEWAY_OP = {
   KECCAK: 60,
   CONCAT: 61,
   SLICE: 62,
-  PLUS: 63,
-  TIMES: 64,
-  DIVIDE: 65,
-  AND: 66,
-  OR: 67,
-  NOT: 68,
-  SHIFT_LEFT: 69,
-  SHIFT_RIGHT: 70,
+
+  PLUS: 70,
+  TIMES: 71,
+  DIVIDE: 72,
+  MOD: 73,
+
+  AND: 80,
+  OR: 81,
+  XOR: 82,
+  SHIFT_LEFT: 83,
+  SHIFT_RIGHT: 84,
+  NOT: 85,
+
+  NONZERO: 90,
+  EQ: 91,
+  LT: 92,
+  GT: 93,
 } as const satisfies Record<string, number>;

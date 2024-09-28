@@ -10,7 +10,7 @@ const prover = await EthProver.latest(createProvider(1n));
 async function primary(address: HexAddress) {
 	const name = `${address.slice(2).toLowerCase()}.addr.reverse`;
 	const req = new GatewayRequest(2);
-	const iNode = req.addInput(namehash(name));
+	const iNode = req.defineInput(namehash(name));
 	// old ens
 	req.setTarget('0x314159265dD8dbb310642f98f50C066173C1259b');
 	req.pushInput(iNode).addSlot().read();

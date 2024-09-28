@@ -12,6 +12,7 @@ const req = new GatewayRequest(1)
   .pushStr('chonk')
   .follow()
   .readBytes()
+  .push(0)
   .setOutput(0);
 
 const encoded = getBytes(req.encode());
@@ -21,6 +22,7 @@ console.log('Zeros:', encoded.reduce((a, x) => a += x?0:1, 0));
 //console.log('Ops:', new Uint8Array(req.ops));
 
 console.log('\n[inputs]');
+if (!req.inputs.length) console.log('<none>');
 req.inputs.forEach((hex, i) => console.log(i.toString().padStart(3), hex));
 
 console.log('\n[ops]');

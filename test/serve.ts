@@ -16,6 +16,7 @@ import { CHAINS } from '../src/chains.js';
 import type { Serve } from 'bun';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
+// https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws65lsm4xq.ccipr.eth
 // 1. bun serve lineaV1
 // 2. https://adraffy.github.io/CCIPRewriter.sol/test/
 // 3. enter name: "raffy.linea.eth"
@@ -38,8 +39,8 @@ if (prefetch) {
 }
 
 const config = {
-  rollup: gateway.rollup.constructor.name,
   gateway: gateway.constructor.name,
+  rollup: gateway.rollup.constructor.name,
   chain1: chainName(gateway.rollup.provider1._network.chainId),
   chain2: chainName(gateway.rollup.provider2._network.chainId),
   since: new Date(),

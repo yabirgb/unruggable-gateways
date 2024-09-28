@@ -9,16 +9,16 @@ contract Frontend is GatewayFetchTarget {
 	using GatewayFetcher for GatewayRequest;
 	
 	IGatewayProofVerifier immutable _verifier;
-	address immutable _l2Target;
+	address immutable _target;
 	
-	constructor(IGatewayProofVerifier verifier, address l2Target) {
+	constructor(IGatewayProofVerifier verifier, address target) {
 		_verifier = verifier;
-		_l2Target = l2Target;
+		_target = target;
 	}
 
 	function get(uint256 key) external view returns (string memory) {
 		GatewayRequest memory req = GatewayFetcher.newRequest(1);
-		req.setTarget(_l2Target);
+		req.setTarget(_target);
 		req.setSlot(0).push(key).follow().readBytes().setOutput(0);
 		fetch(_verifier, req, this.getCallback.selector, '');
 	}
