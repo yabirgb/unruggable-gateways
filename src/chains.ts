@@ -1,5 +1,8 @@
 import type { Chain } from './types.js';
 
+// https://chainlist.wtf
+// https://www.superchain.eco/chains
+
 export const CHAINS = {
   MAINNET: 1n,
   SEPOLIA: 11155111n,
@@ -16,8 +19,8 @@ export const CHAINS = {
   TAIKO_HEKLA: 167009n,
   SCROLL: 534352n,
   SCROLL_SEPOLIA: 534351n,
-  POLYGON_ZKEVM: 1101n,
-  POLYGON_ZKEVM_CARDONA: 2442n,
+  ZKEVM: 1101n,
+  ZKEVM_CARDONA: 2442n,
   POLYGON_POS: 137n,
   POLYGON_AMOY: 80002n,
   LINEA: 59144n,
@@ -25,4 +28,22 @@ export const CHAINS = {
   FRAXTAL: 252n,
   ZORA: 7777777n,
   BLAST: 81457n,
+  MANTLE: 5000n,
+  MANTLE_SEPOLIA: 5001n,
+  MODE: 34443n,
+  MODE_SEPOLIA: 919n,
+  CYBER: 7560n,
+  CYBER_SEPOLIA: 111557560n,
+  REDSTONE: 690n,
+  // GNOSIS: 100n, // L1: must verify against withdrawal signatures?
 } as const satisfies Record<string, Chain>;
+
+const NAMES = new Map<Chain, string>(
+  Object.entries(CHAINS).map(([a, b]) => [b, a])
+);
+
+export function chainName(chain: Chain): string {
+  const name = NAMES.get(chain);
+  if (!name) throw new TypeError(`unknown chain: ${chain}`);
+  return name;
+}

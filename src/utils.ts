@@ -1,10 +1,9 @@
-import {
-  type JsonRpcPayload,
-  makeError,
-  AbiCoder,
-  id as keccakStr,
-} from 'ethers';
+import { AbiCoder } from 'ethers/abi';
+import { makeError } from 'ethers/utils';
+import { id as keccakStr } from 'ethers/hash';
+import { type JsonRpcPayload, JsonRpcProvider } from 'ethers/providers';
 import type { Provider, BigNumberish, HexString } from './types.js';
+import type { RPCEthGetBlock } from './eth/types.js';
 
 export const ABI_CODER = AbiCoder.defaultAbiCoder();
 
@@ -12,11 +11,19 @@ export const ABI_CODER = AbiCoder.defaultAbiCoder();
 // "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
 export const NULL_CODE_HASH = keccakStr('');
 
-// hex-prefixed without any zero-padding
-export function toString16(x: BigNumberish): HexString {
+export const EVM_BLOCKHASH_DEPTH = 256;
+
+// hex-prefixed w/o zero-padding
+export function toUnpaddedHex(x: BigNumberish | boolean): HexString {
   return '0x' + BigInt(x).toString(16);
 }
+// hex-prefixed left-pad w/truncation
+export function toPaddedHex(x: BigNumberish | boolean, width = 32) {
+  const i = x === '0x' ? 0n : BigInt.asUintN(width << 3, BigInt(x));
+  return '0x' + i.toString(16).padStart(width << 1, '0');
+}
 
+// manual polyfill: ES2024
 export function withResolvers<T = void>() {
   let resolve!: (value: T) => void;
   let reject!: (reason?: any) => void;
@@ -58,11 +65,14 @@ export async function sendImmediate<T>(
   method: string,
   params: any[]
 ): Promise<T> {
-  if (provider._getOption('batchMaxCount') == 1) {
+  if (
+    !(provider instanceof JsonRpcProvider) ||
+    provider._getOption('batchMaxCount') == 1
+  ) {
     return provider.send(method, params);
   }
-  // https://github.com/ethers-io/ethers.js/issues/4819
-  const id = ((Math.random() * 0x7fffffff) | 0x80000000) >>> 0;
+  //const id = ((Math.random() * 0x7fffffff) | 0x80000000) >>> 0;
+  const id = 1; // since this is fetch-based, it's okay to reuse id
   const payload: JsonRpcPayload = {
     method,
     params,
@@ -94,4 +104,13 @@ export async function sendImmediate<T>(
   } else {
     throw provider.getRpcError(payload, resp);
   }
+}
+
+export async function fetchBlock(provider: Provider, block: BigNumberish) {
+  const json: RPCEthGetBlock | null = await provider.send(
+    'eth_getBlockByNumber',
+    [typeof block === 'string' ? block : toUnpaddedHex(block), false]
+  );
+  if (!json) throw new Error(`no block: ${block}`);
+  return json;
 }

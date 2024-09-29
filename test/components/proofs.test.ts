@@ -1,6 +1,7 @@
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { describe, afterAll, test, expect } from 'bun:test';
+import { afterAll, test, expect } from 'bun:test';
+import { describe } from '../bun-describe-fix.js';
 
 describe('proofs', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
@@ -67,7 +68,7 @@ describe('proofs', async () => {
     resetStats();
     prover.proofBatchSize = 1;
     const p1 = await prover.getProofs(contract.target, slots);
-    expect(fetchedCalls).toBe(0);
+    expect(fetchedCalls).toEqual(0);
     expect(p0).toEqual(p1);
   });
 
@@ -76,14 +77,14 @@ describe('proofs', async () => {
     resetStats();
     prover.proofBatchSize = 1;
     await prover.fetchProofs(contract.target, [0n, 1n]);
-    expect(fetchedCalls).toBe(2);
+    expect(fetchedCalls).toEqual(2);
   });
 
   test('fetchProofs() batch > 1', async () => {
     const prover = await EthProver.latest(foundry.provider);
     resetStats();
     await prover.fetchProofs(contract.target, [0n, 1n]);
-    expect(fetchedCalls).toBe(1);
+    expect(fetchedCalls).toEqual(1);
   });
 
   test('getProof() 01:10', async () => {
@@ -93,8 +94,8 @@ describe('proofs', async () => {
       prover.getProofs(contract.target, [0n, 1n]),
       prover.getProofs(contract.target, [1n, 0n]),
     ]);
-    expect(fetchedCalls).toBe(1);
-    expect(fetchedSlots).toBe(2);
+    expect(fetchedCalls).toEqual(1);
+    expect(fetchedSlots).toEqual(2);
     expect(p0.storageProof[0]).toEqual(p1.storageProof[1]);
     expect(p0.storageProof[1]).toEqual(p1.storageProof[0]);
   });
@@ -107,8 +108,8 @@ describe('proofs', async () => {
       prover.getProofs(contract.target, [1n, 2n]),
       prover.getProofs(contract.target, [2n, 0n]),
     ]);
-    expect(fetchedCalls).toBe(2);
-    expect(fetchedSlots).toBe(3);
+    expect(fetchedCalls).toEqual(2);
+    expect(fetchedSlots).toEqual(3);
     expect(p0.storageProof[0]).toEqual(p2.storageProof[1]); // 0
     expect(p0.storageProof[1]).toEqual(p1.storageProof[0]); // 1
     expect(p1.storageProof[1]).toEqual(p2.storageProof[0]); // 2
@@ -122,8 +123,8 @@ describe('proofs', async () => {
       prover.getProofs(contract.target, [0n, 1n, 2n]),
       prover.getProofs(contract.target, [3n, 4n, 5n]),
     ]);
-    expect(fetchedCalls).toBe(1);
-    expect(fetchedSlots).toBe(6);
+    expect(fetchedCalls).toEqual(1);
+    expect(fetchedSlots).toEqual(6);
     expect(p0.storageProof).toEqual(p1.storageProof.concat(p2.storageProof));
   });
 });

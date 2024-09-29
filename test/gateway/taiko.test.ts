@@ -2,13 +2,14 @@ import { TaikoRollup } from '../../src/taiko/TaikoRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { providerURL, createProviderPair, chainName } from '../providers.js';
+import { providerURL, createProviderPair } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
-import { describe, afterAll } from 'bun:test';
-import { deployProxy } from './common.js';
+import { deployProxy, pairName } from './common.js';
+import { describe } from '../bun-describe-fix.js';
+import { afterAll } from 'bun:test';
 
 const config = TaikoRollup.mainnetConfig;
-describe(chainName(config.chain2), async () => {
+describe(pairName(config), async () => {
   const rollup = await TaikoRollup.create(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),

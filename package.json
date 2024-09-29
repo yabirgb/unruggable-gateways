@@ -18,10 +18,12 @@
     "forge": "forge build --force",
     "serve": "bun test/serve.ts",
     "test": "bun test --timeout 25000",
-    "test-components": "bun test test/components/* --timeout 25000",
+    "test-components": "bun test/opcodes.ts && bun test test/components/* --timeout 25000",
     "test-gateways": "bun test test/gateway/* --timeout 25000",
+    "test-fast": "bun run check && bun run lint && bun run test-components && bun test test/gateway/op.test.ts && bun test test/gateway/reverse-op.test.ts",
     "lint": "eslint . --ext .ts",
-    "build": "bun build/dist.ts"
+    "build": "bun build/dist.ts",
+    "loc": "rg -c '^' -g 'src/**/*.ts' -g 'test/**/*.ts' --no-filename | jq -s 'add'"
   },
   "sideEffects": false,
   "exports": {
@@ -39,7 +41,7 @@
     "contracts/IGatewayProofVerifier.sol"
   ],
   "devDependencies": {
-    "@adraffy/blocksmith": "0.0.33",
+    "@adraffy/blocksmith": "^0.0.35",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
@@ -49,8 +51,8 @@
     "prettier": "^3.3.3"
   },
   "dependencies": {
-    "@resolverworks/ezccip": "^0.0.14",
-    "ethers": "^6.13.1"
+    "@resolverworks/ezccip": "^0.0.15",
+    "ethers": "^6.13.2"
   },
   "peerDependencies": {
     "typescript": "^5.5.2"

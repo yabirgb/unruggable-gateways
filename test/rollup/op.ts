@@ -2,7 +2,7 @@ import { OPFaultRollup } from '../../src/op/OPFaultRollup.js';
 import { createProviderPair } from '../providers.js';
 
 const config = OPFaultRollup.mainnetConfig;
-const rollup = await OPFaultRollup.create(createProviderPair(config), config);
+const rollup = new OPFaultRollup(createProviderPair(config), config);
 
 console.log({
   OptimismPortal: rollup.OptimismPortal.target,

@@ -1,6 +1,13 @@
 import type { HexString, BigNumberish } from '../types.js';
 import type { EthProof } from './types.js';
-import { ZeroHash, keccak256, decodeRlp, toBeHex, zeroPadValue } from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { keccak256 } from 'ethers/crypto';
+import { decodeRlp, zeroPadValue } from 'ethers/utils';
+import { toPaddedHex } from '../utils.js';
+
+// https://github.com/ethereum/consensus-specs/blob/dev/ssz/merkle-proofs.md
+// https://eips.ethereum.org/EIPS/eip-7545
+// https://eips.ethereum.org/EIPS/eip-6800
 
 const BRANCH_NODE_SIZE = 17;
 const LEAF_NODE_SIZE = 2;
@@ -38,7 +45,7 @@ export function proveStorageValue(
   storageRoot: HexString
 ) {
   const rlp = proveMerkleTrieValue(
-    toBeHex(slot, 32),
+    toPaddedHex(slot),
     storageProof,
     storageRoot,
     true

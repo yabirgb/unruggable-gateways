@@ -1,4 +1,4 @@
-import { Interface } from 'ethers';
+import { Interface } from 'ethers/abi';
 import type { HexString32 } from '../types.js';
 
 // https://github.com/taikoxyz/taiko-mono/blob/main/packages/protocol/contracts/L1/TaikoL1.sol

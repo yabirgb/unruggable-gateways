@@ -3,6 +3,25 @@ import { createProvider, createProviderPair } from '../providers.js';
 
 // this is just a worksheet
 
+//console.log(createProvider(1n)._getConnection())
+
+if (0) {
+	const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));
+	console.log(prover);
+	//console.log(await prover.supportsInterface('0x84c5AdB77dd9f362A1a3480009992d8d47325dc3', '0x73302a25'));
+	throw 1;
+}
+
+if (0) {
+	const config = ZKSyncRollup.mainnetConfig;
+	const rollup = new ZKSyncRollup(createProviderPair(config), config);
+	//const commit = await rollup.fetchLatestCommit();
+	const commit = await rollup.fetchLatestCommit();
+	console.log(commit);
+	throw 1;
+}
+
+
 if (0) {
 	const config = OPRollup.baseMainnetConfig;
 	const rollup = new OPRollup(createProviderPair(config), config);
@@ -24,7 +43,7 @@ if (0) {
 	const config = TaikoRollup.mainnetConfig;
 	const rollup = await TaikoRollup.create(createProviderPair(config), config);
 	const commit = await rollup.fetchCommit(123124124n);
-	console.log(await commit.prover.prove([[config.TaikoL1, true]]));
+	console.log(await commit.prover.prove([{target: config.TaikoL1, required: true}]));
 	throw 1;
 }
 
@@ -32,7 +51,7 @@ if (1) {
 	const config = ZKSyncRollup.mainnetConfig;
 	const rollup = new ZKSyncRollup(createProviderPair(config), config);
 	const commit = await rollup.fetchLatestCommit();
-	console.log(await commit.prover.prove([[config.DiamondProxy, true]]));
+	console.log(await commit.prover.prove([{target: config.DiamondProxy, required: true}]));
 	throw 1;
 }
 

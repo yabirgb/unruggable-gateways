@@ -2,13 +2,14 @@ import { ZKSyncRollup } from '../../src/zksync/ZKSyncRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { chainName, createProviderPair, providerURL } from '../providers.js';
+import { createProviderPair, providerURL } from '../providers.js';
 import { runSlotDataTests } from './tests.js';
-import { describe, afterAll } from 'bun:test';
-import { deployProxy } from './common.js';
+import { deployProxy, pairName } from './common.js';
+import { describe } from '../bun-describe-fix.js';
+import { afterAll } from 'bun:test';
 
 const config = ZKSyncRollup.mainnetConfig;
-describe(chainName(config.chain2), async () => {
+describe(pairName(config), async () => {
   const rollup = new ZKSyncRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),

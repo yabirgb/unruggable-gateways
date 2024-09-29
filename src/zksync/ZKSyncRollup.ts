@@ -3,6 +3,7 @@ import type {
   HexString,
   HexString32,
   ProviderPair,
+  ProofSequence,
 } from '../types.js';
 import { ZKSyncProver } from './ZKSyncProver.js';
 import {
@@ -10,7 +11,8 @@ import {
   type ABIZKSyncCommitBatchInfo,
   type RPCZKSyncL1BatchDetails,
 } from './types.js';
-import { Contract, EventLog, ZeroHash } from 'ethers';
+import { ZeroHash } from 'ethers/constants';
+import { Contract, EventLog } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import {
   type RollupDeployment,
@@ -18,7 +20,6 @@ import {
   AbstractRollup,
 } from '../rollup.js';
 import { ABI_CODER } from '../utils.js';
-import { ProofSequence } from '../vm.js';
 
 // https://docs.zksync.io/zk-stack/concepts/finality
 // https://github.com/matter-labs/era-contracts/tree/main/

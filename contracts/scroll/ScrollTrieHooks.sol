@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {NOT_A_CONTRACT, NULL_CODE_HASH} from "../ProofUtils.sol";
+import {NOT_A_CONTRACT, NULL_CODE_HASH, InvalidProof} from "../ProofUtils.sol";
 
-error InvalidProof();
+//error InvalidProof();
 
 interface IPoseidon {
 	function poseidon(uint256[2] memory, uint256) external view returns (bytes32);
 }
+
+//import "forge-std/console2.sol";
 
 library ScrollTrieHooks {
 
@@ -22,6 +24,15 @@ library ScrollTrieHooks {
 	// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_proof.go#L13
 	// bytes32 constant MAGIC = keccak256("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI");
 
+	// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L30
+	uint256 constant NODE_LEAF          = 4;
+	uint256 constant NODE_LEAF_EMPTY    = 5;
+	uint256 constant NODE_LEAF_LEAF     = 6; // XX
+	uint256 constant NODE_LEAF_BRANCH   = 7; // XB
+	uint256 constant NODE_BRANCH_LEAF   = 8; // BX
+	uint256 constant NODE_BRANCH_BRANCH = 9; // BB
+
+	// 20240918: 900k gas
 	function proveAccountState(IPoseidon hasher, bytes32 stateRoot, address account, bytes[] memory proof) internal view returns (bytes32 storageRoot) {
 		//bytes32 raw = bytes32(bytes20(account)); 
 		bytes32 key = poseidonHash1(hasher, bytes32(bytes20(account))); // left aligned
@@ -46,16 +57,17 @@ library ScrollTrieHooks {
 		if (codeHash == NULL_CODE_HASH) storageRoot = NOT_A_CONTRACT;
 	}
 
+	// 20240918: 93k gas
 	function proveStorageValue(IPoseidon hasher, bytes32 storageRoot, uint256 slot, bytes[] memory proof) internal view returns (bytes32 value) {
 		bytes32 key = poseidonHash1(hasher, bytes32(slot));
 		(bytes32 leafHash, bytes memory leaf) = walkTree(hasher, key, proof, storageRoot);
 		uint256 nodeType = uint8(leaf[0]);
-		if (nodeType == 4) {
+		if (nodeType == NODE_LEAF) {
 			if (!isValidLeaf(leaf, 102, bytes32(slot), key, 0x01010000)) revert InvalidProof();
 			assembly { value := mload(add(leaf, 69)) }
 			bytes32 h = poseidonHash2(hasher, key, poseidonHash1(hasher, value), 4);
 			if (leafHash != h) revert InvalidProof(); // InvalidStorageLeafNodeHash
-		} else if (nodeType == 5) {
+		} else if (nodeType == NODE_LEAF_EMPTY) {
 			if (leaf.length != 1) revert InvalidProof();
 			if (leafHash != 0) revert InvalidProof(); // InvalidStorageEmptyLeafNodeHash
 		}
@@ -83,10 +95,11 @@ library ScrollTrieHooks {
 			bool left = uint256(key >> i) & 1 == 0;
 			uint256 nodeType = uint8(v[0]);
 			//console2.log("[%s] %s %s", i, nodeType, left ? "L" : "R");
-			if (done) {
-				if (nodeType == 4) break; // || nodeType == 5
+			if (nodeType == NODE_LEAF) {
+				// 20240917: tate noted 1 slot trie is just a terminal node
+				if (done || i == 0) break;
 				revert InvalidProof(); // expected leaf
-			} else if (nodeType < 6 || nodeType > 9 || v.length != 65) {
+			} else if (nodeType < NODE_LEAF_LEAF || nodeType > NODE_BRANCH_BRANCH || v.length != 65) {
 				revert InvalidProof(); // expected node
 			}
 			bytes32 l;
@@ -98,9 +111,7 @@ library ScrollTrieHooks {
 			bytes32 h = poseidonHash2(hasher, l, r, nodeType);
 			if (h != expectedHash) revert InvalidProof();
 			expectedHash = left ? l : r;
-			// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L30
-			// 6 XX | 7 XB | 8 BX | 9 BB
-			if (nodeType == 6 || (left ? nodeType == 7 : nodeType == 8)) {
+			if (nodeType == NODE_LEAF_LEAF || (left ? nodeType == NODE_LEAF_BRANCH : nodeType == NODE_BRANCH_LEAF)) {
 				//console2.log("done = true");
 				done = true;
 			}
@@ -110,8 +121,10 @@ library ScrollTrieHooks {
 	function poseidonHash1(IPoseidon hasher, bytes32 x) internal view returns (bytes32) {
 		return poseidonHash2(hasher, x >> 128, (x << 128) >> 128, 512);
 	}
-	function poseidonHash2(IPoseidon hasher, bytes32 v0, bytes32 v1, uint256 domain) internal view returns (bytes32 r) {
+	function poseidonHash2(IPoseidon hasher, bytes32 v0, bytes32 v1, uint256 domain) internal view returns (bytes32) {
+		//uint256 g = gasleft();
 		return hasher.poseidon([uint256(v0), uint256(v1)], domain);
+		//console2.log("hash: %s", g - gasleft());
 		/*
 		// try POSEIDON.poseidon([uint256(v0), uint256(v1)], domain) returns (bytes32 h) {
 		// 	return h;

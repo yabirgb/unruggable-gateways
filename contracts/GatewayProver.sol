@@ -2,30 +2,41 @@
 pragma solidity ^0.8.0;
 
 import "./GatewayProtocol.sol";
-import "./ProofUtils.sol";
+import {NOT_A_CONTRACT, InvalidProof} from "./ProofUtils.sol";
 
 import {Bytes} from "../lib/optimism/packages/contracts-bedrock/src/libraries/Bytes.sol"; // Bytes.slice
 
 import "forge-std/console2.sol"; // DEBUG
 
 library GatewayProver {
+
+	error RequestInvalid();
+
+	// current limit is 256 because of stackBits
+	uint256 constant MAX_STACK = 64;
 	
-	function dump(Machine memory vm) internal pure {
+	function dump(Machine memory vm, string memory label) internal view {
+		console2.log("DEBUG(%s)", label);
 		console2.log("[pos=%s/%s]", vm.pos, vm.buf.length);
-		console2.logBytes(vm.buf);
+		if (vm.buf.length < 256) console2.logBytes(vm.buf); // prevent spam
 		console2.log("[target=%s slot=%s]", vm.target, vm.slot);
 		console2.log("[proof=%s/%s]", vm.proofs.index, vm.proofs.order.length);
+		console2.log("[stackSize=%s]", vm.stackSize);
 		for (uint256 i; i < vm.stackSize; i++) {
-			console2.log("[stack=%s size=%s]", i, vm.stack[i].length);
-			console2.logBytes(vm.stack[i]);
+			bytes memory v = vm.stackAsBytes(i);
+			console2.log("%s [size=%s raw=%s]", i, v.length, vm.isStackRaw(i));
+			console2.logBytes(v);
 		}
+		uint256 mem;
+		assembly { mem := mload(64) }
+		console2.log("[memory=%s gas=%s]", mem, gasleft());
 	}
 
 	function uint256FromBytes(bytes memory v) internal pure returns (uint256) {
 		return uint256(v.length < 32 ? bytes32(v) >> ((32 - v.length) << 3) : bytes32(v));
 	}
 	
-	// TODO this checks beyond bound
+	// TODO: this checks beyond bound
 	function isZeros(bytes memory v) internal pure returns (bool ret) {
 		assembly {
 			let p := add(v, 32)
@@ -43,8 +54,9 @@ library GatewayProver {
 		bytes buf;
 		uint256 pos;
 		bytes[] inputs;
-		bytes[] stack;
+		uint256[] stack;
 		uint256 stackSize;
+		uint256 stackBits;
 		address target;
 		bytes32 storageRoot;
 		uint256 slot;
@@ -53,22 +65,50 @@ library GatewayProver {
 
 	using GatewayProver for Machine;
 
-	function push(Machine memory vm, bytes memory v) internal pure {
-		vm.stack[vm.stackSize++] = v;
+	function pushUint256(Machine memory vm, uint256 x) internal pure { vm.push(x, true); }
+	function pushBytes(Machine memory vm, bytes memory v) internal pure {
+		uint256 x;
+		assembly { x := v }
+		vm.push(x, false);
 	}
-	function pop(Machine memory vm) internal pure returns (bytes memory) {
-		return vm.stack[--vm.stackSize];
+	function push(Machine memory vm, uint256 x, bool raw) internal pure {
+		uint256 i = vm.stackSize++;
+		if (vm.isStackRaw(i) != raw) vm.stackBits ^= 1 << i;
+		vm.stack[i] = x;
 	}
-	function peek(Machine memory vm, uint8 back) internal pure returns (bytes memory v) {
-		if (back < vm.stackSize) {
-			v = vm.stack[vm.stackSize - 1 - back];
+	function isStackRaw(Machine memory vm, uint256 i) internal pure returns (bool) {
+		return (vm.stackBits & (1 << i)) != 0;
+	}
+	function isStackZeros(Machine memory vm, uint256 i) internal pure returns (bool) {
+		return vm.isStackRaw(i) ? vm.stackAsUint256(i) == 0 : isZeros(vm.stackAsBytes(i));
+	}
+	function stackAsUint256(Machine memory vm, uint256 i) internal pure returns (uint256) {
+		uint256 x = vm.stack[i];
+		if (vm.isStackRaw(i)) return x;
+		bytes memory v;
+		assembly { v := x }
+		return uint256FromBytes(v);
+	}
+	function stackAsBytes(Machine memory vm, uint256 i) internal pure returns (bytes memory v) {
+		uint256 x = vm.stack[i];
+		if (vm.isStackRaw(i)) {
+			v = abi.encode(x);
+		} else {
+			assembly { v := x }
 		}
 	}
-	function readBack(Machine memory vm) internal pure returns (uint256) {
-		uint8 back = vm.readByte();
-		if (back >= vm.stackSize) revert RequestOverflow();
-		return vm.stackSize - 1 - back;
+
+	function popAsUint256(Machine memory vm) internal pure returns (uint256) { return vm.stackAsUint256(vm.pop()); }
+	function popAsBytes(Machine memory vm) internal pure returns (bytes memory) { return vm.stackAsBytes(vm.pop()); }
+	function pop(Machine memory vm) internal pure returns (uint256) { 
+		return --vm.stackSize; // checked math
 	}
+
+	function checkBack(Machine memory vm, uint256 back) internal pure returns (uint256) {
+		//if (back < vm.stackSize) revert RequestInvalid();
+		return vm.stackSize - 1 - back; // checked math
+	}
+
 	function checkRead(Machine memory vm, uint256 n) internal pure returns (uint256 ptr) {
 		uint256 pos = vm.pos;
 		bytes memory buf = vm.buf;
@@ -80,25 +120,21 @@ library GatewayProver {
 		uint256 src = vm.checkRead(1);
 		assembly { i := shr(248, mload(src)) }
 	}
-	function readShort(Machine memory vm) internal pure returns (uint16 i) {
-		uint256 src = vm.checkRead(2);
-		assembly { i := shr(240, mload(src)) }
-	}
-	/*
-	function readBytes(Machine memory vm) internal pure returns (bytes memory v) {
-		uint256 n = vm.readShort();
-		uint256 src = vm.checkRead(n);
-		v = new bytes(n);
-		uint256 dst;
-		assembly { dst := v }
-		for (uint256 i; i < n; i += 32) {
-			assembly {
-				dst := add(dst, 32)
-				mstore(dst, mload(add(src, i)))
-			}
+	function readSmallBytesAsWord(Machine memory vm) internal pure returns (uint256 word) {
+		uint256 n = vm.readByte();
+		if (n != 0) {
+			if (n > 32) revert RequestInvalid(); // word size
+			uint256 src = vm.checkRead(n);
+			assembly { word := mload(src) }
+			word >>= (32 - n) << 3;
+			//assembly { word := shr(shl(3, sub(32, n)), mload(src)) }
 		}
 	}
-	*/
+	function readSmallBytes(Machine memory vm) internal pure returns (bytes memory v) {
+		uint256 n = vm.readByte();
+		v = Bytes.slice(vm.buf, vm.pos, n);
+		vm.pos += n;
+	}
 
 	function readProof(Machine memory vm) internal pure returns (bytes memory) {
 		ProofSequence memory p = vm.proofs;
@@ -153,12 +189,17 @@ library GatewayProver {
 		}
 	}
 
+	function loadProgram(Machine memory vm, bytes memory v) internal pure {
+		(vm.buf, vm.inputs) = abi.decode(v, (bytes, bytes[]));
+	}
+
 	function evalRequest(GatewayRequest memory req, ProofSequence memory proofs) internal view returns (bytes[] memory outputs, uint8 exitCode) {
 		Machine memory vm;
 		vm.pos = 0;
 		vm.buf = req.ops;
 		vm.inputs = req.inputs;
-		vm.stack = new bytes[](MAX_STACK);
+		vm.stack = new uint256[](MAX_STACK);
+		vm.stackBits = 0;
 		vm.stackSize = 0;
 		vm.proofs = proofs;
 		vm.target = address(0);
@@ -170,83 +211,161 @@ library GatewayProver {
 
 	function evalCommand(Machine memory vm, bytes[] memory outputs) internal view returns (uint8 exitCode) {
 		while (vm.pos < vm.buf.length) {
+			//uint256 g = gasleft();
 			uint256 op = vm.readByte();
 			if (op == OP_TARGET) {
-				vm.target = address(uint160(uint256FromBytes(vm.pop())));
-				vm.storageRoot = vm.proofs.proveAccountState(vm.proofs.stateRoot, vm.target, vm.readProof()); // TODO balance?
+				vm.target = address(uint160(vm.popAsUint256()));
+				vm.storageRoot = vm.proofs.proveAccountState(vm.proofs.stateRoot, vm.target, vm.readProof()); // TODO: balance?
 				vm.slot = 0;
 			} else if (op == OP_SET_OUTPUT) {
-				outputs[vm.readByte()] = vm.pop();
+				uint256 i = vm.popAsUint256(); // rhs evaluates BEFORE lhs
+				outputs[i] = vm.popAsBytes();
 			} else if (op == OP_REQ_CONTRACT) {
-				if (vm.storageRoot == NOT_A_CONTRACT) return 1;
+				if (vm.storageRoot == NOT_A_CONTRACT) return EXIT_NOT_A_CONTRACT;
 			} else if (op == OP_REQ_NONZERO) {
-				//if (isZeros(vm.peek(vm.readByte()))) return 1;
-				if (isZeros(vm.stack[vm.readBack()])) return 1;
+				if (vm.isStackZeros(vm.checkBack(0))) return EXIT_NOT_NONZERO;
+			} else if (op == OP_READ_SLOT) {
+				vm.pushBytes(vm.proveSlots(1));
 			} else if (op == OP_READ_SLOTS) {
-				vm.push(vm.proveSlots(vm.readByte()));
+				vm.pushBytes(vm.proveSlots(vm.popAsUint256()));
 			} else if (op == OP_READ_BYTES) {
-				vm.push(vm.proveBytes());
+				vm.pushBytes(vm.proveBytes());
+			} else if (op == OP_READ_HASHED) {
+				bytes memory v = vm.readProof();
+				if (keccak256(v) != bytes32(vm.popAsUint256())) revert InvalidProof();
+				vm.pushBytes(v);
 			} else if (op == OP_READ_ARRAY) {
-				vm.push(vm.proveArray(vm.readShort()));
+				vm.pushBytes(vm.proveArray(vm.popAsUint256()));
+			} else if (op == OP_PUSH_0) {
+				vm.pushUint256(0);
+			} else if (op == OP_SLOT) {
+				vm.slot = vm.popAsUint256();
+			} else if (op == OP_SLOT_ADD) {
+				vm.slot += vm.popAsUint256();
+			} else if (op == OP_SLOT_FOLLOW) {
+				vm.slot = uint256(keccak256(abi.encodePacked(vm.popAsBytes(), vm.slot)));
 			} else if (op == OP_PUSH_INPUT) {
-				vm.push(abi.encodePacked(vm.inputs[vm.readByte()]));
+				vm.pushBytes(vm.inputs[vm.popAsUint256()]);
 			} else if (op == OP_PUSH_OUTPUT) {
-				vm.push(abi.encodePacked(outputs[vm.readByte()]));
+				vm.pushBytes(outputs[vm.popAsUint256()]);
+			} else if (op == OP_PUSH_VALUE) {
+				vm.pushUint256(vm.readSmallBytesAsWord());
+			} else if (op == OP_PUSH_BYTES) {
+				vm.pushBytes(vm.readSmallBytes());
 			} else if (op == OP_PUSH_SLOT) {
-				vm.push(abi.encode(vm.slot));
+				vm.pushUint256(vm.slot);
 			} else if (op == OP_PUSH_TARGET) {
-				vm.push(abi.encodePacked(vm.target));
+				vm.pushBytes(abi.encodePacked(vm.target)); // NOTE: 20 bytes
 			} else if (op == OP_DUP) {
-				vm.push(abi.encodePacked(vm.stack[vm.readBack()]));
+				uint256 i = vm.checkBack(vm.popAsUint256());
+				vm.push(vm.stack[i], vm.isStackRaw(i));
 			} else if (op == OP_POP) {
 				if (vm.stackSize != 0) --vm.stackSize;
 			} else if (op == OP_SWAP) {
-				uint256 i = vm.readBack();
-				uint256 j = vm.stackSize - 1;
+				uint256 i = vm.checkBack(vm.popAsUint256());
+				uint256 j = vm.checkBack(0);
 				(vm.stack[i], vm.stack[j]) = (vm.stack[j], vm.stack[i]);
-			} else if (op == OP_SLOT_ZERO) {
-				vm.slot = 0;
-			} else if (op == OP_SLOT_ADD) {
-				vm.slot += uint256FromBytes(vm.pop());
-			} else if (op == OP_SLOT_FOLLOW) {
-				vm.slot = uint256(keccak256(abi.encodePacked(vm.pop(), vm.slot)));
+				if (vm.isStackRaw(i) != vm.isStackRaw(j)) {
+					vm.stackBits ^= (1 << i) | (1 << j);
+				}
 			} else if (op == OP_SLICE) {
-				vm.push(Bytes.slice(vm.pop(), vm.readShort(), vm.readShort()));
+				uint256 size = vm.popAsUint256();
+				uint256 pos = vm.popAsUint256();
+				bytes memory v = vm.popAsBytes();
+				uint256 end = pos + size;
+				if (end <= v.length) {
+					vm.pushBytes(Bytes.slice(v, pos, size));
+				} else if (pos >= v.length) { // beyond end
+					vm.pushBytes(new bytes(size));
+				} else { // partial
+					vm.pushBytes(bytes.concat(
+						Bytes.slice(v, pos, v.length - pos),
+						new bytes(end - v.length)
+					));
+				}
 			} else if (op == OP_KECCAK) {
-				vm.push(abi.encodePacked(keccak256(vm.pop())));
+				uint256 i = vm.pop();
+				if (vm.isStackRaw(i)) {
+					uint256 temp = vm.stackAsUint256(i);
+					assembly {
+						mstore(0, temp)
+						temp := keccak256(0, 32)
+					}
+					vm.pushUint256(temp);
+				} else {
+					vm.pushUint256(uint256(keccak256(vm.stackAsBytes(i))));
+				}
 			} else if (op == OP_CONCAT) {
-				if (vm.stackSize < 2) revert RequestInvalid();
-				bytes memory last = vm.pop();
-				vm.push(bytes.concat(vm.pop(), last));
+				bytes memory last = vm.popAsBytes();
+				vm.pushBytes(bytes.concat(vm.popAsBytes(), last));
+			} else if (op == OP_PLUS) {
+				uint256 last = vm.popAsUint256();
+				unchecked { vm.pushUint256(vm.popAsUint256() + last); }
+			// } else if (op == OP_SUBTRACT) {
+			// 	uint256 last = vm.popAsUint256();
+			// 	unchecked { vm.pushUint256(vm.popAsUint256() - last); }
+			} else if (op == OP_TIMES) {
+				uint256 last = vm.popAsUint256();
+				unchecked { vm.pushUint256(vm.popAsUint256() * last); }
+			} else if (op == OP_DIVIDE) {
+				uint256 last = vm.popAsUint256();
+				unchecked { vm.pushUint256(vm.popAsUint256() / last); }
+			} else if (op == OP_MOD) {
+				uint256 last = vm.popAsUint256();
+				vm.pushUint256(vm.popAsUint256() % last);
+			} else if (op == OP_AND) {
+				uint256 last = vm.popAsUint256();
+				vm.pushUint256(vm.popAsUint256() & last);
+			} else if (op == OP_OR) {
+				uint256 last = vm.popAsUint256();
+				vm.pushUint256(vm.popAsUint256() | last);
+			} else if (op == OP_XOR) {
+				uint256 last = vm.popAsUint256();
+				vm.pushUint256(vm.popAsUint256() ^ last);
+			} else if (op == OP_SHIFT_LEFT) {
+				vm.pushUint256(vm.popAsUint256() << vm.popAsUint256());
+			} else if (op == OP_SHIFT_RIGHT) {
+				vm.pushUint256(vm.popAsUint256() >> vm.popAsUint256());
+			} else if (op == OP_EQ) {
+				uint256 last = vm.popAsUint256();
+				vm.pushUint256(vm.popAsUint256() == last ? 1 : 0);
+			} else if (op == OP_LT) {
+				uint256 last = vm.popAsUint256();
+				vm.pushUint256(vm.popAsUint256() < last ? 1 : 0);
+			} else if (op == OP_GT) {
+				uint256 last = vm.popAsUint256();
+				vm.pushUint256(vm.popAsUint256() > last ? 1 : 0);
+			} else if (op == OP_NOT) {
+				vm.pushUint256(~vm.popAsUint256());
+			} else if (op == OP_NONZERO) {
+				vm.pushUint256(vm.isStackZeros(vm.pop()) ? 0 : 1);
 			} else if (op == OP_EVAL_INLINE) {
-				bytes memory program = vm.pop();
-				// save program
+				bytes memory program = vm.popAsBytes();
 				uint256 pos = vm.pos;
 				bytes memory buf = vm.buf;
 				bytes[] memory inputs = vm.inputs; 
-				// load new program
+				vm.loadProgram(program);
 				vm.pos = 0;
-				(vm.buf, vm.inputs) = abi.decode(program, (bytes, bytes[]));
 				exitCode = evalCommand(vm, outputs);
 				if (exitCode != 0) return exitCode;
-				// restore program
 				vm.pos = pos;
 				vm.buf = buf;
 				vm.inputs = inputs;
 			} else if (op == OP_EVAL_LOOP) {
-				uint8 back = vm.readByte();
 				uint8 flags = vm.readByte();
+				uint256 back = vm.popAsUint256();
 				Machine memory vm2;
-				(vm2.buf, vm2.inputs) = abi.decode(vm.pop(), (bytes, bytes[]));
+				vm2.loadProgram(vm.popAsBytes());
 				vm2.proofs = vm.proofs;
-				vm2.stack = new bytes[](MAX_STACK);
+				vm2.stack = new uint256[](MAX_STACK);
 				for (; back > 0 && vm.stackSize > 0; --back) {
 					vm2.target = vm.target;
 					vm2.storageRoot = vm.storageRoot;
 					vm2.slot = vm.slot;
 					vm2.pos = 0;
 					vm2.stackSize = 0;
-					vm2.push(vm.pop());
+					uint256 i = vm.pop();
+					vm2.push(vm.stack[i], vm.isStackRaw(i));
 					if ((flags & (evalCommand(vm2, outputs) != 0 ? STOP_ON_FAILURE : STOP_ON_SUCCESS)) != 0) {
 						break;
 					}
@@ -256,16 +375,17 @@ library GatewayProver {
 					vm.storageRoot = vm2.storageRoot;
 					vm.slot        = vm2.slot;
 					vm.stack       = vm2.stack;
+					vm.stackBits   = vm2.stackBits;
 					vm.stackSize   = vm2.stackSize;
 				} else {
 					vm.stackSize = vm.stackSize > back ? vm.stackSize - back : 0;
 				}
 			} else if (op == OP_DEBUG) {
-				console2.log("DEBUG(%s)", string(vm.inputs[vm.readByte()]));
-				vm.dump();
+				vm.dump(string(vm.readSmallBytes()));
 			} else {
 				revert RequestInvalid();
 			}
+			//console2.log("op=%s gas=%s", op, g - gasleft());
 		}
 		return 0;
 	}

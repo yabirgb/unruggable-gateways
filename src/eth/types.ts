@@ -1,4 +1,10 @@
-import type { HexAddress, HexString, HexString32 } from '../types.js';
+import type {
+  EncodedProof,
+  HexAddress,
+  HexString,
+  HexString32,
+} from '../types.js';
+import { ABI_CODER, NULL_CODE_HASH } from '../utils.js';
 
 export type EthProof = HexString[];
 
@@ -51,3 +57,13 @@ export type RPCEthGetBlock<TransactionT = HexString> = {
   excessBlobGas?: HexString;
   parentBeaconBlockRoot?: HexString32;
 };
+
+export function isContract(proof: EthAccountProof) {
+  return (
+    proof.codeHash !== NULL_CODE_HASH && proof.keccakCodeHash !== NULL_CODE_HASH
+  );
+}
+
+export function encodeProof(proof: EthProof): EncodedProof {
+  return ABI_CODER.encode(['bytes[]'], [proof]);
+}

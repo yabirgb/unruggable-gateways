@@ -5,6 +5,7 @@ import { createProviderPair, providerURL } from '../providers.js';
 import { LineaGatewayV1 } from '../../src/linea/LineaGatewayV1.js';
 import { LineaRollup } from '../../src/linea/LineaRollup.js';
 import { encodeShortString } from '../utils.js';
+import { toPaddedHex } from '../../src/utils.js';
 
 // backend for linea.eth / https://names.linea.build/
 
@@ -21,7 +22,7 @@ const VERIFIER = '0x2aD1A39a3b616FB11ac5DB290061A0A5C09771f3';
 const SLOT = BigInt(ethers.solidityPackedKeccak256(['uint256'], [0]));
 await foundry.provider.send('anvil_setStorageAt', [
   VERIFIER,
-  ethers.toBeHex(SLOT, 32),
+  toPaddedHex(SLOT),
   encodeShortString(ccip.endpoint),
 ]);
 const verifier = new ethers.Contract(

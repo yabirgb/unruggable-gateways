@@ -25,7 +25,6 @@ struct StoredBatchInfo {
 contract ZKSyncVerifier is AbstractVerifier {
 
 	IZKSyncSMT immutable _smt;
-
 	constructor(IZKSyncSMT smt) {
 		_smt = smt;
 	}
@@ -75,7 +74,7 @@ contract ZKSyncVerifier is AbstractVerifier {
 		return proof.length > 0 && _proveValue(root, ACCOUNT_CODE_HASH, uint160(target), proof) == 0 ? NOT_A_CONTRACT : root;
 	}
 
-	// TODO should this be moved to an external library?
+	// TODO: should this be moved to an external library?
 	function _proveValue(bytes32 root, address target, uint256 slot, bytes memory proof) internal view returns (bytes32) {
 		(bytes32 value, uint64 leafIndex, bytes32[] memory path) = abi.decode(proof, (bytes32, uint64, bytes32[]));
 		require(root == _smt.getRootHash(path, TreeEntry(slot, value, leafIndex), target), "ZKS: proof");

@@ -1,28 +1,25 @@
-import type {
-  HexAddress,
-  HexString,
-  HexString32,
-  ProviderPair,
-} from '../types.js';
-import type { RPCEthGetBlock } from '../eth/types.js';
-import { type ABIHeaderTuple, ROOT_CHAIN_ABI } from './types.js';
-import type { ProofSequence } from '../vm.js';
-import {
-  ZeroHash,
-  Log,
-  getBytes,
-  Contract,
-  hexlify,
-  id as keccakStr,
-} from 'ethers';
-import { CHAINS } from '../chains.js';
-import { EthProver } from '../eth/EthProver.js';
 import {
   AbstractRollup,
   type RollupCommit,
   type RollupDeployment,
 } from '../rollup.js';
-import { ABI_CODER, toString16 } from '../utils.js';
+import type {
+  HexAddress,
+  HexString,
+  HexString32,
+  ProviderPair,
+  ProofSequence,
+} from '../types.js';
+import type { RPCEthGetBlock } from '../eth/types.js';
+import { type ABIHeaderTuple, ROOT_CHAIN_ABI } from './types.js';
+import { ZeroHash } from 'ethers/constants';
+import { Contract } from 'ethers/contract';
+import { Log } from 'ethers/providers';
+import { id as keccakStr } from 'ethers/hash';
+import { getBytes, hexlify } from 'ethers/utils';
+import { CHAINS } from '../chains.js';
+import { EthProver } from '../eth/EthProver.js';
+import { ABI_CODER, toUnpaddedHex } from '../utils.js';
 import { encodeRlpBlock } from '../rlp.js';
 
 export type PolygonPoSPoster = {
@@ -238,10 +235,10 @@ export class PolygonPoSRollup extends AbstractRollup<PolygonPoSCommit> {
   // experimental idea: commit serialization
   JSONFromCommit(commit: PolygonPoSCommit) {
     return {
-      index: toString16(commit.index),
+      index: toUnpaddedHex(commit.index),
       l2BlockNumber: commit.prover.block,
-      l2BlockNumberStart: toString16(commit.l2BlockNumberStart),
-      l2BlockNumberEnd: toString16(commit.l2BlockNumberEnd),
+      l2BlockNumberStart: toUnpaddedHex(commit.l2BlockNumberStart),
+      l2BlockNumberEnd: toUnpaddedHex(commit.l2BlockNumberEnd),
       rlpEncodedBlock: hexlify(commit.rlpEncodedBlock),
       rlpEncodedProof: hexlify(commit.rlpEncodedProof),
       rootHash: commit.rootHash,

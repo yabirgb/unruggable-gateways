@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import {AbstractVerifier, StorageSlot} from "../AbstractVerifier.sol";
 import {GatewayRequest, GatewayProver, ProofSequence} from "../GatewayProver.sol";
 import {EthTrieHooks} from "../eth/EthTrieHooks.sol";
-import {RLPReader} from "../../lib/optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
+import {RLPReader, RLPReaderExt} from "../RLPReaderExt.sol";
 import {Node, IRollupCore} from "./IRollupCore.sol"; // @arbitrum/nitro-contracts/src/rollup/IRollupCore.sol
 
 contract NitroVerifier is AbstractVerifier {
@@ -42,7 +42,7 @@ contract NitroVerifier is AbstractVerifier {
  		bytes32 confirmData = keccak256(abi.encodePacked(keccak256(rlpEncodedBlock), sendRoot));
 		require(confirmData == node.confirmData, "Nitro: confirmData");
 		RLPReader.RLPItem[] memory v = RLPReader.readList(rlpEncodedBlock);
-		bytes32 stateRoot =bytes32(RLPReader.readBytes(v[3])); // see: rlp.ts: encodeRlpBlock()
+		bytes32 stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]); // see: rlp.ts: encodeRlpBlock()
 		return GatewayProver.evalRequest(req, ProofSequence(0,
 			stateRoot,
 			proofs, order,

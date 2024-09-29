@@ -1,32 +1,33 @@
-import type { RPCZKSyncGetProof, ZKSyncStorageProof } from './types.js';
 import type {
   Provider,
   HexAddress,
   HexString,
-  EncodedProof,
+  ProofRef,
+  ProofSequence,
 } from '../types.js';
 import {
+  type RPCZKSyncGetProof,
+  type ZKSyncStorageProof,
+  encodeProof,
+} from './types.js';
+import {
   AbstractProver,
+  isTargetNeed,
   makeStorageKey,
   type Need,
-  type ProofSequence,
 } from '../vm.js';
-import { toBeHex } from 'ethers';
-import { ABI_CODER, withResolvers } from '../utils.js';
+import { ZeroAddress } from 'ethers/constants';
+import { toPaddedHex, withResolvers } from '../utils.js';
+import { unwrap } from '../wrap.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
 // https://github.com/matter-labs/era-contracts/blob/fd4aebcfe8833b26e096e87e142a5e7e4744f3fa/system-contracts/bootloader/bootloader.yul#L458
 export const ZKSYNC_ACCOUNT_CODEHASH =
   '0x0000000000000000000000000000000000008002';
 
-function encodeStorageProof(proof: ZKSyncStorageProof) {
-  return ABI_CODER.encode(
-    ['bytes32', 'uint64', 'bytes32[]'],
-    [proof.value, proof.index, proof.proof]
-  );
-}
-
+// zksync proofs are relative to a *batch* not a *block*
 export class ZKSyncProver extends AbstractProver {
+  static readonly encodeProof = encodeProof;
   static async latest(provider: Provider) {
     return new this(
       provider,
@@ -34,10 +35,10 @@ export class ZKSyncProver extends AbstractProver {
     );
   }
   constructor(
-    readonly provider: Provider,
+    provider: Provider,
     readonly batchIndex: number
   ) {
-    super();
+    super(provider);
   }
   override async isContract(target: HexAddress): Promise<boolean> {
     const storageProof: ZKSyncStorageProof | undefined =
@@ -49,7 +50,8 @@ export class ZKSyncProver extends AbstractProver {
   }
   override async getStorage(
     target: HexAddress,
-    slot: bigint
+    slot: bigint,
+    fast?: boolean
   ): Promise<HexString> {
     target = target.toLowerCase();
     const storageKey = makeStorageKey(target, slot);
@@ -58,60 +60,76 @@ export class ZKSyncProver extends AbstractProver {
     if (storageProof) {
       return storageProof.value;
     }
-    if (this.fastCache) {
-      return this.fastCache.get(storageKey, () =>
-        this.provider.getStorage(target, slot)
-      );
+    if (fast || this.fast) {
+      return this.cache.get(storageKey, () => {
+        return this.provider.getStorage(target, slot);
+      });
     }
     const vs = await this.getStorageProofs(target, [slot]);
     return vs[0].value;
   }
   override async prove(needs: Need[]): Promise<ProofSequence> {
-    type Ref = { id: number; proof: EncodedProof };
-    const targets = new Map<HexString, Map<bigint, Ref>>();
-    const refs: Ref[] = [];
-    let nullRef: Ref | undefined;
+    const promises: Promise<void>[] = [];
+    const buckets = new Map<HexAddress, Map<bigint, ProofRef>>();
+    const refs: ProofRef[] = [];
+    let nullRef: ProofRef | undefined;
     const createRef = () => {
       const ref = { id: refs.length, proof: '0x' };
       refs.push(ref);
       return ref;
     };
-    const order = needs.map(([target, slot]) => {
-      if (slot === false) {
-        // accountProof that isn't used
-        // save 12m gas by not including a proof
-        if (!nullRef) nullRef = createRef();
-        return nullRef.id;
-      }
-      if (slot === true) {
-        slot = BigInt(target);
-        target = ZKSYNC_ACCOUNT_CODEHASH;
-      }
-      let bucket = targets.get(target);
+    const addSlot = (target: HexAddress, slot: bigint) => {
+      if (target === ZeroAddress) return (nullRef ??= createRef());
+      let bucket = buckets.get(target);
       if (!bucket) {
         bucket = new Map();
-        targets.set(target, bucket);
+        buckets.set(target, bucket);
       }
       let ref = bucket.get(slot);
       if (!ref) {
         ref = createRef();
         bucket.set(slot, ref);
       }
-      return ref.id;
-    });
-    await Promise.all(
-      Array.from(targets, async ([target, map]) => {
-        const m = [...map];
-        const proofs = await this.getStorageProofs(
-          target,
-          m.map(([slot]) => slot)
+      return ref;
+    };
+    let target = ZeroAddress;
+    const order = needs.map((need) => {
+      if (isTargetNeed(need)) {
+        // codehash for contract A is not stored in A
+        // it is stored in the global codehash contract
+        target = need.target;
+        return addSlot(
+          need.required ? ZKSYNC_ACCOUNT_CODEHASH : ZeroAddress,
+          BigInt(need.target)
         );
-        m.forEach(([, ref], i) => (ref.proof = encodeStorageProof(proofs[i])));
-      })
+      } else if (typeof need === 'bigint') {
+        return addSlot(target, need);
+      } else {
+        const ref = createRef();
+        promises.push(
+          (async () => {
+            ref.proof = await unwrap(need.value);
+          })()
+        );
+        return ref;
+      }
+    });
+    this.checkProofCount(refs.length);
+    await Promise.all(
+      promises.concat(
+        Array.from(buckets, async ([target, map]) => {
+          const m = [...map];
+          const proofs = await this.getStorageProofs(
+            target,
+            m.map(([slot]) => slot)
+          );
+          m.forEach(([, ref], i) => (ref.proof = encodeProof(proofs[i])));
+        })
+      )
     );
     return {
       proofs: refs.map((x) => x.proof),
-      order: Uint8Array.from(order),
+      order: Uint8Array.from(order, (x) => x.id),
     };
   }
   async getStorageProofs(target: HexString, slots: bigint[]) {
@@ -160,7 +178,7 @@ export class ZKSyncProver extends AbstractProver {
           target,
           slots
             .slice(i, (i += this.proofBatchSize))
-            .map((slot) => toBeHex(slot, 32)),
+            .map((slot) => toPaddedHex(slot)),
           this.batchIndex,
         ])
       );

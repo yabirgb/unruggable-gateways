@@ -2,9 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {SparseMerkleProof} from "./SparseMerkleProof.sol";
-import {NOT_A_CONTRACT, NULL_CODE_HASH} from "../ProofUtils.sol";
-
-error InvalidProof();
+import {NOT_A_CONTRACT, NULL_CODE_HASH, InvalidProof} from "../ProofUtils.sol";
 
 library LineaTrieHooks {
 
@@ -27,7 +25,7 @@ library LineaTrieHooks {
 		} else {
 			_requireAbsence(stateRoot, hKey, proofs);
 			return NOT_A_CONTRACT;
-		}
+		}		
 	}
 
 	function proveStorageValue(bytes32 storageRoot, address, uint256 slot, bytes memory encodedProof) internal pure returns (bytes32) {
@@ -44,12 +42,15 @@ library LineaTrieHooks {
 		}
 	}
 
+	// 20240917: 1.3m gas
 	function _requireExistance(bytes32 root, bytes32 hKey, bytes32 hValue, Proof memory proof) internal pure {
 		if (!SparseMerkleProof.verifyProof(proof.nodes, proof.leafIndex, root)) revert InvalidProof();
 		SparseMerkleProof.Leaf memory leaf = SparseMerkleProof.getLeaf(proof.nodes[LAST_LEAF_INDEX]);
 		if (hKey != leaf.hKey || hValue != leaf.hValue) revert InvalidProof();
 	}
 
+	// 20240917: 2.5m gas
+	// 20240921: https://github.com/Consensys/shomei/issues/97
 	function _requireAbsence(bytes32 root, bytes32 hKey, Proof[] memory proofs) internal pure {
 		if (proofs.length != 2) revert InvalidProof();
 		Proof memory proofL = proofs[0];

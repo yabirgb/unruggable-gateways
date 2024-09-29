@@ -208,7 +208,7 @@ export class LRU<K, V> {
   }
   #deleteOldest(n: number) {
     const iter = this.#map.keys();
-    while (n--) this.#map.delete(iter.next().value);
+    while (n--) this.#map.delete(iter.next().value!);
   }
   keys() {
     return this.#map.keys();

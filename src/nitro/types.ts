@@ -1,4 +1,4 @@
-import { Interface } from 'ethers';
+import { Interface } from 'ethers/abi';
 
 // https://github.com/OffchainLabs/nitro-contracts/blob/main/src/rollup/RollupCore.sol
 export const ROLLUP_ABI = new Interface([
