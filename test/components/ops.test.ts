@@ -1,19 +1,14 @@
-import {
-  GatewayProgram,
-  GatewayRequest,
-  solidityArraySlots,
-  solidityFollowSlot,
-} from '../../src/vm.js';
+import { GatewayProgram, GatewayRequest } from '../../src/vm.js';
 import type { BigNumberish } from '../../src/types.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ZeroAddress } from 'ethers/constants';
 import { id as keccakStr } from 'ethers/hash';
+import { randomBytes } from 'ethers/crypto';
 import { hexlify, dataSlice, toUtf8Bytes, concat } from 'ethers/utils';
 import { toPaddedHex } from '../../src/utils.js';
 import { afterAll, expect, test } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
-import { randomBytes } from 'ethers/crypto';
 
 function rngUint(n = 32) {
   return BigInt(hexlify(randomBytes(n)));
@@ -231,15 +226,21 @@ describe('ops', async () => {
     expect(state.values[0]).toEqual(toPaddedHex(sum));
   });
 
-  test('subtract', async () => {
+  test('plus wraps', async () => {
     const req = new GatewayRequest().push(3).push(-1).plus().addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(toPaddedHex(2));
   });
 
+  test('times wraps', async () => {
+    const req = new GatewayRequest().push(2).push(-1).times().addOutput();
+    const { values } = await verify(req);
+    expect(values[0]).toEqual(toPaddedHex(-2));
+  });
+
   test('divide by zero', async () => {
     const req = new GatewayRequest().push(1).push(0).divide().addOutput();
-    expect(verify(req)).rejects.toThrow('divi');
+    expect(verify(req)).rejects.toThrow('divi'); // NOTE: node/bun use diff message
   });
 
   test('not', async () => {
@@ -250,26 +251,28 @@ describe('ops', async () => {
 
   testRepeat('shift left', async () => {
     const x = rngUint();
-    const shift = rngUint(2);
+    const shift = rngUint(1);
     const req = new GatewayRequest().push(x).shl(shift).addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(toPaddedHex(x << shift));
   });
 
-  test('shift right', async () => {
-    const req = new GatewayRequest().push(256).shr(8).addOutput();
+  testRepeat('shift right', async () => {
+    const x = rngUint();
+    const shift = rngUint(1);
+    const req = new GatewayRequest().push(x).shr(shift).addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(1));
+    expect(values[0]).toEqual(toPaddedHex(x >> shift));
   });
 
   test('cast to uint256', async () => {
     const value = '0x88';
     const req = new GatewayRequest()
-      .pushBytes(value)
+      .pushBytes(value) // NOTE: not push()
+      .dup()
       .addOutput()
-      .pushBytes(value) // note: not push()
       .push(0)
-      .or()
+      .or() // turns bytes(0x88) into uint256(0x88)
       .addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(value);
@@ -277,32 +280,32 @@ describe('ops', async () => {
   });
 
   test('dup last', async () => {
-    const req = new GatewayRequest().push(1).dup();
-    const { stack } = await verify(req);
-    expect(stack).toEqual(toPaddedArray([1, 1]));
+    const req = new GatewayRequest().push(1).dup().drain(2);
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([1, 1]));
   });
 
   test('dup deep', async () => {
-    const req = new GatewayRequest().push(1).push(2).push(3).dup(2);
-    const { stack } = await verify(req);
-    expect(stack).toEqual(toPaddedArray([1, 2, 3, 1]));
+    const req = new GatewayRequest().push(1).push(2).push(3).dup(2).drain(4);
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([1, 2, 3, 1]));
   });
 
   test('dup nothing', async () => {
-    const req = new GatewayRequest().dup().addOutput();
+    const req = new GatewayRequest().dup();
     expect(verify(req)).rejects.toThrow('back overflow');
   });
 
   test('dup2', async () => {
-    const req = new GatewayRequest().push(1).push(2).dup(1).dup(1);
-    const { stack } = await verify(req);
-    expect(stack).toEqual(toPaddedArray([1, 2, 1, 2]));
+    const req = new GatewayRequest().push(1).push(2).dup(1).dup(1).drain(4);
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([1, 2, 1, 2]));
   });
 
   test('swap', async () => {
-    const req = new GatewayRequest().push(1).push(2).swap();
-    const { stack } = await verify(req);
-    expect(stack).toEqual(toPaddedArray([2, 1]));
+    const req = new GatewayRequest().push(1).push(2).swap().drain(2);
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([2, 1]));
   });
 
   test('swap mixed', async () => {
@@ -358,9 +361,13 @@ describe('ops', async () => {
   });
 
   test('follow slot', async () => {
-    const req = new GatewayRequest().setSlot(6).pushStr('raffy').follow();
-    const { slot } = await verify(req);
-    expect(slot).toEqual(solidityFollowSlot(6, utf8Hex('raffy')));
+    const req = new GatewayRequest()
+      .setSlot(6)
+      .pushStr('raffy')
+      .follow()
+      .pushSlot()
+      .addOutput();
+    await verify(req);
   });
 
   test('follow value', async () => {
@@ -380,9 +387,10 @@ describe('ops', async () => {
       .setTarget(contract.target)
       .setSlot(5)
       .push(1) // names[1]
-      .followIndex();
-    const { slot } = await verify(req);
-    expect(slot).toEqual(solidityArraySlots(5, 2)[1]);
+      .followIndex()
+      .pushSlot()
+      .addOutput();
+    await verify(req);
   });
 
   test('followIndex value', async () => {

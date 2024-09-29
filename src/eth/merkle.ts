@@ -2,7 +2,7 @@ import type { HexString, BigNumberish } from '../types.js';
 import type { EthProof } from './types.js';
 import { ZeroHash } from 'ethers/constants';
 import { keccak256 } from 'ethers/crypto';
-import { decodeRlp, zeroPadValue } from 'ethers/utils';
+import { decodeRlp } from 'ethers/utils';
 import { toPaddedHex } from '../utils.js';
 
 // https://github.com/ethereum/consensus-specs/blob/dev/ssz/merkle-proofs.md
@@ -53,7 +53,7 @@ export function proveStorageValue(
   if (!rlp) return ZeroHash;
   const decoded = decodeRlp(rlp);
   if (typeof decoded !== 'string') throw new Error('invalid storage value');
-  return zeroPadValue(decoded, 32);
+  return toPaddedHex(decoded);
 }
 
 // same arg order as MerkleTrie.get()

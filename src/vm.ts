@@ -318,9 +318,6 @@ export class GatewayRequest extends GatewayProgram {
     super();
     this.addByte(outputCount);
   }
-  get outputCount() {
-    return this.ops[0];
-  }
   override clone() {
     const temp = new GatewayRequest();
     temp.ops.length = 0;
@@ -328,13 +325,27 @@ export class GatewayRequest extends GatewayProgram {
     temp.inputs.push(...this.inputs);
     return temp;
   }
-  // convenience for writing JS-based requests
-  // (this functionality is not available in solidity)
+  get outputCount() {
+    return this.ops[0];
+  }
+  // the following functionality is not available in solidity!
+  private ensureCapacity(n: number) {
+    if (n < this.outputCount) throw new Error('invalid capacity');
+    if (n > 0xff) throw new Error('output overflow');
+    this.ops[0] = n;
+  }
+  // convenience for writing requests
   addOutput() {
-    const i = this.ops[0];
-    if (i == 0xff) throw new Error('output overflow');
-    this.ops[0] = i + 1;
+    const i = this.outputCount;
+    this.ensureCapacity(i + 1);
     return this.setOutput(i);
+  }
+  // convenience for draining stack into outputs
+  drain(count: number) {
+    const offset = this.outputCount;
+    this.ensureCapacity(offset + count);
+    while (count > 0) this.setOutput(offset + --count);
+    return this;
   }
 }
 
