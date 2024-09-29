@@ -108,10 +108,15 @@ describe('ops', async () => {
   });
 
   test('setSlot', async () => {
-    const slot = 1337n;
-    const req = new GatewayRequest().push(slot).slot();
-    const state = await verify(req);
-    expect(state.slot).toEqual(slot);
+    const req = new GatewayRequest().push(123).slot().pushSlot().addOutput();
+    const { values } = await verify(req);
+    expect(values[0]).toEqual(toPaddedHex(123));
+  });
+
+  test('addSlot', async () => {
+    const req = new GatewayRequest().push(123).addSlot().pushSlot().addOutput();
+    const { values } = await verify(req);
+    expect(values[0]).toEqual(toPaddedHex(123));
   });
 
   test('keccak', async () => {
