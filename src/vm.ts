@@ -8,7 +8,7 @@ import type {
   ProofSequenceV1,
   Provider,
 } from './types.js';
-import { ZeroAddress, ZeroHash, MaxUint256 } from 'ethers/constants';
+import { ZeroAddress, ZeroHash } from 'ethers/constants';
 import { Contract } from 'ethers/contract';
 import { Interface } from 'ethers/abi';
 import { keccak256 } from 'ethers/crypto';
@@ -256,8 +256,11 @@ export class GatewayProgram {
   plus() {
     return this.addByte(OP.PLUS);
   }
+  negate() {
+    return this.not().push(1).plus(); // twos complement
+  }
   subtract() {
-    return this.push(MaxUint256).plus().not().plus(); // TODO: add op?
+    return this.negate().plus();
   }
   times() {
     return this.addByte(OP.TIMES);
