@@ -2,9 +2,10 @@
 import { GatewayRequest, } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
-import { toPaddedHex } from '../../src/utils.js';
-import * as assert from 'node:assert/strict';
+//import { toPaddedHex, toUnpaddedHex } from '../../src/utils.js';
 import { hexlify, keccak256, randomBytes } from 'ethers';
+import { expect } from 'bun:test';
+import { toPaddedHex } from '../../src/utils.js';
 
 function rngUint(n = 32) {
 	return BigInt(hexlify(randomBytes(n)));
@@ -26,29 +27,37 @@ try {
 		]);
 		const args = [req.toTuple(), stateRoot, proofSeq.proofs, proofSeq.order];
 		const res = await verifier.verify(...args);
-		assert.deepEqual(values, res.outputs.toArray());
-		assert.equal(res.exitCode, BigInt(state.exitCode));
+		expect(res.outputs.toArray()).toEqual(values);
+		expect(res.exitCode).toEqual(BigInt(state.exitCode));
 		return { values, ...state };
 	}
 
 	const req = new GatewayRequest();
-	req.debug();
+	req.debug('before');
+	// req.push(0);
+	// req.slice(0, 1000);
 	req.push(0);
 	let sum = 0n;
-	const n = 4000;
-	for (let i = 0; i < n; i++) {
+	for (let i = 0; i < 5000; i++) {
 		//req.push(1).plus();
-		const x = rngUint();
+		
+		const x = BigInt(i); //rngUint(8);
+		//req.pushBytes(toPaddedHex(x)).plus();
 		req.push(x).plus();
 		sum += x;
-		req.keccak();
-		sum = BigInt(keccak256(toPaddedHex(sum)));
+		
 		//req.keccak();
+		//sum = BigInt(keccak256(toPaddedHex(sum)));
+		//req.keccak();
+
+		
+		//req.push(i).concat();
 	}
+
 	req.addOutput();
-	req.debug();
+	req.debug('after');
 	const state = await verify(req);
-	assert.equal(state.values[0],  toPaddedHex(sum));
+	expect(state.values[0]).toEqual(toPaddedHex(sum));
 
 } finally {
 	await foundry.shutdown();

@@ -50,9 +50,7 @@ test('ClowesConcatSlice', async () => {
 
   const values = await prover.evalRequest(req).then((r) => r.resolveOutputs());
 
-  expect(values).toHaveLength(2);
-  expect(values[0]).toStrictEqual(data);
-  expect(values[1]).toStrictEqual(toPaddedHex(VALUE));
+  expect(values).toStrictEqual([data, toPaddedHex(VALUE)]);
 });
 
 test('FOLLOW === PUSH_SLOT CONCAT KECCAK SLOT', async () => {

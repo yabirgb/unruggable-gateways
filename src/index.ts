@@ -6,7 +6,7 @@ export * from './utils.js';
 export * from './chains.js';
 export * from './rlp.js';
 
-//export * from './ops.js';
+//export * from './ops.js'; use GatewayRequest.Opcodes instead
 export * from './reader.js';
 export * from './vm.js';
 export * from './v1.js';

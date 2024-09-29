@@ -2,9 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {SparseMerkleProof} from "./SparseMerkleProof.sol";
-import {NOT_A_CONTRACT, NULL_CODE_HASH} from "../ProofUtils.sol";
-
-error InvalidProof();
+import {NOT_A_CONTRACT, NULL_CODE_HASH, InvalidProof} from "../ProofUtils.sol";
 
 library LineaTrieHooks {
 

@@ -134,7 +134,7 @@ describe('hashed', async () => {
               .readHashedBytes()
               .addOutput()
           )
-        ).rejects.toThrow('hashed proof');
+        ).rejects.toThrow('InvalidProof');
       });
     });
   }

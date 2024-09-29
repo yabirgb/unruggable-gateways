@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.15;
+pragma solidity ^0.8.0;
 
 contract SlotDataContract {
 	uint256 latest = 49;                                // Slot 0

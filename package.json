@@ -18,7 +18,7 @@
     "forge": "forge build --force",
     "serve": "bun test/serve.ts",
     "test": "bun test --timeout 25000",
-    "test-components": "bun test test/components/* --timeout 25000",
+    "test-components": "bun test/opcodes.ts && bun test test/components/* --timeout 25000",
     "test-gateways": "bun test test/gateway/* --timeout 25000",
     "test-fast": "bun run check && bun run lint && bun run test-components && bun test test/gateway/op.test.ts && bun test test/gateway/reverse-op.test.ts",
     "lint": "eslint . --ext .ts",

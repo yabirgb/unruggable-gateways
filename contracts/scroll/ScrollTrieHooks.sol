@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {NOT_A_CONTRACT, NULL_CODE_HASH} from "../ProofUtils.sol";
+import {NOT_A_CONTRACT, NULL_CODE_HASH, InvalidProof} from "../ProofUtils.sol";
 
-error InvalidProof();
+//error InvalidProof();
 
 interface IPoseidon {
 	function poseidon(uint256[2] memory, uint256) external view returns (bytes32);

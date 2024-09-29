@@ -30,6 +30,7 @@ uint8 constant OP_PUSH_SLOT = 42;
 uint8 constant OP_PUSH_TARGET = 43;
 uint8 constant OP_PUSH_VALUE = 44;
 uint8 constant OP_PUSH_BYTES = 45;
+uint8 constant OP_PUSH_0 = 46;
 
 uint8 constant OP_DUP = 50;
 uint8 constant OP_POP = 51;
@@ -72,17 +73,3 @@ struct ProofSequence {
 	function(bytes32, address, bytes memory) internal view returns (bytes32) proveAccountState;
 	function(bytes32, address, uint256, bytes memory) internal view returns (bytes32) proveStorageValue;
 }
-
-// the limits are very high so RequestOverflow() is unlikely
-// the typical fetch request is incredibly small relative to the proof
-// so there's no need for data-saving operations (like PUSH_BYTE)
-// 20240922: PUSH_BYTE is useful for compact ESP
-// currently, inputs are not embedded into the ops buffer
-// but they could be to further simplify the protocol
-error RequestOverflow();
-
-// this should be unreachable with a valid GatewayRequest
-error RequestInvalid();
-
-//error VerifierMismatch(bytes context, bytes32 derived, bytes32 actual);
-//error VerifierUnsatisfiable();

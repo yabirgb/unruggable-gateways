@@ -1,4 +1,4 @@
-import { GatewayRequest, MAX_STACK } from '../../src/vm.js';
+import { GatewayRequest } from '../../src/vm.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { keccak256 } from 'ethers/crypto';
 import { EthProver } from '../../src/eth/EthProver.js';
@@ -30,8 +30,9 @@ describe('limits', async () => {
 
   test('max stack', async () => {
     const prover = await EthProver.latest(foundry.provider);
+    prover.maxStackSize = 10;
     const req = new GatewayRequest();
-    for (let i = 0; i < MAX_STACK; i++) {
+    for (let i = 0; i < prover.maxStackSize; i++) {
       req.push(0);
     }
     await exec(prover, req);
@@ -51,7 +52,7 @@ describe('limits', async () => {
     expect(exec(prover, req)).rejects.toThrow('too many targets');
   });
 
-  test('max proven bytes', async () => {
+  test('max provable bytes', async () => {
     const prover = await EthProver.latest(foundry.provider);
     prover.maxUniqueProofs = 2 + Math.ceil(MAX_BYTES / 32); // account + length + slots
     prover.maxProvableBytes = MAX_BYTES;
@@ -83,6 +84,19 @@ describe('limits', async () => {
       .readHashedBytes();
     await exec(prover, passReq);
     expect(exec(prover, failReq)).rejects.toThrowError(/^too many bytes:/);
+  });
+
+  test('max assemble bytes', async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    prover.maxAssembleBytes = 1024;
+    function double(x: GatewayRequest, n = 1) {
+      while (n--) x = x.dup().concat();
+      return x;
+    }
+    const req = double(new GatewayRequest().push(1), 5);
+    await exec(prover, req);
+    double(req); // one more
+    expect(exec(prover, req)).rejects.toThrowError(/^too many bytes:/);
   });
 
   test('max proofs', async () => {

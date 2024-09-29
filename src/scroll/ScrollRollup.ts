@@ -16,7 +16,7 @@ import { concat } from 'ethers/utils';
 import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import { POSEIDON_ABI, ROLLUP_ABI, VERIFIER_ABI } from './types.js';
-import { ABI_CODER, toUnpaddedHex, toPaddedHex } from '../utils.js';
+import { ABI_CODER, toPaddedHex } from '../utils.js';
 
 // https://github.com/scroll-tech/scroll-contracts/
 // https://docs.scroll.io/en/developers/ethereum-and-scroll-differences/
@@ -43,14 +43,14 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.SCROLL,
     ScrollChainCommitmentVerifier: '0xC4362457a91B2E55934bDCb7DaaF6b1aB3dDf203',
-    apiURL: 'https://mainnet-api-re.scroll.io/api/',
+    apiURL: 'https://mainnet-api-re.scroll.io/api/', // https://scrollscan.com/batches
   };
 
   static readonly testnetConfig: RollupDeployment<ScrollConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.SCROLL_SEPOLIA,
     ScrollChainCommitmentVerifier: '0x64cb3A0Dcf43Ae0EE35C1C15edDF5F46D48Fa570',
-    apiURL: 'https://sepolia-api-re.scroll.io/api/',
+    apiURL: 'https://sepolia-api-re.scroll.io/api/', // https://sepolia.scrollscan.com/batches
   };
 
   static async create(providers: ProviderPair, config: ScrollConfig) {
@@ -154,7 +154,7 @@ export class ScrollRollup extends AbstractRollupV1<ScrollCommit> {
     const { status, l2BlockNumber, finalTxHash } =
       await this.fetchAPIBatchIndexInfo(index);
     if (status !== 'finalized') throw new Error(`not finalized: ${status}`);
-    const prover = new EthProver(this.provider2, toUnpaddedHex(l2BlockNumber));
+    const prover = new EthProver(this.provider2, l2BlockNumber);
     return { index, prover, finalTxHash };
   }
   override encodeWitness(

@@ -28,6 +28,7 @@ export const GATEWAY_OP = {
   PUSH_TARGET: 43,
   PUSH_VALUE: 44,
   PUSH_BYTES: 45,
+  PUSH_0: 46,
 
   DUP: 50,
   POP: 51,

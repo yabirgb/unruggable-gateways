@@ -1,4 +1,4 @@
-import type { ChainPair, HexAddress } from '../../src/types.js';
+import type { Chain, ChainPair, HexAddress } from '../../src/types.js';
 import type { RollupDeployment } from '../../src/rollup.js';
 import { Contract } from 'ethers';
 import { Gateway } from '../../src/gateway.js';
@@ -12,6 +12,11 @@ import {
   type OPFaultConfig,
   OPFaultRollup,
 } from '../../src/op/OPFaultRollup.js';
+import {
+  type ScrollConfig,
+  ScrollRollup,
+} from '../../src/scroll/ScrollRollup.js';
+import { EthSelfRollup } from '../../src/eth/EthSelfRollup.js';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
@@ -30,14 +35,15 @@ export async function deployProxy(foundry: Foundry, verifier: Contract) {
 }
 
 type TestOptions = {
+  slotDataContract: HexAddress;
+  slotDataPointer?: HexAddress;
   skipCI?: boolean;
   log?: boolean;
 };
 
 export function testOP(
   config: RollupDeployment<OPConfig>,
-  slotDataReaderAddress: HexAddress,
-  { skipCI = false, log = false }: TestOptions = {}
+  { slotDataContract, skipCI = false, log = false }: TestOptions
 ) {
   describe.skipIf(skipCI && !!process.env.IS_CI)(pairName(config), async () => {
     const rollup = new OPRollup(createProviderPair(config), config);
@@ -57,7 +63,7 @@ export function testOP(
     await foundry.confirm(proxy.setOracle(rollup.L2OutputOracle));
     const reader = await foundry.deploy({
       file: 'SlotDataReader',
-      args: [proxy, slotDataReaderAddress],
+      args: [proxy, slotDataContract],
     });
     runSlotDataTests(reader);
   });
@@ -65,8 +71,7 @@ export function testOP(
 
 export function testOPFault(
   config: RollupDeployment<OPFaultConfig>,
-  slotDataReaderAddress: HexAddress,
-  { skipCI = false, log = false }: TestOptions = {}
+  { slotDataContract, skipCI = false, log = false }: TestOptions
 ) {
   describe.skipIf(skipCI && !!process.env.IS_CI)(pairName(config), async () => {
     const rollup = new OPFaultRollup(createProviderPair(config), config);
@@ -93,7 +98,75 @@ export function testOPFault(
     await foundry.confirm(proxy.setPortal(rollup.OptimismPortal));
     const reader = await foundry.deploy({
       file: 'SlotDataReader',
-      args: [proxy, slotDataReaderAddress],
+      args: [proxy, slotDataContract],
+    });
+    runSlotDataTests(reader);
+  });
+}
+
+export function testScroll(
+  config: RollupDeployment<ScrollConfig>,
+  {
+    slotDataContract,
+    slotDataPointer,
+    skipCI = false,
+    log = false,
+  }: TestOptions
+) {
+  describe.skipIf(skipCI && !!process.env.IS_CI)(pairName(config), async () => {
+    const rollup = await ScrollRollup.create(
+      createProviderPair(config),
+      config
+    );
+    const foundry = await Foundry.launch({
+      fork: providerURL(config.chain1),
+      infoLog: log,
+    });
+    afterAll(() => foundry.shutdown());
+    const gateway = new Gateway(rollup);
+    const ccip = await serve(gateway, { protocol: 'raw', log });
+    afterAll(() => ccip.http.close());
+    const verifier = await foundry.deploy({ file: 'ScrollVerifier' });
+    const proxy = await deployProxy(foundry, verifier);
+    await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
+    await foundry.confirm(
+      proxy.setCommitmentVerifier(rollup.CommitmentVerifier)
+    );
+    const reader = await foundry.deploy({
+      file: 'SlotDataReader',
+      args: [proxy, slotDataContract],
+    });
+    if (slotDataPointer) {
+      await foundry.confirm(reader.setPointer(slotDataPointer));
+    }
+    runSlotDataTests(reader, !!slotDataPointer);
+  });
+}
+
+export function testSelfEth(
+  chain: Chain,
+  { slotDataContract, skipCI = false, log = false }: TestOptions
+) {
+  describe.skipIf(skipCI && !process.env.IS_CI)(chainName(chain), async () => {
+    const foundry = await Foundry.launch({
+      fork: providerURL(chain),
+      infoLog: log,
+    });
+    afterAll(() => foundry.shutdown());
+    const rollup = new EthSelfRollup(foundry.provider);
+    const gateway = new Gateway(rollup);
+    const ccip = await serve(gateway, { protocol: 'raw', log });
+    afterAll(() => ccip.http.close());
+    const verifier = await foundry.deploy({ file: 'EthSelfVerifier' });
+    const proxy = await deployProxy(foundry, verifier);
+    await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
+    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
+    // https://etherscan.io/address/0xC9D1E777033FB8d17188475CE3D8242D1F4121D5#code
+    // https://sepolia.etherscan.io/address/0x494d872430442EdB6c1e05BB5521084Ad50312b2
+    const reader = await foundry.deploy({
+      file: 'SlotDataReader',
+      args: [proxy, slotDataContract],
     });
     runSlotDataTests(reader);
   });

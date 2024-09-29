@@ -4,14 +4,13 @@ import {
   solidityArraySlots,
   solidityFollowSlot,
 } from '../../src/vm.js';
+import type { BigNumberish } from '../../src/types.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { ZeroAddress } from 'ethers/constants';
 import { id as keccakStr } from 'ethers/hash';
 import { hexlify, dataSlice, toUtf8Bytes, concat } from 'ethers/utils';
 import { toPaddedHex } from '../../src/utils.js';
-import { readFileSync } from 'node:fs';
-import { GATEWAY_OP } from '../../src/ops.js';
 import { afterAll, expect, test } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 import { randomBytes } from 'ethers/crypto';
@@ -19,9 +18,11 @@ import { randomBytes } from 'ethers/crypto';
 function rngUint(n = 32) {
   return BigInt(hexlify(randomBytes(n)));
 }
-
 function utf8Hex(s: string) {
   return hexlify(toUtf8Bytes(s));
+}
+function toPaddedArray(v: BigNumberish[]) {
+  return v.map((x) => toPaddedHex(x));
 }
 
 describe('ops', async () => {
@@ -51,9 +52,10 @@ describe('ops', async () => {
     const prover = await EthProver.latest(foundry.provider);
     const stateRoot = await prover.fetchStateRoot();
     const state = await prover.evalRequest(req);
-    const [proofSeq, values] = await Promise.all([
+    const [proofSeq, values, stack] = await Promise.all([
       prover.prove(state.needs),
       state.resolveOutputs(),
+      state.resolveStack(),
     ]);
     const res = await verifier.verify(
       req.toTuple(),
@@ -63,7 +65,7 @@ describe('ops', async () => {
     );
     expect(res.outputs.toArray()).toEqual(values);
     expect(res.exitCode).toEqual(BigInt(state.exitCode));
-    return { values, ...state };
+    return { ...state, values, stack };
   }
 
   function testRepeat(label: string, fn: () => Promise<void>) {
@@ -74,37 +76,22 @@ describe('ops', async () => {
     });
   }
 
-  test('opcodes', async () => {
-    const code = readFileSync(
-      new URL('../../contracts/GatewayProtocol.sol', import.meta.url),
-      { encoding: 'utf8' }
-    );
-    const jsMap = new Map<string, number>(Object.entries(GATEWAY_OP));
-    const solMap = new Map<string, number>();
-    for (const match of code.matchAll(
-      /uint8 constant OP_([A-Z_]+)\s*=\s*(\d+)/g
-    )) {
-      solMap.set(match[1], parseInt(match[2]));
-    }
-    const union = new Set([...solMap.keys(), ...jsMap.keys()]);
-    const seen = new Set<number>();
-    const prover = await EthProver.latest(foundry.provider);
-    for (const name of union) {
-      const js = jsMap.get(name);
-      const sol = solMap.get(name);
-      // check defined the same in js and solc
-      expect(js, `js op: ${name}`).toBeNumber();
-      expect(sol, `sol op: ${name}`).toEqual(js!);
-      expect(seen.has(js!), `dup: ${name}`).toEqual(false);
-      seen.add(js!);
-      // check for an implementation
-      try {
-        await prover.evalDecoded(Uint8Array.of(0, js!), []);
-      } catch (err) {
-        if (err instanceof Error && /^unknown op: \d+$/.test(err.message)) {
-          throw err;
-        }
-      }
+  test('missing args', async () => {
+    // TODO: finish this list
+    const ops: (keyof typeof GatewayRequest.Opcode)[] = [
+      'TARGET',
+      'SLOT',
+      'SET_OUTPUT',
+      'CONCAT',
+      'KECCAK',
+      'SLICE',
+      'PLUS',
+      'NOT',
+    ];
+    for (const op of ops) {
+      expect(verify(new GatewayRequest().op(op))).rejects.toThrow(
+        'stack underflow'
+      );
     }
   });
 
@@ -163,10 +150,10 @@ describe('ops', async () => {
     expect(values[0]).toEqual('0x12340000');
   });
 
-  test('slice beyond', async () => {
-    const req = new GatewayRequest().pushBytes('0x').slice(1337, 4).addOutput();
+  test('push(0).slice(0, 1000)', async () => {
+    const req = new GatewayRequest().push(0).slice(0, 1000).addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual('0x00000000');
+    expect(values).toEqual([hexlify(new Uint8Array(1000))]);
   });
 
   test('concat ints', async () => {
@@ -181,11 +168,6 @@ describe('ops', async () => {
     req.concat().concat().addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(utf8Hex('raffy'));
-  });
-
-  test('concat nothing', async () => {
-    const req = new GatewayRequest().concat();
-    expect(verify(req)).rejects.toThrow('stack underflow');
   });
 
   function testBinary(
@@ -203,6 +185,7 @@ describe('ops', async () => {
   }
 
   testBinary('plus', (a, b) => a + b);
+  testBinary('subtract', (a, b) => a - b);
   testBinary('times', (a, b) => a * b);
   testBinary('divide', (a, b) => a / b);
   testBinary('mod', (a, b) => a % b);
@@ -228,6 +211,7 @@ describe('ops', async () => {
   }
 
   testCompare('eq', (a, b) => a == b);
+  testCompare('neq', (a, b) => a != b);
   testCompare('lt', (a, b) => a < b);
   testCompare('gt', (a, b) => a > b);
   testCompare('gte', (a, b) => a >= b);
@@ -293,16 +277,15 @@ describe('ops', async () => {
   });
 
   test('dup last', async () => {
-    const req = new GatewayRequest().push(1).dup().addOutput().addOutput();
-    const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(1));
-    expect(values[1]).toEqual(toPaddedHex(1));
+    const req = new GatewayRequest().push(1).dup();
+    const { stack } = await verify(req);
+    expect(stack).toEqual(toPaddedArray([1, 1]));
   });
 
   test('dup deep', async () => {
-    const req = new GatewayRequest().push(1).push(2).push(3).dup(2).addOutput();
-    const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(1));
+    const req = new GatewayRequest().push(1).push(2).push(3).dup(2);
+    const { stack } = await verify(req);
+    expect(stack).toEqual(toPaddedArray([1, 2, 3, 1]));
   });
 
   test('dup nothing', async () => {
@@ -310,16 +293,16 @@ describe('ops', async () => {
     expect(verify(req)).rejects.toThrow('back overflow');
   });
 
+  test('dup2', async () => {
+    const req = new GatewayRequest().push(1).push(2).dup(1).dup(1);
+    const { stack } = await verify(req);
+    expect(stack).toEqual(toPaddedArray([1, 2, 1, 2]));
+  });
+
   test('swap', async () => {
-    const req = new GatewayRequest()
-      .push(1)
-      .push(2)
-      .swap()
-      .addOutput()
-      .addOutput();
-    const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(1));
-    expect(values[1]).toEqual(toPaddedHex(2));
+    const req = new GatewayRequest().push(1).push(2).swap();
+    const { stack } = await verify(req);
+    expect(stack).toEqual(toPaddedArray([2, 1]));
   });
 
   test('swap mixed', async () => {
