@@ -205,7 +205,7 @@ library GatewayProver {
 		vm.target = address(0);
 		vm.storageRoot = NOT_A_CONTRACT;
 		vm.slot = 0;
-		outputs = new bytes[](vm.readByte());
+		outputs = new bytes[](vm.readByte()); // NOTE: implies maximum outputs is 255
 		exitCode = evalCommand(vm, outputs);
 	}
 
