@@ -256,11 +256,11 @@ export class GatewayProgram {
   plus() {
     return this.addByte(OP.PLUS);
   }
-  negate() {
+  complement() {
     return this.not().push(1).plus(); // twos complement
   }
   subtract() {
-    return this.negate().plus();
+    return this.complement().plus();
   }
   times() {
     return this.addByte(OP.TIMES);
