@@ -1,57 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IGatewayProofVerifier} from "./IGatewayProofVerifier.sol";
+import {IGatewayVerifier} from "./IGatewayVerifier.sol";
+import {IProverHooks} from "./IProverHooks.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
-import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
-abstract contract AbstractVerifier is IGatewayProofVerifier {
-	
-	event GatewayChanged();
+abstract contract AbstractVerifier is IGatewayVerifier, Ownable { 
 
-	bytes32 constant SLOT_urls = keccak256("unruggable.gateway.urls");
-	bytes32 constant SLOT_window = keccak256("unruggable.gateway.window");
+	event GatewayURLsChanged();
 
-	modifier onlyOwner() {
-		require(msg.sender == _owner(), "not admin owner");
-		_;
+	string[] _urls;
+	uint256 immutable _window;
+	IProverHooks immutable _hooks;
+
+	constructor(string[] memory urls, uint256 window, IProverHooks hooks) Ownable(msg.sender) {
+		_urls = urls;
+		_window = window;
+		_hooks = hooks;
 	}
 
-	function _owner() internal view returns (address) {
-		return Ownable(ERC1967Utils.getAdmin()).owner();
-	}
-	
-	function owner() external view returns (address) {
-		return _owner();
-	}
-
-	function setGatewayURLs(string[] calldata urls) external onlyOwner {
-		StorageSlot.getBytesSlot(SLOT_urls).value = abi.encode(urls);
-		emit GatewayChanged();
+	function setGatewayURLs(string[] memory urls) external onlyOwner {
+		_urls = urls;
+		emit GatewayURLsChanged();
 	}
 
 	function gatewayURLs() external view returns (string[] memory) {
-		bytes memory storedValue = StorageSlot.getBytesSlot(SLOT_urls).value;
-		// Check if the stored value is empty or not set
-		if (storedValue.length == 0) {
-			return new string[](0);
-		}
-		return abi.decode(storedValue, (string[]));
-	}
-
-	function setWindow(uint256 window) external onlyOwner {
-		StorageSlot.getUint256Slot(SLOT_window).value = window;
-		emit GatewayChanged();
+		return _urls;
 	}
 
 	function getWindow() external view returns (uint256) {
-		return StorageSlot.getUint256Slot(SLOT_window).value;
+		return _window;
 	}
 
 	function _checkWindow(uint256 latest, uint256 got) internal view {
-		uint256 window = StorageSlot.getUint256Slot(SLOT_window).value;
-		if (got + window < latest) revert("too old");
+		if (got + _window < latest) revert("too old");
 		if (got > latest) revert("too new");
 	}
 

@@ -29,7 +29,15 @@ import { ProgramReader } from './reader.js';
 // all addresses are lowercase
 // all values are hex-strings
 
-type HexFuture = Unwrappable<HexString>;
+type HexFuture = Unwrappable<number, HexString>;
+
+async function peekSize(value: HexFuture) {
+  if (value instanceof Wrapped) {
+    if (value.payload) return value.payload;
+    value = await value.get();
+  }
+  return (value.length - 2) >> 1;
+}
 
 // EVAL_LOOP flags
 // the following should be equivalent to GatewayProtocol.sol
@@ -91,7 +99,7 @@ export class GatewayProgram {
     return new GatewayProgram(this.ops.slice(), this.inputs.slice());
   }
   op(key: keyof typeof OP) {
-    return this.addByte(OP[key]);
+    return this.addByte(OP[key]); // experimental
   }
   protected addByte(x: number) {
     if ((x & 0xff) !== x) throw new Error(`expected byte: ${x}`);
@@ -242,6 +250,9 @@ export class GatewayProgram {
   pushTarget() {
     return this.addByte(OP.PUSH_TARGET);
   }
+  pushStackSize() {
+    return this.addByte(OP.PUSH_STACK_SIZE);
+  }
 
   concat() {
     return this.addByte(OP.CONCAT);
@@ -251,6 +262,9 @@ export class GatewayProgram {
   }
   slice(x: number, n: number) {
     return this.push(x).push(n).addByte(OP.SLICE);
+  }
+  length() {
+    return this.addByte(OP.LENGTH);
   }
 
   plus() {
@@ -312,6 +326,17 @@ export class GatewayProgram {
   }
   gte() {
     return this.lt().flip();
+  }
+  dup2() {
+    return this.dup(1).dup(1);
+  }
+  min() {
+    // a > b: [a, b] => [a, b, a, b] => [a, b, 0] => [a, b] => [a]
+    // a < b: [a, b] => [a, b, a, b] => [a, b, 1] => [b, a] => [b]
+    return this.dup2().gt().addByte(OP.SWAP).pop();
+  }
+  max() {
+    return this.dup2().lt().addByte(OP.SWAP).pop();
   }
 }
 
@@ -606,6 +631,10 @@ export abstract class AbstractProver {
           vm.push(vm.target); // current target address
           continue;
         }
+        case OP.PUSH_STACK_SIZE: {
+          vm.push(toPaddedHex(vm.stack.length));
+          continue;
+        }
         case OP.PUSH_0: {
           vm.push(ZeroHash);
           continue;
@@ -629,18 +658,18 @@ export abstract class AbstractProver {
         case OP.READ_SLOT: {
           const { target, slot } = vm;
           vm.needs.push(slot);
-          vm.push(new Wrapped(() => this.getStorage(target, slot)));
+          vm.push(new Wrapped(32, () => this.getStorage(target, slot)));
           continue;
         }
         case OP.READ_SLOTS: {
           const { target, slot } = vm;
           const count = await vm.popNumber();
-          checkSize(count << 5, this.maxProvableBytes);
+          const size = checkSize(count << 5, this.maxProvableBytes);
           const slots = bigintRange(slot, count);
           vm.needs.push(...slots);
           vm.push(
             slots.length
-              ? new Wrapped(async () =>
+              ? new Wrapped(size, async () =>
                   concat(
                     await Promise.all(
                       slots.map((x) => this.getStorage(target, x))
@@ -681,11 +710,12 @@ export abstract class AbstractProver {
           } else {
             length = length * ((step + 31) >> 5);
           }
+          const size = checkSize(length << 5, this.maxProvableBytes);
           const slots = solidityArraySlots(slot, length);
           slots.unshift(slot);
           vm.needs.push(...slots);
           vm.push(
-            new Wrapped(async () =>
+            new Wrapped(size, async () =>
               concat(
                 await Promise.all(slots.map((x) => this.getStorage(target, x)))
               )
@@ -793,6 +823,10 @@ export abstract class AbstractProver {
           // );
           continue;
         }
+        case OP.LENGTH: {
+          vm.push(toPaddedHex(await peekSize(vm.pop())));
+          continue;
+        }
         case OP.PLUS: {
           await vm.binaryOp((a, b) => a + b);
           continue;
@@ -872,7 +906,7 @@ export abstract class AbstractProver {
   }
   fetchUnprovenStorageBytes(target: HexAddress, slot: bigint): HexFuture {
     target = target.toLowerCase();
-    return new Wrapped(async () => {
+    return new Wrapped(NaN, async () => {
       const can = this.readBytesAtSupported.get(target);
       if (can !== false) {
         try {
@@ -914,7 +948,7 @@ export abstract class AbstractProver {
       throw new Error(`invalid storage encoding: ${target} @ ${slot}`);
     }
     const slots = solidityArraySlots(slot, (size + 31) >> 5);
-    const value = new Wrapped(async () => {
+    const value = new Wrapped(size, async () => {
       const v = await Promise.all(
         slots.map((x) => this.getStorage(target, x, fast))
       );

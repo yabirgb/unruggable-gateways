@@ -36,6 +36,7 @@ export const CHAINS = {
   CYBER_SEPOLIA: 111557560n,
   REDSTONE: 690n,
   // GNOSIS: 100n, // L1: must verify against withdrawal signatures?
+  SHAPE: 360n,
 } as const satisfies Record<string, Chain>;
 
 const NAMES = new Map<Chain, string>(

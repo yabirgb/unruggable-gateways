@@ -24,11 +24,13 @@ export const GATEWAY_OP = {
 
   PUSH_INPUT: 40,
   PUSH_OUTPUT: 41,
-  PUSH_SLOT: 42,
-  PUSH_TARGET: 43,
   PUSH_VALUE: 44,
   PUSH_BYTES: 45,
   PUSH_0: 46,
+
+  PUSH_SLOT: 42,
+  PUSH_TARGET: 43,
+  PUSH_STACK_SIZE: 47,
 
   DUP: 50,
   POP: 51,
@@ -37,6 +39,7 @@ export const GATEWAY_OP = {
   KECCAK: 60,
   CONCAT: 61,
   SLICE: 62,
+  LENGTH: 63,
 
   PLUS: 70,
   TIMES: 71,

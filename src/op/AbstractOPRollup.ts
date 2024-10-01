@@ -46,12 +46,14 @@ export abstract class AbstractOPRollup extends AbstractRollupV1<OPCommit> {
   }
   override encodeWitness(commit: OPCommit, proofSeq: ProofSequence) {
     return ABI_CODER.encode(
-      ['uint256', OutputRootProofType, 'bytes[]', 'bytes'],
+      [`tuple(uint256, ${OutputRootProofType}, bytes[], bytes)`],
       [
-        commit.index,
-        outputRootProofTuple(commit),
-        proofSeq.proofs,
-        proofSeq.order,
+        [
+          commit.index,
+          outputRootProofTuple(commit),
+          proofSeq.proofs,
+          proofSeq.order,
+        ],
       ]
     );
   }

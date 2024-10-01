@@ -70,6 +70,13 @@ export class OPRollup extends AbstractOPRollup {
     L2OutputOracle: '0xa426A052f657AEEefc298b3B5c35a470e4739d69',
   };
 
+  // https://docs.shape.network/documentation/technical-details/contract-addresses#mainnet
+  static readonly shapeMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.SHAPE,
+    L2OutputOracle: '0x6Ef8c69CfE4635d866e3E02732068022c06e724D',
+  };
+
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {
     super(providers);

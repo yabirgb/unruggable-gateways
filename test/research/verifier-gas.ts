@@ -3,7 +3,6 @@ import type { Rollup, RollupCommitType } from '../../src/rollup.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProvider, providerURL } from '../providers.js';
 import { chainName } from '../../src/chains.js';
-import { deployProxy } from '../gateway/common.js';
 import { Contract } from 'ethers';
 import { GatewayRequest } from '../../src/vm.js';
 import { ABI_CODER } from '../../src/utils.js';
@@ -14,7 +13,7 @@ import { ZKSyncRollup } from '../../src/zksync/ZKSyncRollup.js';
 import { TaikoRollup } from '../../src/taiko/TaikoRollup.js';
 
 async function createEstimator<R extends Rollup>(
-  proxy: Contract,
+  verifier: Contract,
   rollup: R,
   commit?: RollupCommitType<R>
 ) {
@@ -25,7 +24,7 @@ async function createEstimator<R extends Rollup>(
     const proofSeq = await commit.prover.prove(state.needs);
     const witness = rollup.encodeWitness(commit, proofSeq);
     const context = ABI_CODER.encode(['uint256'], [commit.index]);
-    const gas = await proxy.getStorageValues.estimateGas(
+    const gas = await verifier.getStorageValues.estimateGas(
       context,
       req.toTuple(),
       witness
@@ -57,14 +56,21 @@ const setups: Setup[] = [
       file: 'FixedOPFaultGameFinder',
       args: [commit.index],
     });
+    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
     const verifier = await foundry.deploy({
       file: 'OPFaultVerifier',
-      args: [gameFinder],
+      args: [
+        [],
+        rollup.defaultWindow,
+        hooks,
+        rollup.OptimismPortal,
+        gameFinder,
+        rollup.gameTypeBitMask,
+      ],
+      libs: { GatewayProver },
     });
-    const proxy = await deployProxy(foundry, verifier);
-    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-    await foundry.confirm(proxy.setPortal(rollup.OptimismPortal));
-    const estimator = await createEstimator(proxy, rollup, commit);
+    const estimator = await createEstimator(verifier, rollup, commit);
     return {
       config,
       estimator,
@@ -78,16 +84,19 @@ const setups: Setup[] = [
     const config = LineaRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = new LineaRollup(providers, config);
-    const verifier = await foundry.deploy({
-      file: 'LineaVerifier',
+    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const hooks = await foundry.deploy({
+      file: 'LineaTrieHooks',
       libs: {
         SparseMerkleProof: config.SparseMerkleProof,
       },
     });
-    const proxy = await deployProxy(foundry, verifier);
-    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-    await foundry.confirm(proxy.setRollup(rollup.L1MessageService));
-    const estimator = await createEstimator(proxy, rollup);
+    const verifier = await foundry.deploy({
+      file: 'LineaVerifier',
+      args: [[], rollup.defaultWindow, hooks, config.L1MessageService],
+      libs: { GatewayProver },
+    });
+    const estimator = await createEstimator(verifier, rollup);
     return {
       config,
       estimator,
@@ -101,15 +110,18 @@ const setups: Setup[] = [
     const config = ZKSyncRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = new ZKSyncRollup(providers, config);
-    const smt = await foundry.deploy({ file: 'ZKSyncSMT' });
+    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
+    const hooks = await foundry.deploy({
+      file: 'ZKSyncTrieHooks',
+      args: [ZKSyncSMT],
+    });
     const verifier = await foundry.deploy({
       file: 'ZKSyncVerifier',
-      args: [smt],
+      args: [[], rollup.defaultWindow, hooks, rollup.DiamondProxy],
+      libs: { GatewayProver },
     });
-    const proxy = await deployProxy(foundry, verifier);
-    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-    await foundry.confirm(proxy.setDiamond(rollup.DiamondProxy));
-    const estimator = await createEstimator(proxy, rollup);
+    const estimator = await createEstimator(verifier, rollup);
     return {
       config,
       estimator,
@@ -123,13 +135,17 @@ const setups: Setup[] = [
     const config = ScrollRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = await ScrollRollup.create(providers, config);
-    const verifier = await foundry.deploy({ file: 'ScrollVerifier' });
-    const proxy = await deployProxy(foundry, verifier);
-    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-    await foundry.confirm(
-      proxy.setCommitmentVerifier(rollup.CommitmentVerifier)
-    );
-    const estimator = await createEstimator(proxy, rollup);
+    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const hooks = await foundry.deploy({
+      file: 'ScrollTrieHooks',
+      args: [rollup.poseidon],
+    });
+    const verifier = await foundry.deploy({
+      file: 'ScrollVerifier',
+      args: [[], rollup.defaultWindow, hooks, rollup.rollup],
+      libs: { GatewayProver },
+    });
+    const estimator = await createEstimator(verifier, rollup);
     return {
       config,
       estimator,
@@ -143,11 +159,14 @@ const setups: Setup[] = [
     const config = TaikoRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = await TaikoRollup.create(providers, config);
-    const verifier = await foundry.deploy({ file: 'TaikoVerifier' });
-    const proxy = await deployProxy(foundry, verifier);
-    await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-    await foundry.confirm(proxy.setRollup(rollup.TaikoL1));
-    const estimator = await createEstimator(proxy, rollup);
+    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+    const verifier = await foundry.deploy({
+      file: 'TaikoVerifier',
+      args: [[], rollup.defaultWindow, hooks, rollup.TaikoL1],
+      libs: { GatewayProver },
+    });
+    const estimator = await createEstimator(verifier, rollup);
     return {
       config,
       estimator,
@@ -159,6 +178,7 @@ const setups: Setup[] = [
   },
 ];
 
+console.log(new Date());
 const SLOT_LIKELY_ZERO = '0x'.padEnd(66, 'F');
 for (const setup of setups) {
   let foundry: Foundry | undefined;
@@ -230,38 +250,39 @@ for (const setup of setups) {
   await foundry?.shutdown();
 }
 
+// 2024-10-01T08:54:16.613Z
 // {
-// 	name: "op<10>",
-// 	rollup: 70839n,
-// 	account: 322166n,
-// 	storage1: 277053n,
-// 	storage0: 209320n,
+//   name: "OP",
+//   rollup: 67819n,
+//   account: 328177n,
+//   storage1: 262768n,
+//   storage0: 199175n,
 // }
 // {
-// 	name: "linea<59144>",
-// 	rollup: 54014n,
-// 	account: 1410852n,
-// 	storage1: 1368510n,
-// 	storage0: "execution reverted (unknown custom error)",
+//   name: "LINEA",
+//   rollup: 48885n,
+//   account: 1437216n,
+//   storage1: 1365128n,
+//   storage0: 2663665n,
 // }
 // {
-// 	name: "zksync<324>",
-// 	rollup: 64150n,
-// 	account: 12839783n,
-// 	storage1: 12843289n,
-// 	storage0: 12848115n,
+//   name: "ZKSYNC",
+//   rollup: 59035n,
+//   account: 13046698n,
+//   storage1: 13049354n,
+//   storage0: 13055257n,
 // }
 // {
-// 	name: "scroll<534352>",
-// 	rollup: 57153n,
-// 	account: 1213599n,
-// 	storage1: 830569n,
-// 	storage0: "execution reverted (unknown custom error)",
+//   name: "SCROLL",
+//   rollup: 48796n,
+//   account: 1232954n,
+//   storage1: 820490n,
+//   storage0: "execution reverted (unknown custom error)",
 // }
 // {
-// 	name: "taiko<167000>",
-// 	rollup: 69045n,
-// 	account: 278172n,
-// 	storage1: 239809n,
-// 	storage0: 191864n,
+//   name: "TAIKO",
+//   rollup: 63961n,
+//   account: 284180n,
+//   storage1: 228955n,
+//   storage0: 183642n,
 // }

@@ -2,11 +2,9 @@
 pragma solidity ^0.8.0;
 
 contract SlotDataPointer {
+    address public pointer;
 
-	address public pointer;
-
-	constructor(address a) {
-		pointer = a;
-	}
-
+    constructor(address a) {
+        pointer = a;
+    }
 }

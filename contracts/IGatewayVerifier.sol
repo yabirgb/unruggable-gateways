@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {GatewayRequest} from "./GatewayProtocol.sol";
+import {GatewayRequest} from "./GatewayRequest.sol";
 
-interface IGatewayProofVerifier {
+interface IGatewayVerifier {
 	
 	function getLatestContext() external view returns(bytes memory);	
 	function gatewayURLs() external view returns (string[] memory);

@@ -1,10 +1,9 @@
 import { OPReverseRollup } from '../../src/op/OPReverseRollup.js';
+import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { providerURL, createProviderPair } from '../providers.js';
-import { runSlotDataTests } from './tests.js';
-import { Gateway } from '../../src/gateway.js';
-import { deployProxy, pairName } from './common.js';
+import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
@@ -16,23 +15,20 @@ describe.skipIf(!!process.env.IS_CV)(pairName(config, true), async () => {
   });
   afterAll(() => foundry.shutdown());
   const rollup = new OPReverseRollup(createProviderPair(config), config);
-  // prove against prefork block, since state diverged on our fork
+  // NOTE: prove against prefork block, since state diverged on our fork
   rollup.latestBlockTag = (await foundry.provider.getBlockNumber()) - 5;
   const gateway = new Gateway(rollup);
-  const ccip = await serve(gateway, {
-    protocol: 'raw',
-    log: false,
-  });
+  const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
-  const verifier = await foundry.deploy({ file: 'OPReverseVerifier' });
-  const proxy = await deployProxy(foundry, verifier);
-  await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
-  await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-  await foundry.confirm(proxy.setOracle(rollup.L1Block));
-  // https://etherscan.io/address/0xC9D1E777033FB8d17188475CE3D8242D1F4121D5#code
-  const reader = await foundry.deploy({
-    file: 'SlotDataReader',
-    args: [proxy, '0xC9D1E777033FB8d17188475CE3D8242D1F4121D5'],
+  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const verifier = await foundry.deploy({
+    file: 'OPReverseVerifier',
+    args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.L1Block],
+    libs: { GatewayProver },
   });
-  runSlotDataTests(reader);
+  await setupTests(verifier, {
+    // https://etherscan.io/address/0xC9D1E777033FB8d17188475CE3D8242D1F4121D5#code
+    slotDataContract: '0xC9D1E777033FB8d17188475CE3D8242D1F4121D5',
+  });
 });

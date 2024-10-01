@@ -1,51 +1,37 @@
 import { Foundry } from '@adraffy/blocksmith';
 import { ZeroAddress } from 'ethers/constants';
 
-const foundry = await Foundry.launch({
-  infoLog: true,
+const foundry = await Foundry.launch();
+
+// machine
+const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+
+console.log(GatewayProver);
+
+// hooks
+await foundry.deploy({ file: 'EthTrieHooks' });
+await foundry.deploy({ file: 'ScrollTrieHooks', args: [ZeroAddress] });
+await foundry.deploy({ file: 'ZKSyncTrieHooks', args: [ZeroAddress] });
+await foundry.deploy({
+  file: 'LineaTrieHooks',
+  libs: { SparseMerkleProof: ZeroAddress },
 });
 
-await foundry.deploy({
-  sol: `
-    import "@src/GatewayProver.sol";
-    contract Prover {
-      function f() external returns (bytes[] memory, uint8) {
-        GatewayRequest memory r;
-        ProofSequence memory s;
-        return GatewayProver.evalRequest(r, s);
-      }
-    }
-  `,
-});
-await foundry.deploy({
-  file: 'EthSelfVerifier',
-});
+// few examples
 await foundry.deploy({
   file: 'OPVerifier',
+  args: [[], 0, ZeroAddress, ZeroAddress],
+  libs: { GatewayProver },
 });
 await foundry.deploy({
   file: 'OPFaultVerifier',
-  args: [ZeroAddress],
+  args: [[], 0, ZeroAddress, ZeroAddress, ZeroAddress, 0],
+  libs: { GatewayProver },
 });
 await foundry.deploy({
   file: 'OPReverseVerifier',
-});
-await foundry.deploy({
-  file: 'LineaVerifier',
-  libs: { SparseMerkleProof: ZeroAddress },
-});
-await foundry.deploy({
-  file: 'NitroVerifier',
-});
-await foundry.deploy({
-  file: 'ScrollVerifier',
-});
-await foundry.deploy({
-  file: 'TaikoVerifier',
-});
-await foundry.deploy({
-  file: 'ZKSyncVerifier',
-  args: [ZeroAddress]
+  args: [[], 0, ZeroAddress, ZeroAddress],
+  libs: { GatewayProver },
 });
 
-foundry.shutdown();
+await foundry.shutdown();

@@ -208,6 +208,11 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
       //   chain: CHAINS.GNOSIS,
       //   rpc: 'https://rpc.gnosischain.com',
       // },
+      {
+        // https://docs.shape.network/documentation/technical-details/network-information
+        chain: CHAINS.SHAPE,
+        rpc: 'https://mainnet.shape.network',
+      },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])
 );

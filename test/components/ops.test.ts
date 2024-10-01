@@ -23,8 +23,12 @@ function toPaddedArray(v: BigNumberish[]) {
 describe('ops', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
+  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
   const verifier = await foundry.deploy({
-    file: 'EthSelfVerifier',
+    file: 'SelfVerifier',
+    args: [[], 0, hooks],
+    libs: { GatewayProver },
   });
   const contract = await foundry.deploy({
     sol: `
@@ -117,6 +121,26 @@ describe('ops', async () => {
     const req = new GatewayRequest().push(123).addSlot().pushSlot().addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(toPaddedHex(123));
+  });
+
+  test('stack size', async () => {
+    const req = new GatewayRequest();
+    req.pushStackSize();
+    req.pushStackSize();
+    req.pushStackSize();
+    req.drain(3);
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([0, 1, 2]));
+  });
+
+  test('length', async () => {
+    const req = new GatewayRequest();
+    req.push(1).length();
+    req.pushStr('chonk').length();
+    req.pushBytes('0xABCD').length();
+    req.drain(3);
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([32, 5, 2]));
   });
 
   test('keccak', async () => {
@@ -302,7 +326,7 @@ describe('ops', async () => {
   });
 
   test('dup2', async () => {
-    const req = new GatewayRequest().push(1).push(2).dup(1).dup(1).drain(4);
+    const req = new GatewayRequest().push(1).push(2).dup2().drain(4);
     const { values } = await verify(req);
     expect(values).toEqual(toPaddedArray([1, 2, 1, 2]));
   });

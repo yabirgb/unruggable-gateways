@@ -59,23 +59,25 @@ export function isContract(accountProof: LineaProof) {
 }
 
 export function encodeProof(proof: LineaProof) {
+  const T = 'tuple(uint256, bytes, bytes[])';
   return ABI_CODER.encode(
-    ['tuple(uint256, bytes, bytes[])[]'],
-    [
-      isExistanceProof(proof)
-        ? [[proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes]]
-        : [
-            [
-              proof.leftLeafIndex,
-              proof.leftProof.value,
-              proof.leftProof.proofRelatedNodes,
-            ],
-            [
-              proof.rightLeafIndex,
-              proof.rightProof.value,
-              proof.rightProof.proofRelatedNodes,
-            ],
+    [T, T],
+    isExistanceProof(proof)
+      ? [
+          [proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes],
+          [0, '0x', []],
+        ]
+      : [
+          [
+            proof.leftLeafIndex,
+            proof.leftProof.value,
+            proof.leftProof.proofRelatedNodes,
           ],
-    ]
+          [
+            proof.rightLeafIndex,
+            proof.rightProof.value,
+            proof.rightProof.proofRelatedNodes,
+          ],
+        ]
   );
 }

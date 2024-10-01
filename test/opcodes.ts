@@ -7,13 +7,13 @@ import { expect } from 'bun:test';
 const foundry = await Foundry.launch({ infoLog: false });
 try {
   const code = readFileSync(
-    new URL('../contracts/GatewayProtocol.sol', import.meta.url),
+    new URL('../contracts/GatewayRequest.sol', import.meta.url),
     { encoding: 'utf8' }
   );
   const jsMap = new Map<string, number>(Object.entries(GATEWAY_OP));
   const solMap = new Map<string, number>();
   for (const match of code.matchAll(
-    /uint8 constant OP_([0-9A-Z_]+)\s*=\s*(\d+)/g
+    /^uint8 constant OP_([0-9A-Z_]+)\s*=\s*(\d+)/gm
   )) {
     solMap.set(match[1], parseInt(match[2]));
   }

@@ -92,13 +92,15 @@ export class NitroRollup extends AbstractRollupV1<NitroCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['uint256', 'bytes32', 'bytes', 'bytes[]', 'bytes'],
+      ['tuple(uint256, bytes32, bytes, bytes[], bytes)'],
       [
-        commit.index,
-        commit.sendRoot,
-        commit.rlpEncodedBlock,
-        proofSeq.proofs,
-        proofSeq.order,
+        [
+          commit.index,
+          commit.sendRoot,
+          commit.rlpEncodedBlock,
+          proofSeq.proofs,
+          proofSeq.order,
+        ],
       ]
     );
   }

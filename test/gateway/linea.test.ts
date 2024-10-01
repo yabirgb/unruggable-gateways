@@ -3,8 +3,7 @@ import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
-import { runSlotDataTests } from './tests.js';
-import { deployProxy, pairName } from './common.js';
+import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
@@ -22,20 +21,25 @@ describe(pairName(config), async () => {
     log: false,
   });
   afterAll(() => ccip.http.close());
-  const verifier = await foundry.deploy({
-    file: 'LineaVerifier',
+  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+  const hooks = await foundry.deploy({
+    file: 'LineaTrieHooks',
     libs: {
       SparseMerkleProof: config.SparseMerkleProof,
     },
   });
-  const proxy = await deployProxy(foundry, verifier);
-  await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
-  await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-  await foundry.confirm(proxy.setRollup(rollup.L1MessageService));
-  // https://lineascan.build/address/0x48F5931C5Dbc2cD9218ba085ce87740157326F59#code
-  const reader = await foundry.deploy({
-    file: 'SlotDataReader',
-    args: [proxy, '0x48F5931C5Dbc2cD9218ba085ce87740157326F59'],
+  const verifier = await foundry.deploy({
+    file: 'LineaVerifier',
+    args: [
+      [ccip.endpoint],
+      rollup.defaultWindow,
+      hooks,
+      config.L1MessageService,
+    ],
+    libs: { GatewayProver },
   });
-  runSlotDataTests(reader);
+  await setupTests(verifier, {
+    // https://lineascan.build/address/0x48F5931C5Dbc2cD9218ba085ce87740157326F59#code
+    slotDataContract: '0x48F5931C5Dbc2cD9218ba085ce87740157326F59',
+  });
 });
