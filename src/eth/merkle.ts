@@ -159,8 +159,10 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
 
 function assertRlpVector(rlp: HexString) {
   const v = decodeRlp(rlp);
-  if (!Array.isArray(v) || !v.every((x) => typeof x === 'string'))
+  if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) {
+    console.log(v);
     throw new Error('expected rlp vector');
+  }
   return v as HexString[];
 }
 function toNibbles(s: HexString) {
