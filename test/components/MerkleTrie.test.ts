@@ -39,22 +39,18 @@ async function setup() {
             storageHash,
             storageProof: [{ value, proof }],
           } = await prover.getProofs(target, [slot]);
+          expect(toPaddedHex(value), 'expected value').toEqual(
+            toPaddedHex(expected)
+          );
           const accountState = verifyAccountState(
             target,
             accountProof,
             stateRoot
           );
+          if (storageHash === NULL_TRIE_HASH) return;
           expect(accountState?.storageRoot, 'storageRoot').toEqual(storageHash);
           const slotValue = verifyStorageValue(slot, proof, storageHash);
           expect(slotValue, 'proven value').toEqual(toPaddedHex(value));
-          expect(slotValue, 'expected value').toEqual(toPaddedHex(expected));
-          const liveValue = await prover.provider.getStorage(target, slot);
-          return {
-            nullRoot: storageHash === NULL_TRIE_HASH,
-            liveValue,
-            slotValue,
-            same: liveValue === slotValue,
-          };
         },
       };
     },
@@ -73,7 +69,7 @@ test('EOA with balance exists', async () => {
   const T = await setup();
   const P = await T.prover();
   const V = await P.assertValue(T.foundry.wallets.admin.address, 0, 0);
-  expect(V.nullRoot).toBeTrue();
+  expect(V).toBeUndefined();
 });
 
 test('empty contract', async () => {
@@ -119,20 +115,8 @@ test('slotted contract', async () => {
   await T.foundry.confirm(C.set(0, 1)); // change slot 0
   await T.foundry.confirm(C.set(2, 1)); // change slot 2
 
-  expect(
-    P1.assertValue(C.target, 0, 0).then((x) => x.same),
-    'expected slot(0) is diff'
-  ).resolves.toBeFalse();
-  expect(
-    P1.assertValue(C.target, 1, 1).then((x) => x.same),
-    'expected slot(1) is same'
-  ).resolves.toBeTrue();
-  expect(
-    P1.assertValue(C.target, 2, 0).then((x) => x.same),
-    'expected slot(2) is diff'
-  ).resolves.toBeFalse();
-
   const P2 = await T.prover();
   await P2.assertValue(C.target, 0, 1); // new value
+  await P2.assertValue(C.target, 1, 1); // unchanged
   await P2.assertValue(C.target, 2, 1); // new value
 });

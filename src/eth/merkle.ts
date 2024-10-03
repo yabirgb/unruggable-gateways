@@ -34,7 +34,6 @@ export function verifyAccountState(
 ): AccountState | undefined {
   const rlp = verifyMerkleTrieValue(target, accountProof, stateRoot, true);
   if (!rlp) return;
-  console.log(target, rlp);
   const decoded = assertRlpVector(rlp);
   if (decoded.length != 4) throw new Error('invalid account state');
   const [nonce, balance, storageRoot, codeHash] = decoded;
@@ -161,7 +160,6 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
 function assertRlpVector(rlp: HexString) {
   const v = decodeRlp(rlp);
   if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) {
-    console.log(rlp, v);
     throw new Error('expected rlp vector');
   }
   return v as HexString[];
