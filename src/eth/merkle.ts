@@ -44,6 +44,10 @@ export function verifyStorageValue(
   storageProof: EthProof,
   storageRoot: HexString
 ) {
+  if (storageRoot === NULL_TRIE_HASH) {
+    if (storageProof.length) throw new Error('expected empty proof');
+    return ZeroHash;
+  }
   const rlp = verifyMerkleTrieValue(
     toPaddedHex(slot),
     storageProof,
@@ -80,7 +84,7 @@ export function verifyMerkleTrieValue(
       root
     );
     if (keyRemainder.length) {
-      if (!final) new Error('key remainder');
+      if (!final) throw new Error('key remainder');
       return;
     }
     const { decoded } = nodes[pathLength - 1];
@@ -94,6 +98,11 @@ export function verifyMerkleTrieValue(
     });
   }
 }
+
+const PREFIX_EXTENSION_EVEN = 0;
+const PREFIX_EXTENSION_ODD = 1;
+const PREFIX_LEAF_EVEN = 2;
+const PREFIX_LEAF_ODD = 3;
 
 // this mirrors MerkleTrie.sol
 function walk(nodes: TrieNode[], key: HexString, root: HexString) {
@@ -121,14 +130,14 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
       const pathRemainder = pathNibbles.subarray(pathNibbles[0] & 1 ? 1 : 2);
       const keyRemainder = keyNibbles.subarray(keyIndex);
       const shared = getSharedNibbleLength(pathRemainder, keyRemainder);
-      if (keyRemainder.length < pathRemainder.length)
+      if (keyRemainder.length < pathRemainder.length) {
         throw new Error('invalid key length');
+      }
       switch (pathNibbles[0]) {
-        case 0: // PREFIX_EXTENSION_EVEN
-        case 1: {
-          // PREFIX_EXTENSION_ODD
+        case PREFIX_EXTENSION_EVEN:
+        case PREFIX_EXTENSION_ODD: {
           if (shared != pathRemainder.length) {
-            nodeID = RLP_NULL;
+            nodeID = '0x';
             break outer;
           } else {
             nodeID = node.decoded[1];
@@ -136,13 +145,12 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
             continue;
           }
         }
-        case 2: // PREFIX_LEAF_EVEN
-        case 3: {
-          // PREFIX_LEAF_ODD
+        case PREFIX_LEAF_EVEN:
+        case PREFIX_LEAF_ODD: {
           if (pathRemainder.length == shared && keyRemainder.length == shared) {
             keyIndex += shared;
           }
-          nodeID = RLP_NULL;
+          nodeID = '0x';
           break outer;
         }
         default:
@@ -153,7 +161,7 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
   return {
     pathLength,
     keyRemainder: keyNibbles.slice(keyIndex),
-    final: nodeID == RLP_NULL,
+    final: nodeID == '0x',
   };
 }
 

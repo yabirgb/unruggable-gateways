@@ -106,10 +106,9 @@ export class GatewayProgram {
     this.ops.push(x);
     return this;
   }
-  protected appendSmallBytes(v: BytesLike) {
-    const u = getBytes(v);
-    this.addByte(u.length);
-    this.ops.push(...u);
+  protected addSmallBytes(v: Uint8Array) {
+    this.addByte(v.length);
+    this.ops.push(...v);
     return this;
   }
   defineInput(x: BigNumberish | boolean) {
@@ -129,7 +128,7 @@ export class GatewayProgram {
     return ABI_CODER.encode(['bytes', 'bytes[]'], this.toTuple());
   }
   debug(label = '') {
-    return this.addByte(OP.DEBUG).appendSmallBytes(toUtf8Bytes(label));
+    return this.addByte(OP.DEBUG).addSmallBytes(toUtf8Bytes(label));
   }
 
   read(n = 1) {
@@ -165,7 +164,7 @@ export class GatewayProgram {
       success?: boolean;
       failure?: boolean;
       acquire?: boolean;
-      back?: number;
+      count?: number;
     } = {}
   ) {
     let flags = 0;
@@ -174,7 +173,7 @@ export class GatewayProgram {
     if (opts.acquire) flags |= ACQUIRE_STATE;
     // TODO: add recursion limit
     // TODO: add can modify output
-    return this.push(opts.back ?? 255) // this should be >= MAX_STACK
+    return this.push(opts.count ?? 255) // this should be >= MAX_STACK
       .addByte(OP.EVAL_LOOP)
       .addByte(flags);
   }
@@ -237,7 +236,7 @@ export class GatewayProgram {
   pushBytes(v: BytesLike) {
     const u = getBytes(v);
     return u.length < 256
-      ? this.addByte(OP.PUSH_BYTES).appendSmallBytes(u)
+      ? this.addByte(OP.PUSH_BYTES).addSmallBytes(u)
       : this.pushInput(this.defineInputBytes(u));
   }
   pushProgram(program: GatewayProgram) {

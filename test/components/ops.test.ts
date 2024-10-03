@@ -30,22 +30,20 @@ describe('ops', async () => {
     args: [[], 0, hooks],
     libs: { GatewayVM },
   });
-  const contract = await foundry.deploy({
-    sol: `
-      contract X {
-        uint256 value1 = 1;
-        uint256 value2 = 2;
-        string small = "abc";
-        string big = "${'abc'.repeat(20)}";
-        uint96[] array = [1, 2, 3];
-        string[] names = ["abc", "raffy"];
-        mapping (string => string) map;
-        constructor() {
-          map["raffy"] = "raffy";
-        }
+  const contract = await foundry.deploy(`
+    contract X {
+      uint256 value1 = 1;
+      uint256 value2 = 2;
+      string small = "abc";
+      string big = "${'abc'.repeat(20)}";
+      uint96[] array = [1, 2, 3];
+      string[] names = ["abc", "raffy", "chonk"];
+      mapping (string => string) map;
+      constructor() {
+        map["raffy"] = "raffy";
       }
-    `,
-  });
+    }
+  `);
 
   async function verify(req: GatewayRequest) {
     const prover = await EthProver.latest(foundry.provider);
@@ -427,6 +425,23 @@ describe('ops', async () => {
     expect(values[0]).toEqual(utf8Hex('raffy'));
   });
 
+  test('string[]', async () => {
+    const req = new GatewayRequest()
+      .setTarget(contract.target)
+      .setSlot(5) // names
+      .read() // length
+      .dup()
+      .addOutput()
+      .push(1)
+      .subtract()
+      .followIndex() // names[length-1]
+      .readBytes()
+      .addOutput();
+    const { values } = await verify(req);
+    expect(values[0]).toEqual(toPaddedHex(3));
+    expect(values[1]).toEqual(utf8Hex('chonk'));
+  });
+
   test('read', async () => {
     const req = new GatewayRequest()
       .setTarget(contract.target)
@@ -554,7 +569,7 @@ describe('ops', async () => {
   test('evalLoop empty', async () => {
     const req = new GatewayRequest();
     req.pushProgram(new GatewayProgram().concat()); // this will throw if executed
-    req.evalLoop();
+    req.evalLoop(); // but no arguments are on the stack so it doesn't execute
     await verify(req);
   });
 

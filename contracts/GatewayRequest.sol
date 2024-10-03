@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 struct GatewayRequest {
-	bytes ops;
-	bytes[] inputs;
+    bytes ops;
+    bytes[] inputs;
 }
 
 // eval flags
@@ -81,7 +81,7 @@ uint8 constant OP_SWAP = 82;
 
 uint8 constant OP_KECCAK = 90;
 uint8 constant OP_CONCAT = 91;
-uint8 constant OP_SLICE	= 92;
+uint8 constant OP_SLICE = 92;
 uint8 constant OP_LENGTH = 93;
 
 uint8 constant OP_PLUS = 100;
