@@ -1,5 +1,5 @@
 import { LineaCommit, LineaRollup } from './LineaRollup.js';
-import { isInclusionProof, LineaProof, LineaProofInclusion } from './types.js';
+import { isInclusionProof, LineaProof, LineaInclusionProof } from './types.js';
 import { GatewayV1 } from '../gateway.js';
 import { GatewayRequestV1 } from '../v1.js';
 import { ABI_CODER } from '../utils.js';
@@ -34,7 +34,7 @@ export class LineaGatewayV1 extends GatewayV1<LineaRollup> {
   }
 }
 
-function encodeAccountProof(proof: LineaProofInclusion) {
+function encodeAccountProof(proof: LineaInclusionProof) {
   return [
     proof.key,
     proof.leafIndex,

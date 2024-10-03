@@ -23,7 +23,7 @@ export type LineaProofObject = {
   value: HexString;
 };
 
-export type LineaProofExclusion = {
+export type LineaExclusionProof = {
   key: HexString32;
   leftLeafIndex: number;
   leftProof: LineaProofObject;
@@ -31,13 +31,13 @@ export type LineaProofExclusion = {
   rightProof: LineaProofObject;
 };
 
-export type LineaProofInclusion = {
+export type LineaInclusionProof = {
   key: HexString32;
   leafIndex: number;
   proof: LineaProofObject;
 };
 
-export type LineaProof = LineaProofExclusion | LineaProofInclusion;
+export type LineaProof = LineaExclusionProof | LineaInclusionProof;
 
 export type RPCLineaGetProof = {
   accountProof: LineaProof;
