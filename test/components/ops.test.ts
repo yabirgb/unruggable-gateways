@@ -23,12 +23,12 @@ function toPaddedArray(v: BigNumberish[]) {
 describe('ops', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'SelfVerifier',
     args: [[], 0, hooks],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
   const contract = await foundry.deploy({
     sol: `
@@ -64,12 +64,12 @@ describe('ops', async () => {
     );
     expect(res.outputs.toArray()).toEqual(values);
     expect(res.exitCode).toEqual(BigInt(state.exitCode));
-    return { ...state, values, stack };
+    return { ...state, values, stack, proofSeq };
   }
 
-  function testRepeat(label: string, fn: () => Promise<void>) {
-    test(label, async () => {
-      for (let i = 0; i < 10; i++) {
+  function testRepeat(label: string, fn: () => Promise<void>, n = 10) {
+    test(`${label} x${n}`, async () => {
+      for (let i = 0; i < n; i++) {
         await fn();
       }
     });
@@ -128,8 +128,7 @@ describe('ops', async () => {
     req.pushStackSize();
     req.pushStackSize();
     req.pushStackSize();
-    req.drain(3);
-    const { values } = await verify(req);
+    const { values } = await verify(req.drain(3));
     expect(values).toEqual(toPaddedArray([0, 1, 2]));
   });
 
@@ -138,8 +137,7 @@ describe('ops', async () => {
     req.push(1).length();
     req.pushStr('chonk').length();
     req.pushBytes('0xABCD').length();
-    req.drain(3);
-    const { values } = await verify(req);
+    const { values } = await verify(req.drain(3));
     expect(values).toEqual(toPaddedArray([32, 5, 2]));
   });
 
@@ -216,6 +214,8 @@ describe('ops', async () => {
   testBinary('and', (a, b) => a & b);
   testBinary('or', (a, b) => a | b);
   testBinary('xor', (a, b) => a ^ b);
+  testBinary('min', (a, b) => (a < b ? a : b));
+  testBinary('max', (a, b) => (a > b ? a : b));
 
   function testCompare(
     op: keyof GatewayRequest,
@@ -278,6 +278,15 @@ describe('ops', async () => {
     expect(values[0]).toEqual(toPaddedHex(-1n));
   });
 
+  test('flip', async () => {
+    const req = new GatewayRequest();
+    req.push(0).flip(); // false -> true
+    req.push(2).flip(); // true -> false
+    req.push(1).flip().flip(); // true -> false -> true
+    const { values } = await verify(req.drain(3));
+    expect(values).toEqual(toPaddedArray([1, 0, 1]));
+  });
+
   testRepeat('shift left', async () => {
     const x = rngUint();
     const shift = rngUint(1);
@@ -309,32 +318,37 @@ describe('ops', async () => {
   });
 
   test('dup last', async () => {
-    const req = new GatewayRequest().push(1).dup().drain(2);
-    const { values } = await verify(req);
+    const req = new GatewayRequest().push(1).dup();
+    const { values } = await verify(req.drain(2));
     expect(values).toEqual(toPaddedArray([1, 1]));
   });
 
   test('dup deep', async () => {
-    const req = new GatewayRequest().push(1).push(2).push(3).dup(2).drain(4);
-    const { values } = await verify(req);
+    const req = new GatewayRequest().push(1).push(2).push(3).dup(2);
+    const { values } = await verify(req.drain(4));
     expect(values).toEqual(toPaddedArray([1, 2, 3, 1]));
   });
 
-  test('dup nothing', async () => {
+  test('dup nothing is error', async () => {
     const req = new GatewayRequest().dup();
     expect(verify(req)).rejects.toThrow('back overflow');
   });
 
   test('dup2', async () => {
-    const req = new GatewayRequest().push(1).push(2).dup2().drain(4);
-    const { values } = await verify(req);
+    const req = new GatewayRequest().push(1).push(2).dup2();
+    const { values } = await verify(req.drain(4));
     expect(values).toEqual(toPaddedArray([1, 2, 1, 2]));
   });
 
   test('swap', async () => {
-    const req = new GatewayRequest().push(1).push(2).swap().drain(2);
-    const { values } = await verify(req);
+    const req = new GatewayRequest().push(1).push(2).swap();
+    const { values } = await verify(req.drain(2));
     expect(values).toEqual(toPaddedArray([2, 1]));
+  });
+
+  test('swap nothing is error', async () => {
+    const req = new GatewayRequest().swap();
+    expect(verify(req)).rejects.toThrow('back overflow');
   });
 
   test('swap mixed', async () => {
@@ -356,16 +370,16 @@ describe('ops', async () => {
     expect(values[0]).toEqual(toPaddedHex(1));
   });
 
-  test('pop underflow is allowed', async () => {
+  test('pop nothing is allowed', async () => {
     const req = new GatewayRequest().pop();
     await verify(req);
-    //expect(verify(req)).rejects.toThrow('stack underflow');
   });
 
   test('pushSlot', async () => {
-    const req = new GatewayRequest().setSlot(1337).pushSlot().addOutput();
+    const value = 1337;
+    const req = new GatewayRequest().setSlot(value).pushSlot().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(1337));
+    expect(values[0]).toEqual(toPaddedHex(value));
   });
 
   test('pushTarget', async () => {
@@ -378,7 +392,7 @@ describe('ops', async () => {
   });
 
   test('pushOutput', async () => {
-    const value = 123;
+    const value = 1337;
     const req = new GatewayRequest(2)
       .push(value)
       .setOutput(0)
@@ -387,16 +401,6 @@ describe('ops', async () => {
     const { values } = await verify(req);
     expect(values[0]).toEqual(toPaddedHex(value));
     expect(values[1]).toEqual(toPaddedHex(value));
-  });
-
-  test('follow slot', async () => {
-    const req = new GatewayRequest()
-      .setSlot(6)
-      .pushStr('raffy')
-      .follow()
-      .pushSlot()
-      .addOutput();
-    await verify(req);
   });
 
   test('follow value', async () => {
@@ -409,17 +413,6 @@ describe('ops', async () => {
       .addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(utf8Hex('raffy'));
-  });
-
-  test('followIndex slot', async () => {
-    const req = new GatewayRequest()
-      .setTarget(contract.target)
-      .setSlot(5)
-      .push(1) // names[1]
-      .followIndex()
-      .pushSlot()
-      .addOutput();
-    await verify(req);
   });
 
   test('followIndex value', async () => {

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {RLPReader, RLPReaderExt} from '../RLPReaderExt.sol';
 
-interface IRootChainProxy {
+interface IRootChain {
+    // https://github.com/0xPolygon/pos-contracts/blob/main/contracts/root/IRootChain.sol
     function currentHeaderBlock() external view returns (uint256);
+    // https://github.com/0xPolygon/pos-contracts/blob/main/contracts/root/RootChainStorage.sol
     function headerBlocks(
         uint256
     )
@@ -22,14 +24,14 @@ interface IRootChainProxy {
 }
 
 contract PolygonPoSVerifier is AbstractVerifier {
-    IRootChainProxy immutable _rootChain;
+    IRootChain immutable _rootChain;
     address immutable _poster;
 
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
-        IRootChainProxy rootChain,
+        IVerifierHooks hooks,
+        IRootChain rootChain,
         address poster
     ) AbstractVerifier(urls, window, hooks) {
         _rootChain = rootChain;
@@ -67,13 +69,15 @@ contract PolygonPoSVerifier is AbstractVerifier {
             bytes32 rootHash,
             uint256 l2BlockNumberStart,
             ,
-            uint256 t0,
+            uint256 createdAt,
 
         ) = _rootChain.headerBlocks(headerBlock);
         require(rootHash != bytes32(0), 'PolygonPoS: checkpoint');
         if (headerBlock1 != headerBlock) {
-            (, , , uint256 t1, ) = _rootChain.headerBlocks(headerBlock1);
-            _checkWindow(t1, t0);
+            (, , , uint256 createdAt1, ) = _rootChain.headerBlocks(
+                headerBlock1
+            );
+            _checkWindow(createdAt1, createdAt);
         }
         bytes memory receipt = _proveReceiptInCheckpoint(
             v,
@@ -91,7 +95,7 @@ contract PolygonPoSVerifier is AbstractVerifier {
         v = RLPReader.readList(p.rlpEncodedBlock);
         bytes32 stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]);
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, stateRoot, p.proofs, p.order, _hooks)
             );
@@ -102,8 +106,8 @@ contract PolygonPoSVerifier is AbstractVerifier {
         uint256 logIndex
     ) internal view returns (bytes32) {
         if (uint8(receipt[0]) != 0) {
+            // remove transaction type prefix
             assembly {
-                // remove transaction type prefix
                 mstore(add(receipt, 1), sub(mload(receipt), 1))
                 receipt := add(receipt, 1)
             }

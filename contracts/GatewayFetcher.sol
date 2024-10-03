@@ -8,6 +8,7 @@ library GatewayFetcher {
 	// these are only limits of the builder
 	// verifier execution is only constrainted by stack and gas
 	// max outputs = 255
+	// TODO: this could be configurable during constructor?
 	uint256 constant MAX_OPS = 2048;
 	uint256 constant MAX_INPUTS = 64;
 
@@ -76,7 +77,6 @@ library GatewayFetcher {
 		return r.addByte(OP_DEBUG).addSmallBytes(bytes(label));
 	}
 
-	//function push0(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_PUSH_0); }
 	function push(GatewayRequest memory r, bytes32 x) internal pure returns (GatewayRequest memory) { return r.push(uint256(x)); }
 	function push(GatewayRequest memory r, address x) internal pure returns (GatewayRequest memory) { return r.push(uint160(x)); }
 	function push(GatewayRequest memory r, string memory s) internal pure returns (GatewayRequest memory) { return push(r, bytes(s)); }
@@ -91,11 +91,10 @@ library GatewayFetcher {
 	}
 	function push(GatewayRequest memory r, uint256 x) internal pure returns (GatewayRequest memory) {
 		if (x == 0) return r.addByte(OP_PUSH_0);
-		r.addByte(OP_PUSH_VALUE);
 		uint8 n = clz(x);
 		x <<= (n << 3); // left-align
 		n = 32 - n;
-		r.addByte(n);
+		r.addByte(OP_PUSH_0 + n);
 		bytes memory v = r.ops;
 		assembly {
 			let len := mload(v)
@@ -133,7 +132,7 @@ library GatewayFetcher {
 	function read(GatewayRequest memory r, uint256 n) internal pure returns (GatewayRequest memory) { return r.push(n).addByte(OP_READ_SLOTS); }
 	function readBytes(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_READ_BYTES); }
 	function readArray(GatewayRequest memory r, uint256 step) internal pure returns (GatewayRequest memory) { return r.push(step).addByte(OP_READ_ARRAY); }
-	function readHashedBytes(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_READ_HASHED); }
+	function readHashedBytes(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_READ_HASHED_BYTES); }
 
 	function pop(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.addByte(OP_POP); }
 	function dup(GatewayRequest memory r) internal pure returns (GatewayRequest memory) { return r.dup(0); }

@@ -37,11 +37,11 @@
     "contracts/GatewayFetcher.sol",
     "contracts/GatewayFetchTarget.sol",
     "contracts/GatewayRequest.sol",
-    "contracts/IGatewayProver.sol",
+    "contracts/IGatewayProtocol.sol",
     "contracts/IGatewayVerifier.sol"
   ],
   "devDependencies": {
-    "@adraffy/blocksmith": "^0.0.36",
+    "@adraffy/blocksmith": "^0.0.38",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@resolverworks/ezccip": "^0.0.15",
-    "ethers": "^6.13.2"
+    "ethers": "^6.13.3"
   },
   "peerDependencies": {
     "typescript": "^5.5.2"

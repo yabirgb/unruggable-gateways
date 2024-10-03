@@ -12,12 +12,12 @@ function rngUint(n = 32) {
 
 const foundry = await Foundry.launch({ infoLog: true });
 try {
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'SelfVerifier',
     args: [[], 0, hooks],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
 
   async function verify(req: GatewayRequest) {

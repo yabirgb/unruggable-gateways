@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IGatewayVerifier} from './IGatewayVerifier.sol';
 import {GatewayRequest} from './GatewayRequest.sol';
-import {IGatewayProver} from './IGatewayProver.sol';
+import {IGatewayVerifier} from './IGatewayVerifier.sol';
+import {IGatewayProtocol} from './IGatewayProtocol.sol';
 
 error OffchainLookup(
     address from,
@@ -42,7 +42,7 @@ abstract contract GatewayFetchTarget {
         revert OffchainLookup(
             address(this),
             urls,
-            abi.encodeCall(IGatewayProver.proveRequest, (context, req)),
+            abi.encodeCall(IGatewayProtocol.proveRequest, (context, req)),
             this.fetchCallback.selector,
             abi.encode(Session(verifier, context, req, callback, carry))
         );

@@ -22,8 +22,8 @@ describe.skipIf(!!process.env.IS_CI)(pairName(config), async () => {
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'PolygonPoSVerifier',
     args: [
@@ -33,7 +33,7 @@ describe.skipIf(!!process.env.IS_CI)(pairName(config), async () => {
       rollup.RootChain,
       rollup.poster,
     ],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
   await setupTests(verifier, {
     // https://polygonscan.com/address/0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361#code

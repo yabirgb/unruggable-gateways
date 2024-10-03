@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {IZKSyncSMT, TreeEntry, ACCOUNT_CODE_HASH} from './IZKSyncSMT.sol';
 
 interface IZKSyncDiamond {
@@ -32,7 +32,7 @@ contract ZKSyncVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         IZKSyncDiamond diamond
     ) AbstractVerifier(urls, window, hooks) {
         _diamond = diamond;
@@ -71,7 +71,7 @@ contract ZKSyncVerifier is AbstractVerifier {
             'ZKS: l2LogsRootHash'
         );
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, batchInfo.batchHash, p.proofs, p.order, _hooks)
             );

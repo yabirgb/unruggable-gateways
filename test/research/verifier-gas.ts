@@ -56,8 +56,8 @@ const setups: Setup[] = [
       file: 'FixedOPFaultGameFinder',
       args: [commit.index],
     });
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-    const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({
       file: 'OPFaultVerifier',
       args: [
@@ -68,7 +68,7 @@ const setups: Setup[] = [
         gameFinder,
         rollup.gameTypeBitMask,
       ],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     const estimator = await createEstimator(verifier, rollup, commit);
     return {
@@ -84,9 +84,9 @@ const setups: Setup[] = [
     const config = LineaRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = new LineaRollup(providers, config);
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({
-      file: 'LineaTrieHooks',
+      file: 'LineaVerifierHooks',
       libs: {
         SparseMerkleProof: config.SparseMerkleProof,
       },
@@ -94,7 +94,7 @@ const setups: Setup[] = [
     const verifier = await foundry.deploy({
       file: 'LineaVerifier',
       args: [[], rollup.defaultWindow, hooks, config.L1MessageService],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     const estimator = await createEstimator(verifier, rollup);
     return {
@@ -110,16 +110,16 @@ const setups: Setup[] = [
     const config = ZKSyncRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = new ZKSyncRollup(providers, config);
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
     const hooks = await foundry.deploy({
-      file: 'ZKSyncTrieHooks',
+      file: 'ZKSyncVerifierHooks',
       args: [ZKSyncSMT],
     });
     const verifier = await foundry.deploy({
       file: 'ZKSyncVerifier',
       args: [[], rollup.defaultWindow, hooks, rollup.DiamondProxy],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     const estimator = await createEstimator(verifier, rollup);
     return {
@@ -135,15 +135,15 @@ const setups: Setup[] = [
     const config = ScrollRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = await ScrollRollup.create(providers, config);
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({
-      file: 'ScrollTrieHooks',
+      file: 'ScrollVerifierHooks',
       args: [rollup.poseidon],
     });
     const verifier = await foundry.deploy({
       file: 'ScrollVerifier',
       args: [[], rollup.defaultWindow, hooks, rollup.rollup],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     const estimator = await createEstimator(verifier, rollup);
     return {
@@ -159,12 +159,12 @@ const setups: Setup[] = [
     const config = TaikoRollup.mainnetConfig;
     const { foundry, providers } = await launch(config);
     const rollup = await TaikoRollup.create(providers, config);
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-    const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({
       file: 'TaikoVerifier',
       args: [[], rollup.defaultWindow, hooks, rollup.TaikoL1],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     const estimator = await createEstimator(verifier, rollup);
     return {

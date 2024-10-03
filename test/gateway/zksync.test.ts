@@ -19,16 +19,16 @@ describe(pairName(config), async () => {
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
   const hooks = await foundry.deploy({
-    file: 'ZKSyncTrieHooks',
+    file: 'ZKSyncVerifierHooks',
     args: [ZKSyncSMT],
   });
   const verifier = await foundry.deploy({
     file: 'ZKSyncVerifier',
     args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.DiamondProxy],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
   await setupTests(verifier, {
     // https://explorer.zksync.io/address/0x1Cd42904e173EA9f7BA05BbB685882Ea46969dEc#contract

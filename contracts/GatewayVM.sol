@@ -2,11 +2,9 @@
 pragma solidity ^0.8.0;
 
 import './GatewayRequest.sol';
-import {NOT_A_CONTRACT, InvalidProof} from './ProofUtils.sol';
-import {IProverHooks} from './IProverHooks.sol';
-//import {IUnfinalizedHook} from "./IUnfinalizedHook.sol";
-
+import {IVerifierHooks, InvalidProof, NOT_A_CONTRACT} from './IVerifierHooks.sol';
 import {Bytes} from '../lib/optimism/packages/contracts-bedrock/src/libraries/Bytes.sol'; // Bytes.slice
+//import {IUnfinalizedHook} from "./IUnfinalizedHook.sol";
 
 import 'forge-std/console2.sol'; // DEBUG
 
@@ -15,11 +13,11 @@ struct ProofSequence {
     bytes32 stateRoot;
     bytes[] proofs;
     bytes order;
-    IProverHooks hooks;
+    IVerifierHooks hooks;
     //IUnfinalizedHook unfinalizedHook;
 }
 
-library GatewayProver {
+library GatewayVM {
     error RequestInvalid();
 
     // current limit is 256 because of stackBits
@@ -85,7 +83,7 @@ library GatewayProver {
         ProofSequence proofs;
     }
 
-    using GatewayProver for Machine;
+    using GatewayVM for Machine;
 
     function pushUint256(Machine memory vm, uint256 x) internal pure {
         vm.push(x, true);
@@ -181,19 +179,16 @@ library GatewayProver {
             i := shr(248, mload(src))
         }
     }
-    function readSmallBytesAsWord(
-        Machine memory vm
+    function readUint(
+        Machine memory vm,
+		uint256 n
     ) internal pure returns (uint256 word) {
-        uint256 n = vm.readByte();
-        if (n != 0) {
-            if (n > 32) revert RequestInvalid(); // word size
-            uint256 src = vm.checkRead(n);
-            assembly {
-                word := mload(src)
-            }
-            word >>= (32 - n) << 3;
-            //assembly { word := shr(shl(3, sub(32, n)), mload(src)) }
-        }
+        uint256 src = vm.checkRead(n);
+		assembly {
+			word := mload(src)
+		}
+		word >>= (32 - n) << 3;
+		//assembly { word := shr(shl(3, sub(32, n)), mload(src)) }
     }
     function readSmallBytes(
         Machine memory vm
@@ -215,7 +210,7 @@ library GatewayProver {
         if (vm.storageRoot == NOT_A_CONTRACT) return 0;
         return
             uint256(
-                vm.proofs.hooks.proveStorageValue(
+                vm.proofs.hooks.verifyStorageValue(
                     vm.storageRoot,
                     vm.target,
                     slot,
@@ -316,16 +311,16 @@ library GatewayProver {
     ) internal view returns (uint8 exitCode) {
         while (vm.pos < vm.buf.length) {
             //uint256 g = gasleft();
-            uint256 op = vm.readByte();
-            if (op == OP_PUSH_0) {
-                vm.pushUint256(0);
-            } else if (op == OP_PUSH_VALUE) {
-                vm.pushUint256(vm.readSmallBytesAsWord());
+            uint8 op = vm.readByte();
+			if (op == OP_PUSH_0) {
+				 vm.pushUint256(0);
+			} else if (op <= OP_PUSH_32) { // && op >= OP_PUSH_1
+                vm.pushUint256(vm.readUint(op)); // - OP_PUSH_0
             } else if (op == OP_PUSH_BYTES) {
                 vm.pushBytes(vm.readSmallBytes());
             } else if (op == OP_TARGET) {
                 vm.target = address(uint160(vm.popAsUint256()));
-                vm.storageRoot = vm.proofs.hooks.proveAccountState(
+                vm.storageRoot = vm.proofs.hooks.verifyAccountState(
                     vm.proofs.stateRoot,
                     vm.target,
                     vm.readProof()
@@ -345,7 +340,7 @@ library GatewayProver {
                 vm.pushBytes(vm.proveSlots(vm.popAsUint256()));
             } else if (op == OP_READ_BYTES) {
                 vm.pushBytes(vm.proveBytes());
-            } else if (op == OP_READ_HASHED) {
+            } else if (op == OP_READ_HASHED_BYTES) {
                 bytes memory v = vm.readProof();
                 if (keccak256(v) != bytes32(vm.popAsUint256()))
                     revert InvalidProof();

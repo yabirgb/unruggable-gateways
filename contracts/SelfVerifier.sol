@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AbstractVerifier, IProverHooks} from './AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence, IProverHooks} from './GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from './AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence, IVerifierHooks} from './GatewayVM.sol';
 import {RLPReader, RLPReaderExt} from './RLPReaderExt.sol';
 
 contract SelfVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks
+        IVerifierHooks hooks
     ) AbstractVerifier(urls, window, hooks) {}
 
     function getLatestContext() external view returns (bytes memory) {
@@ -46,7 +46,7 @@ contract SelfVerifier is AbstractVerifier {
         bytes memory order
     ) public view returns (bytes[] memory outputs, uint8 exitCode) {
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, stateRoot, proofs, order, _hooks)
             );

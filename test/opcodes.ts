@@ -37,6 +37,11 @@ try {
       }
     }
   }
+  // check push 0-32
+  for (let i = 0; i <= 32; i++) {
+    const name = `PUSH_${i}`;
+    expect(solMap.get(name), name).toEqual(i);
+  }
 } finally {
   await foundry.shutdown();
 }

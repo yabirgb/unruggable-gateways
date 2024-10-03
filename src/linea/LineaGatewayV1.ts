@@ -1,5 +1,5 @@
 import { LineaCommit, LineaRollup } from './LineaRollup.js';
-import { isExistanceProof, LineaProof, LineaProofExistance } from './types.js';
+import { isInclusionProof, LineaProof, LineaProofInclusion } from './types.js';
 import { GatewayV1 } from '../gateway.js';
 import { GatewayRequestV1 } from '../v1.js';
 import { ABI_CODER } from '../utils.js';
@@ -15,7 +15,7 @@ export class LineaGatewayV1 extends GatewayV1<LineaRollup> {
     const state = await commit.prover.evalRequest(request.v2());
     const { target, slots } = requireV1Needs(state.needs);
     const proofs = await commit.prover.getProofs(target, slots);
-    if (!isExistanceProof(proofs.accountProof)) {
+    if (!isInclusionProof(proofs.accountProof)) {
       throw new Error(`not a contract: ${request.target}`);
     }
     const witness = ABI_CODER.encode(
@@ -34,7 +34,7 @@ export class LineaGatewayV1 extends GatewayV1<LineaRollup> {
   }
 }
 
-function encodeAccountProof(proof: LineaProofExistance) {
+function encodeAccountProof(proof: LineaProofInclusion) {
   return [
     proof.key,
     proof.leafIndex,
@@ -43,7 +43,7 @@ function encodeAccountProof(proof: LineaProofExistance) {
 }
 
 function encodeStorageProof(proof: LineaProof) {
-  return isExistanceProof(proof)
+  return isInclusionProof(proof)
     ? [
         proof.key,
         proof.leafIndex,

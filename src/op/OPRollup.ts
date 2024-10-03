@@ -77,6 +77,20 @@ export class OPRollup extends AbstractOPRollup {
     L2OutputOracle: '0x6Ef8c69CfE4635d866e3E02732068022c06e724D',
   };
 
+  // https://docs.bnbchain.org/bnb-opbnb/core-concepts/opbnb-protocol-addresses/
+  static readonly opBNBMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.BSC,
+    chain2: CHAINS.OP_BNB,
+    L2OutputOracle: '0x153CAB79f4767E2ff862C94aa49573294B13D169',
+  };
+
+  // https://storage.googleapis.com/cel2-rollup-files/alfajores/deployment-l1.json
+  static readonly celoAlfajoresConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.HOLESKY,
+    chain2: CHAINS.CELO_ALFAJORES,
+    L2OutputOracle: '0x4a2635e9e4f6e45817b1D402ac4904c1d1752438',
+  };
+
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {
     super(providers);

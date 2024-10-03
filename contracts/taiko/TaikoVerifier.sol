@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 
 struct TransitionState {
     bytes32 key;
@@ -34,7 +34,7 @@ contract TaikoVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         ITaiko rollup
     ) AbstractVerifier(urls, window, hooks) {
         _rollup = rollup;
@@ -65,7 +65,7 @@ contract TaikoVerifier is AbstractVerifier {
             p.parentHash
         ); // reverts if invalid
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, ts.stateRoot, p.proofs, p.order, _hooks)
             );

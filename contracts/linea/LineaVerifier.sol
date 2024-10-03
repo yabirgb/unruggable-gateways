@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 //import {IUnfinalizedHook} from "../IUnfinalizedHook.sol";
 
 interface IRollup {
@@ -19,7 +19,7 @@ contract LineaVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         IRollup rollup
     ) AbstractVerifier(urls, window, hooks) {
         _rollup = rollup;
@@ -46,7 +46,7 @@ contract LineaVerifier is AbstractVerifier {
         bytes32 stateRoot = _rollup.stateRootHashes(p.l2BlockNumber);
         if (stateRoot == bytes32(0)) revert('Linea: not finalized');
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, stateRoot, p.proofs, p.order, _hooks)
             );

@@ -9,12 +9,12 @@ import { describe } from '../bun-describe-fix.js';
 describe('hashed', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'SelfVerifier',
     args: [[], 0, hooks],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
   // this is almost ~400 rpc calls!
   const bytes = hexlify(randomBytes(12345));

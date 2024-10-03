@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IProverHooks} from '../IProverHooks.sol';
-import {NOT_A_CONTRACT, NULL_CODE_HASH} from '../ProofUtils.sol';
+import {IVerifierHooks, NOT_A_CONTRACT, NULL_CODE_HASH} from '../IVerifierHooks.sol';
 import {SecureMerkleTrie} from './SecureMerkleTrie.sol';
 import {RLPReader, RLPReaderExt} from '../RLPReaderExt.sol';
 
-contract EthTrieHooks is IProverHooks {
-    function proveAccountState(
+contract EthVerifierHooks is IVerifierHooks {
+    function verifyAccountState(
         bytes32 stateRoot,
         address target,
         bytes memory proof
@@ -30,7 +29,7 @@ contract EthTrieHooks is IProverHooks {
                 : RLPReaderExt.strictBytes32FromRLP(v[v.length - 2]);
     }
 
-    function proveStorageValue(
+    function verifyStorageValue(
         bytes32 storageRoot,
         address,
         uint256 slot,

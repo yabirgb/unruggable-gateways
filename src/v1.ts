@@ -40,8 +40,7 @@ export class GatewayRequestV1 {
     );
   }
   private addConst(x: BytesLike) {
-    if (this.constants.length >= MAX_CONSTS)
-      throw new Error('constants overflow');
+    if (this.constants.length >= MAX_CONSTS) throw new Error('too many inputs');
     this.constants.push(hexlify(x));
     return this.constants.length - 1;
   }
@@ -71,7 +70,7 @@ export class GatewayRequestV1 {
     this.buf.push(OP_FOLLOW_REF | i);
     return this;
   }
-  element(x: BigNumberish | boolean) {
+  element(x: BigNumberish) {
     return this.elementBytes(toPaddedHex(x));
   }
   elementStr(s: string) {

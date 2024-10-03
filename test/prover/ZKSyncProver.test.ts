@@ -34,7 +34,7 @@ describe('ZKSyncProver', async () => {
     const target = '0x0000000000000000000000000000000000001234';
     expect(commit.prover.isContract(target)).resolves.toBeFalse();
     const proof = await commit.prover.prove([{ target, required: true }]);
-    const stateRoot = await verifier.proveAccountState(
+    const stateRoot = await verifier.verifyAccountState(
       commit.stateRoot,
       target,
       proof.proofs[0]
@@ -46,7 +46,7 @@ describe('ZKSyncProver', async () => {
     const target = '0x51050ec063d393217B436747617aD1C2285Aeeee';
     expect(commit.prover.isContract(target)).resolves.toBeFalse();
     const proof = await commit.prover.prove([{ target, required: true }]);
-    const stateRoot = await verifier.proveAccountState(
+    const stateRoot = await verifier.verifyAccountState(
       commit.stateRoot,
       target,
       proof.proofs[0]
@@ -58,13 +58,13 @@ describe('ZKSyncProver', async () => {
     const target = '0x1Cd42904e173EA9f7BA05BbB685882Ea46969dEc'; // SlotDataReader
     expect(commit.prover.isContract(target)).resolves.toBeTrue();
     const proof = await commit.prover.prove([{ target, required: true }, 0n]);
-    const stateRoot = await verifier.proveAccountState(
+    const stateRoot = await verifier.verifyAccountState(
       commit.stateRoot,
       target,
       proof.proofs[0]
     );
     expect(stateRoot).toStrictEqual(commit.stateRoot);
-    const storageValue = await verifier.proveStorageValue(
+    const storageValue = await verifier.verifyStorageValue(
       stateRoot,
       target,
       0n,

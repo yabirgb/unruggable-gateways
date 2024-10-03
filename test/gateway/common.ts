@@ -70,8 +70,8 @@ export function testOP(config: RollupDeployment<OPConfig>, opts: TestOptions) {
     const gateway = new Gateway(rollup);
     const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
     afterAll(() => ccip.http.close());
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-    const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({
       file: 'OPVerifier',
       args: [
@@ -80,7 +80,7 @@ export function testOP(config: RollupDeployment<OPConfig>, opts: TestOptions) {
         hooks,
         rollup.L2OutputOracle,
       ],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     await setupTests(verifier, opts);
   });
@@ -105,8 +105,8 @@ export function testOPFault(
       file: 'FixedOPFaultGameFinder',
       args: [commit.index],
     });
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-    const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({
       file: 'OPFaultVerifier',
       args: [
@@ -117,7 +117,7 @@ export function testOPFault(
         gameFinder,
         rollup.gameTypeBitMask,
       ],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     await setupTests(verifier, opts);
   });
@@ -140,15 +140,15 @@ export function testScroll(
     const gateway = new Gateway(rollup);
     const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
     afterAll(() => ccip.http.close());
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({
-      file: 'ScrollTrieHooks',
+      file: 'ScrollVerifierHooks',
       args: [rollup.poseidon],
     });
     const verifier = await foundry.deploy({
       file: 'ScrollVerifier',
       args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.rollup],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     await setupTests(verifier, opts);
   });
@@ -163,14 +163,14 @@ export function testSelfEth(chain: Chain, opts: TestOptions) {
     afterAll(() => foundry.shutdown());
     const rollup = new EthSelfRollup(foundry.provider);
     const gateway = new Gateway(rollup);
-    const ccip = await serve(gateway, { protocol: 'raw', log: !opts.log });
+    const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
     afterAll(() => ccip.http.close());
-    const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-    const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({
       file: 'SelfVerifier',
       args: [[ccip.endpoint], rollup.defaultWindow, hooks],
-      libs: { GatewayProver },
+      libs: { GatewayVM },
     });
     await setupTests(verifier, opts);
   });

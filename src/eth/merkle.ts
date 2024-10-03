@@ -27,24 +27,24 @@ type AccountState = {
   codeHash: HexString;
 };
 
-export function proveAccountState(
+export function verifyAccountState(
   target: HexString,
   accountProof: EthProof,
   stateRoot: HexString
 ): AccountState | undefined {
-  const rlp = proveMerkleTrieValue(target, accountProof, stateRoot, true);
+  const rlp = verifyMerkleTrieValue(target, accountProof, stateRoot, true);
   if (!rlp) return;
   const decoded = assertRlpVector(rlp);
   if (decoded.length != 4) throw new Error('invalid account state');
   const [nonce, balance, storageRoot, codeHash] = decoded;
   return { nonce, balance, storageRoot, codeHash };
 }
-export function proveStorageValue(
+export function verifyStorageValue(
   slot: BigNumberish,
   storageProof: EthProof,
   storageRoot: HexString
 ) {
-  const rlp = proveMerkleTrieValue(
+  const rlp = verifyMerkleTrieValue(
     toPaddedHex(slot),
     storageProof,
     storageRoot,
@@ -57,7 +57,7 @@ export function proveStorageValue(
 }
 
 // same arg order as MerkleTrie.get()
-export function proveMerkleTrieValue(
+export function verifyMerkleTrieValue(
   key: HexString,
   proof: EthProof,
   root: HexString,

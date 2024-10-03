@@ -17,12 +17,12 @@ describe('local self', async () => {
   afterAll(() => ccip.http.close());
 
   // setup verifier
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'SelfVerifier',
     args: [[ccip.endpoint], rollup.defaultWindow, hooks],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
 
   // setup backend contract (L2)

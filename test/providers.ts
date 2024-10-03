@@ -29,6 +29,13 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         alchemy: 'eth-sepolia',
       },
       {
+        chain: CHAINS.HOLESKY,
+        rpc: 'https:;/rpc.ankr.com/eth_holesky/', //'https://rpc.holesky.ethpandaops.io',
+        ankr: 'eth_holesky',
+        infura: 'holesky',
+        alchemy: 'eth-holesky',
+      },
+      {
         // https://docs.optimism.io/chain/networks#op-mainnet
         chain: CHAINS.OP,
         rpc: 'https://mainnet.optimism.io',
@@ -86,11 +93,13 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         chain: CHAINS.SCROLL,
         rpc: 'https://rpc.scroll.io',
         ankr: 'scroll',
+        infura: 'scroll-mainnet',
       },
       {
         chain: CHAINS.SCROLL_SEPOLIA,
         rpc: 'https://sepolia-rpc.scroll.io',
         ankr: 'scroll_sepolia_testnet',
+        infura: 'scroll-sepolia',
       },
       {
         // https://docs.taiko.xyz/network-reference/rpc-configuration#taiko-mainnet
@@ -212,6 +221,27 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         // https://docs.shape.network/documentation/technical-details/network-information
         chain: CHAINS.SHAPE,
         rpc: 'https://mainnet.shape.network',
+        alchemy: 'shape-mainnet',
+      },
+      {
+        // https://docs.bnbchain.org/bnb-smart-chain/
+        chain: CHAINS.BSC,
+        rpc: 'https://bsc-dataseed.bnbchain.org',
+        //infura: 'bsc-mainnet', // 20241002: eth_getProof doesn't work
+        // alchemy: 'bnb-mainnet', // requires premium
+        ankr: 'bsc',
+      },
+      {
+        // https://docs.bnbchain.org/bnb-opbnb/get-started/network-info/
+        chain: CHAINS.OP_BNB,
+        rpc: 'https://opbnb-mainnet-rpc.bnbchain.org',
+        infura: 'opbnb-mainnet',
+      },
+      {
+        // https://docs.celo.org/network#celo-alfajores
+        chain: CHAINS.CELO_ALFAJORES,
+        rpc: 'https://alfajores-forno.celo-testnet.org',
+        //infura: 'celo-alfajores', // 20241002: eth_getProof doesn't work
       },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])

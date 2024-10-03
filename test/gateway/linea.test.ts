@@ -21,9 +21,9 @@ describe(pairName(config), async () => {
     log: false,
   });
   afterAll(() => ccip.http.close());
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const hooks = await foundry.deploy({
-    file: 'LineaTrieHooks',
+    file: 'LineaVerifierHooks',
     libs: {
       SparseMerkleProof: config.SparseMerkleProof,
     },
@@ -36,7 +36,7 @@ describe(pairName(config), async () => {
       hooks,
       config.L1MessageService,
     ],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
   await setupTests(verifier, {
     // https://lineascan.build/address/0x48F5931C5Dbc2cD9218ba085ce87740157326F59#code

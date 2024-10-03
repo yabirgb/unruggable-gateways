@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IProverHooks} from '../IProverHooks.sol';
-import {NOT_A_CONTRACT, NULL_CODE_HASH, InvalidProof} from '../ProofUtils.sol';
+import {IVerifierHooks, InvalidProof, NOT_A_CONTRACT, NULL_CODE_HASH} from '../IVerifierHooks.sol';
 
 interface IPoseidon {
     function poseidon(
@@ -13,7 +12,7 @@ interface IPoseidon {
 
 //import "forge-std/console2.sol";
 
-contract ScrollTrieHooks is IProverHooks {
+contract ScrollVerifierHooks is IVerifierHooks {
     IPoseidon immutable _poseidon;
     constructor(IPoseidon poseidon) {
         _poseidon = poseidon;
@@ -39,7 +38,7 @@ contract ScrollTrieHooks is IProverHooks {
     uint256 constant NODE_BRANCH_BRANCH = 9; // BB
 
     // 20240918: 900k gas
-    function proveAccountState(
+    function verifyAccountState(
         bytes32 stateRoot,
         address account,
         bytes memory encodedProof
@@ -80,7 +79,7 @@ contract ScrollTrieHooks is IProverHooks {
     }
 
     // 20240918: 93k gas
-    function proveStorageValue(
+    function verifyStorageValue(
         bytes32 storageRoot,
         address /*target*/,
         uint256 slot,

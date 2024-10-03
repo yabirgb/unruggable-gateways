@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 
 interface IScrollChain {
     function lastFinalizedBatchIndex() external view returns (uint256);
@@ -17,7 +17,7 @@ contract ScrollVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         IScrollChain rollup
     ) AbstractVerifier(urls, window, hooks) {
         _rollup = rollup;
@@ -44,7 +44,7 @@ contract ScrollVerifier is AbstractVerifier {
         bytes32 stateRoot = _rollup.finalizedStateRoots(p.batchIndex);
         require(stateRoot != bytes32(0), 'Scroll: not finalized');
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, stateRoot, p.proofs, p.order, _hooks)
             );

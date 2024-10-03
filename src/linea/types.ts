@@ -23,7 +23,7 @@ export type LineaProofObject = {
   value: HexString;
 };
 
-export type LineaProofAbsence = {
+export type LineaProofExclusion = {
   key: HexString32;
   leftLeafIndex: number;
   leftProof: LineaProofObject;
@@ -31,20 +31,20 @@ export type LineaProofAbsence = {
   rightProof: LineaProofObject;
 };
 
-export type LineaProofExistance = {
+export type LineaProofInclusion = {
   key: HexString32;
   leafIndex: number;
   proof: LineaProofObject;
 };
 
-export type LineaProof = LineaProofAbsence | LineaProofExistance;
+export type LineaProof = LineaProofExclusion | LineaProofInclusion;
 
 export type RPCLineaGetProof = {
   accountProof: LineaProof;
   storageProofs: LineaProof[]; // note: this is plural
 };
 
-export function isExistanceProof(proof: LineaProof) {
+export function isInclusionProof(proof: LineaProof) {
   return 'leafIndex' in proof;
 }
 
@@ -52,7 +52,7 @@ export function isExistanceProof(proof: LineaProof) {
 
 export function isContract(accountProof: LineaProof) {
   return (
-    isExistanceProof(accountProof) &&
+    isInclusionProof(accountProof) &&
     // https://github.com/Consensys/linea-monorepo/blob/a001342170768a22988a29b2dca8601199c6e205/contracts/contracts/lib/SparseMerkleProof.sol#L23
     dataSlice(accountProof.proof.value, 128, 160) !== NULL_CODE_HASH
   );
@@ -62,7 +62,7 @@ export function encodeProof(proof: LineaProof) {
   const T = 'tuple(uint256, bytes, bytes[])';
   return ABI_CODER.encode(
     [T, T],
-    isExistanceProof(proof)
+    isInclusionProof(proof)
       ? [
           [proof.leafIndex, proof.proof.value, proof.proof.proofRelatedNodes],
           [0, '0x', []],

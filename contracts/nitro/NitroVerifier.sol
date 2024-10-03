@@ -2,8 +2,8 @@
 pragma solidity ^0.8.23;
 
 import {AbstractVerifier} from '../AbstractVerifier.sol';
-import {IProverHooks} from '../IProverHooks.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {IVerifierHooks} from '../IVerifierHooks.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {RLPReader, RLPReaderExt} from '../RLPReaderExt.sol';
 
 // extracted from:
@@ -36,7 +36,7 @@ contract NitroVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         IRollupCore rollup
     ) AbstractVerifier(urls, window, hooks) {
         _rollup = rollup;
@@ -73,7 +73,7 @@ contract NitroVerifier is AbstractVerifier {
         RLPReader.RLPItem[] memory v = RLPReader.readList(p.rlpEncodedBlock);
         bytes32 stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]); // see: rlp.ts: encodeRlpBlock()
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, stateRoot, p.proofs, p.order, _hooks)
             );

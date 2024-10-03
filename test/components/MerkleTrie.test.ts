@@ -1,8 +1,8 @@
 import type { HexString, BigNumberish } from '../../src/types.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import {
-  proveAccountState,
-  proveStorageValue,
+  verifyAccountState,
+  verifyStorageValue,
   NULL_TRIE_HASH,
 } from '../../src/eth/merkle.js';
 import { Foundry } from '@adraffy/blocksmith';
@@ -21,7 +21,7 @@ async function setup() {
       return {
         async assertDoesNotExist(target: HexString) {
           const { accountProof } = await prover.getProofs(target);
-          const accountState = proveAccountState(
+          const accountState = verifyAccountState(
             target,
             accountProof,
             stateRoot
@@ -39,13 +39,13 @@ async function setup() {
             storageHash,
             storageProof: [{ value, proof }],
           } = await prover.getProofs(target, [slot]);
-          const accountState = proveAccountState(
+          const accountState = verifyAccountState(
             target,
             accountProof,
             stateRoot
           );
           expect(accountState?.storageRoot).toEqual(storageHash);
-          const slotValue = proveStorageValue(slot, proof, storageHash);
+          const slotValue = verifyStorageValue(slot, proof, storageHash);
           expect(slotValue).toEqual(toPaddedHex(value));
           expect(slotValue).toEqual(toPaddedHex(expected));
           const liveValue = await prover.provider.getStorage(target, slot);

@@ -27,7 +27,7 @@ describe('LineaProver', async () => {
     const target = '0x0000000000000000000000000000000000001234';
     expect(await commit.prover.isContract(target)).toBeFalse();
     const proof = await commit.prover.prove([{ target, required: true }]);
-    const storageRoot = await verifier.proveAccountState(
+    const storageRoot = await verifier.verifyAccountState(
       commit.stateRoot,
       target,
       proof.proofs[0]
@@ -39,7 +39,7 @@ describe('LineaProver', async () => {
     const target = '0x51050ec063d393217B436747617aD1C2285Aeeee';
     expect(await commit.prover.isContract(target)).toBeFalse();
     const proof = await commit.prover.prove([{ target, required: true }]);
-    const storageRoot = await verifier.proveAccountState(
+    const storageRoot = await verifier.verifyAccountState(
       commit.stateRoot,
       target,
       proof.proofs[0]
@@ -51,13 +51,13 @@ describe('LineaProver', async () => {
     const target = '0x48F5931C5Dbc2cD9218ba085ce87740157326F59'; // SlotDataReader
     expect(await commit.prover.isContract(target)).toBeTrue();
     const proof = await commit.prover.prove([{ target, required: true }, 0n]);
-    const storageRoot = await verifier.proveAccountState(
+    const storageRoot = await verifier.verifyAccountState(
       commit.stateRoot,
       target,
       proof.proofs[0]
     );
     expect(storageRoot).not.toStrictEqual(ZeroHash);
-    const storageValue = await verifier.proveStorageValue(
+    const storageValue = await verifier.verifyStorageValue(
       storageRoot,
       target,
       0n,
@@ -79,19 +79,19 @@ describe('LineaProver', async () => {
       slot1,
       slot2,
     ]);
-    const storageRoot = await verifier.proveAccountState(
+    const storageRoot = await verifier.verifyAccountState(
       commit.stateRoot,
       target,
       proof.proofs[0]
     );
     expect(storageRoot).not.toStrictEqual(ZeroHash);
     expect(
-      verifier.proveStorageValue(storageRoot, target, slot1, proof.proofs[1])
+      verifier.verifyStorageValue(storageRoot, target, slot1, proof.proofs[1])
     ).rejects.toThrow(/InvalidProof/);
     expect(
-      verifier.proveStorageValue(storageRoot, target, slot2, proof.proofs[2])
+      verifier.verifyStorageValue(storageRoot, target, slot2, proof.proofs[2])
     ).rejects.toThrow(/InvalidProof/);
-    // const storageValue = await verifier.proveStorageValue(
+    // const storageValue = await verifier.verifyStorageValue(
     //   storageRoot,
     //   target,
     //   0n,

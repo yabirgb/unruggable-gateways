@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IGatewayVerifier} from "./IGatewayVerifier.sol";
-import {IProverHooks} from "./IProverHooks.sol";
+import {IVerifierHooks} from "./IVerifierHooks.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 abstract contract AbstractVerifier is IGatewayVerifier, Ownable { 
@@ -11,9 +11,9 @@ abstract contract AbstractVerifier is IGatewayVerifier, Ownable {
 
 	string[] _urls;
 	uint256 immutable _window;
-	IProverHooks immutable _hooks;
+	IVerifierHooks immutable _hooks;
 
-	constructor(string[] memory urls, uint256 window, IProverHooks hooks) Ownable(msg.sender) {
+	constructor(string[] memory urls, uint256 window, IVerifierHooks hooks) Ownable(msg.sender) {
 		_urls = urls;
 		_window = window;
 		_hooks = hooks;

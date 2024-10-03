@@ -18,12 +18,12 @@ describe(pairName(config), async () => {
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'TaikoVerifier',
     args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.TaikoL1],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
   await setupTests(verifier, {
     // https://taikoscan.io/address/0xAF7f1Fa8D5DF0D9316394433E841321160408565#code

@@ -5,13 +5,13 @@ import { sendImmediate, withResolvers, toPaddedHex } from '../utils.js';
 import {
   type LineaProof,
   type RPCLineaGetProof,
-  isExistanceProof,
+  isInclusionProof,
   isContract,
   encodeProof,
 } from './types.js';
 
 export class LineaProver extends BlockProver {
-  static readonly isExistanceProof = isExistanceProof;
+  static readonly isInclusionProof = isInclusionProof;
   static readonly isContract = isContract;
   static readonly encodeProof = encodeProof;
   override async getStorage(
@@ -31,7 +31,7 @@ export class LineaProver extends BlockProver {
     const storageProof: LineaProof | undefined =
       await this.proofLRU.touch(storageKey);
     if (storageProof) {
-      return isExistanceProof(storageProof)
+      return isInclusionProof(storageProof)
         ? storageProof.proof.value
         : ZeroHash;
     }
@@ -43,7 +43,7 @@ export class LineaProver extends BlockProver {
     }
     const proof = await this.getProofs(target, [slot]);
     return isContract(proof.accountProof) &&
-      isExistanceProof(proof.storageProofs[0])
+      isInclusionProof(proof.storageProofs[0])
       ? proof.storageProofs[0].proof.value
       : ZeroHash;
   }

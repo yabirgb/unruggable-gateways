@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {RLPReader, RLPReaderExt} from '../RLPReaderExt.sol';
 
+// https://github.com/ethereum-optimism/optimism/blob/develop/packages/contracts-bedrock/src/L2/L1Block.sol
 interface IL1Block {
     function number() external view returns (uint256);
 }
-
-// TODO: address immutable BEACON_ROOTS = 0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02;
 
 contract OPReverseVerifier is AbstractVerifier {
     uint256 immutable SLOT_HASH = 2;
@@ -18,7 +17,7 @@ contract OPReverseVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         IL1Block l1Block
     ) AbstractVerifier(urls, window, hooks) {
         _l1Block = l1Block;
@@ -51,12 +50,12 @@ contract OPReverseVerifier is AbstractVerifier {
             'ReverseOP: hash2'
         );
         bytes32 stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]);
-        bytes32 storageRoot = _hooks.proveAccountState(
+        bytes32 storageRoot = _hooks.verifyAccountState(
             stateRoot,
             address(_l1Block),
             p.accountProof
         );
-        blockHash = _hooks.proveStorageValue(
+        blockHash = _hooks.verifyStorageValue(
             storageRoot,
             address(0),
             SLOT_HASH,
@@ -70,7 +69,7 @@ contract OPReverseVerifier is AbstractVerifier {
         _checkWindow(blockNumber1, _extractBlockNumber(v));
         stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]);
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, stateRoot, p.proofs, p.order, _hooks)
             );

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {Hashing, Types} from '../../lib/optimism/packages/contracts-bedrock/src/libraries/Hashing.sol';
 
 interface IL2OutputOracle {
@@ -18,7 +18,7 @@ contract OPVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         IL2OutputOracle oracle
     ) AbstractVerifier(urls, window, hooks) {
         _oracle = oracle;
@@ -52,7 +52,7 @@ contract OPVerifier is AbstractVerifier {
         bytes32 computedRoot = Hashing.hashOutputRootProof(p.outputRootProof);
         require(computedRoot == output.outputRoot, 'OP: invalid root');
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(
                     0,

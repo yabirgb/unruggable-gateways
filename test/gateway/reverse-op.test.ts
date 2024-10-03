@@ -20,12 +20,12 @@ describe.skipIf(!!process.env.IS_CV)(pairName(config, true), async () => {
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
-  const GatewayProver = await foundry.deploy({ file: 'GatewayProver' });
-  const hooks = await foundry.deploy({ file: 'EthTrieHooks' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'OPReverseVerifier',
     args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.L1Block],
-    libs: { GatewayProver },
+    libs: { GatewayVM },
   });
   await setupTests(verifier, {
     // https://etherscan.io/address/0xC9D1E777033FB8d17188475CE3D8242D1F4121D5#code

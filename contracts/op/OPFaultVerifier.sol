@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AbstractVerifier, IProverHooks} from '../AbstractVerifier.sol';
-import {GatewayRequest, GatewayProver, ProofSequence} from '../GatewayProver.sol';
+import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {Hashing, Types} from '../../lib/optimism/packages/contracts-bedrock/src/libraries/Hashing.sol';
 import '../../lib/optimism/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol';
 
@@ -29,7 +29,7 @@ contract OPFaultVerifier is AbstractVerifier {
     constructor(
         string[] memory urls,
         uint256 window,
-        IProverHooks hooks,
+        IVerifierHooks hooks,
         IOptimismPortal portal,
         IOPFaultGameFinder gameFinder,
         uint256 gameTypes
@@ -91,7 +91,7 @@ contract OPFaultVerifier is AbstractVerifier {
             'OPFault: invalid root'
         );
         return
-            GatewayProver.evalRequest(
+            GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, p.outputRootProof.stateRoot, p.proofs, p.order,  _hooks)
             );
