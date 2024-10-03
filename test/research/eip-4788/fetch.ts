@@ -3,8 +3,9 @@
 import { toPaddedHex } from '../../../src/utils.js';
 import { CHAINS } from '../../../src/chains.js';
 import { createProvider } from '../../providers.js';
+import { USER_CONFIG } from '../../../scripts/environment.js';
 
-const provider = createProvider(CHAINS.OP);
+const provider = createProvider(USER_CONFIG, CHAINS.OP);
 
 // first deployment from 0x0B799C86a49DEeb90402691F1041aa3AF2d3C875
 const BEACON_ROOTS_ADDRESS = '0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02';

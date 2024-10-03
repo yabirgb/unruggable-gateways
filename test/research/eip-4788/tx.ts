@@ -5,9 +5,10 @@ import { CHAINS } from '../../../src/chains.js';
 import { createProvider } from '../../providers.js';
 import { ABI_CODER } from '../../../src/utils.js';
 import { HexString } from '@resolverworks/ezccip';
+import { USER_CONFIG } from '../../../scripts/environment.js';
 
-const provider1 = createProvider(CHAINS.MAINNET);
-const provider2 = createProvider(CHAINS.OP);
+const provider1 = createProvider(USER_CONFIG, CHAINS.MAINNET);
+const provider2 = createProvider(USER_CONFIG, CHAINS.OP);
 
 const L1Block = new ethers.Contract(
   '0x4200000000000000000000000000000000000015',

@@ -18,6 +18,7 @@ import {
 import { EthSelfRollup } from '../../src/eth/EthSelfRollup.js';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 export function pairName(pair: ChainPair, reverse = false) {
   return `${chainName(pair.chain1)} ${reverse ? '<=' : '=>'} ${chainName(pair.chain2)}`;
@@ -61,9 +62,12 @@ function shouldSkip(opts: TestOptions) {
 
 export function testOP(config: RollupDeployment<OPConfig>, opts: TestOptions) {
   describe.skipIf(shouldSkip(opts))(pairName(config), async () => {
-    const rollup = new OPRollup(createProviderPair(config), config);
+    const rollup = new OPRollup(
+      createProviderPair(USER_CONFIG, config),
+      config
+    );
     const foundry = await Foundry.launch({
-      fork: providerURL(config.chain1),
+      fork: providerURL(USER_CONFIG, config.chain1),
       infoLog: !!opts.log,
     });
     afterAll(() => foundry.shutdown());
@@ -91,9 +95,12 @@ export function testOPFault(
   opts: TestOptions
 ) {
   describe.skipIf(shouldSkip(opts))(pairName(config), async () => {
-    const rollup = new OPFaultRollup(createProviderPair(config), config);
+    const rollup = new OPFaultRollup(
+      createProviderPair(USER_CONFIG, config),
+      config
+    );
     const foundry = await Foundry.launch({
-      fork: providerURL(config.chain1),
+      fork: providerURL(USER_CONFIG, config.chain1),
       infoLog: !!opts.log,
     });
     afterAll(() => foundry.shutdown());
@@ -129,11 +136,11 @@ export function testScroll(
 ) {
   describe.skipIf(shouldSkip(opts))(pairName(config), async () => {
     const rollup = await ScrollRollup.create(
-      createProviderPair(config),
+      createProviderPair(USER_CONFIG, config),
       config
     );
     const foundry = await Foundry.launch({
-      fork: providerURL(config.chain1),
+      fork: providerURL(USER_CONFIG, config.chain1),
       infoLog: !!opts.log,
     });
     afterAll(() => foundry.shutdown());
@@ -157,7 +164,7 @@ export function testScroll(
 export function testSelfEth(chain: Chain, opts: TestOptions) {
   describe.skipIf(shouldSkip(opts))(chainName(chain), async () => {
     const foundry = await Foundry.launch({
-      fork: providerURL(chain),
+      fork: providerURL(USER_CONFIG, chain),
       infoLog: !!opts.log,
     });
     afterAll(() => foundry.shutdown());

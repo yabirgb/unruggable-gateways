@@ -5,13 +5,17 @@ import { test, expect, afterAll } from 'bun:test';
 import { toPaddedHex } from '../../src/utils.js';
 import { describe } from '../bun-describe-fix.js';
 import { ZeroHash } from 'ethers/constants';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 describe('ZKSyncProver', async () => {
   const config = ZKSyncRollup.mainnetConfig;
-  const rollup = new ZKSyncRollup(createProviderPair(config), config);
+  const rollup = new ZKSyncRollup(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   const commit = await rollup.fetchLatestCommit();
   const foundry = await Foundry.launch({
-    fork: providerURL(config.chain1),
+    fork: providerURL(USER_CONFIG, config.chain1),
     infoLog: true,
   });
   afterAll(() => foundry.shutdown());

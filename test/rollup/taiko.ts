@@ -1,8 +1,12 @@
 import { TaikoRollup } from '../../src/taiko/TaikoRollup.js';
 import { createProviderPair } from '../providers.js';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 const config = TaikoRollup.mainnetConfig;
-const rollup = await TaikoRollup.create(createProviderPair(config), config);
+const rollup = await TaikoRollup.create(
+  createProviderPair(USER_CONFIG, config),
+  config
+);
 
 console.log({
   TaikoL1: rollup.TaikoL1.target,

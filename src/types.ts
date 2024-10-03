@@ -28,3 +28,12 @@ export type ProofSequenceV1 = {
   readonly accountProof: EncodedProof;
   readonly storageProofs: EncodedProof[];
 };
+
+export type UserConfig = {
+  readonly ANKR_KEY?: string;
+  readonly INFURA_KEY?: string;
+  readonly ALCHEMY_KEY?: string;
+  readonly CHAIN_NAME: number;
+  readonly SHOULD_PREFETCH: boolean;
+  readonly PORT: number;
+};

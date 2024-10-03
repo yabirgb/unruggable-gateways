@@ -1,8 +1,11 @@
 import { CHAINS } from '../../src/chains.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { createProvider } from '../providers.js';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
-const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));
+const prover = await EthProver.latest(
+  createProvider(USER_CONFIG, CHAINS.MAINNET)
+);
 
 // console.log(
 //   await prover.getProofs('0x51050ec063d393217B436747617aD1C2285Aeeee', [1n, 2n])

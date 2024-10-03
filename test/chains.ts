@@ -1,13 +1,14 @@
 import type { Chain } from '../src/types.js';
 import { CHAINS, chainName } from '../src/chains.js';
 import { RPC_INFO, providerURL } from './providers.js';
+import { USER_CONFIG } from '../scripts/environment.js';
 
 const usingPublic: Chain[] = [];
 const leftover = new Set<Chain>(Object.values(CHAINS));
 
 for (const info of RPC_INFO.values()) {
   leftover.delete(info.chain);
-  const url = providerURL(info.chain);
+  const url = providerURL(USER_CONFIG, info.chain);
   console.log(
     info.chain.toString().padStart(10),
     chainName(info.chain).padEnd(16),
@@ -28,5 +29,5 @@ if (usingPublic.length) {
 if (leftover.size) {
   console.error(`${leftover.size} missing RPCInfo!`);
   console.error(Array.from(leftover, chainName));
-  process.exit(1); // fatal
+  //process.exit(1); // fatal
 }

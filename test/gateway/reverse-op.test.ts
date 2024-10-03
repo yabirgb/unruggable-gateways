@@ -6,15 +6,19 @@ import { providerURL, createProviderPair } from '../providers.js';
 import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 const config = OPReverseRollup.mainnetConfig;
 describe.skipIf(!!process.env.IS_CV)(pairName(config, true), async () => {
   const foundry = await Foundry.launch({
-    fork: providerURL(config.chain2),
+    fork: providerURL(USER_CONFIG, config.chain2),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const rollup = new OPReverseRollup(createProviderPair(config), config);
+  const rollup = new OPReverseRollup(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   // NOTE: prove against prefork block, since state diverged on our fork
   rollup.latestBlockTag = (await foundry.provider.getBlockNumber()) - 5;
   const gateway = new Gateway(rollup);

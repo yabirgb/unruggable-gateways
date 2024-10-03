@@ -11,6 +11,7 @@ import { LineaRollup } from '../../src/linea/LineaRollup.js';
 import { ScrollRollup } from '../../src/scroll/ScrollRollup.js';
 import { ZKSyncRollup } from '../../src/zksync/ZKSyncRollup.js';
 import { TaikoRollup } from '../../src/taiko/TaikoRollup.js';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 async function createEstimator<R extends Rollup>(
   verifier: Contract,
@@ -186,13 +187,13 @@ for (const setup of setups) {
     const { config, estimator, addresses } = await setup(async (chains) => {
       foundry = await Foundry.launch({
         infoLog: false,
-        fork: providerURL(chains.chain1),
+        fork: providerURL(USER_CONFIG, chains.chain1),
       });
       return {
         foundry,
         providers: {
           provider1: foundry.provider,
-          provider2: createProvider(chains.chain2),
+          provider2: createProvider(USER_CONFIG, chains.chain2),
         },
       };
     });

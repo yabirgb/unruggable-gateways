@@ -5,13 +5,17 @@ import { ZeroHash } from 'ethers/constants';
 import { test, expect, afterAll } from 'bun:test';
 import { toPaddedHex } from '../../src/utils.js';
 import { describe } from '../bun-describe-fix.js';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 describe('LineaProver', async () => {
   const config = LineaRollup.mainnetConfig;
-  const gateway = new LineaRollup(createProviderPair(config), config);
+  const gateway = new LineaRollup(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   const commit = await gateway.fetchLatestCommit();
   const foundry = await Foundry.launch({
-    fork: providerURL(config.chain1),
+    fork: providerURL(USER_CONFIG, config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());

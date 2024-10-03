@@ -6,12 +6,16 @@ import { providerURL, createProviderPair } from '../providers.js';
 import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 const config = TaikoRollup.mainnetConfig;
 describe(pairName(config), async () => {
-  const rollup = await TaikoRollup.create(createProviderPair(config), config);
+  const rollup = await TaikoRollup.create(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   const foundry = await Foundry.launch({
-    fork: providerURL(config.chain1),
+    fork: providerURL(USER_CONFIG, config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());

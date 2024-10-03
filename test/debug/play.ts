@@ -1,3 +1,4 @@
+import { USER_CONFIG } from '../../scripts/environment.js';
 import { GatewayRequestV1, GatewayRequest, EthProver, CHAINS,  NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup } from '../../src/index.js';
 import { createProvider, createProviderPair } from '../providers.js';
 
@@ -6,7 +7,7 @@ import { createProvider, createProviderPair } from '../providers.js';
 //console.log(createProvider(1n)._getConnection())
 
 if (0) {
-	const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));
+	const prover = await EthProver.latest(createProvider(USER_CONFIG, CHAINS.MAINNET));
 	console.log(prover);
 	//console.log(await prover.supportsInterface('0x84c5AdB77dd9f362A1a3480009992d8d47325dc3', '0x73302a25'));
 	throw 1;
@@ -14,7 +15,7 @@ if (0) {
 
 if (0) {
 	const config = ZKSyncRollup.mainnetConfig;
-	const rollup = new ZKSyncRollup(createProviderPair(config), config);
+	const rollup = new ZKSyncRollup(createProviderPair(USER_CONFIG, config), config);
 	//const commit = await rollup.fetchLatestCommit();
 	const commit = await rollup.fetchLatestCommit();
 	console.log(commit);
@@ -24,7 +25,7 @@ if (0) {
 
 if (0) {
 	const config = OPRollup.baseMainnetConfig;
-	const rollup = new OPRollup(createProviderPair(config), config);
+	const rollup = new OPRollup(createProviderPair(USER_CONFIG, config), config);
 	//const commit = await rollup.fetchLatestCommit();
 	const commit = await rollup.fetchCommit(0n);
 	console.log(commit);
@@ -33,7 +34,7 @@ if (0) {
 
 if (0) {
 	const config = NitroRollup.arb1MainnetConfig;
-	const rollup = new NitroRollup(createProviderPair(config), config);
+	const rollup = new NitroRollup(createProviderPair(USER_CONFIG, config), config);
 	const commit = await rollup.fetchLatestCommit();
 	console.log(commit);
 	throw 1;
@@ -41,7 +42,7 @@ if (0) {
 
 if (0) {
 	const config = TaikoRollup.mainnetConfig;
-	const rollup = await TaikoRollup.create(createProviderPair(config), config);
+	const rollup = await TaikoRollup.create(createProviderPair(USER_CONFIG, config), config);
 	const commit = await rollup.fetchCommit(123124124n);
 	console.log(await commit.prover.prove([{target: config.TaikoL1, required: true}]));
 	throw 1;
@@ -49,7 +50,7 @@ if (0) {
 
 if (1) {
 	const config = ZKSyncRollup.mainnetConfig;
-	const rollup = new ZKSyncRollup(createProviderPair(config), config);
+	const rollup = new ZKSyncRollup(createProviderPair(USER_CONFIG, config), config);
 	const commit = await rollup.fetchLatestCommit();
 	console.log(await commit.prover.prove([{target: config.DiamondProxy, required: true}]));
 	throw 1;
@@ -57,7 +58,7 @@ if (1) {
 
 //let foundry = await Foundry.launch({infoLog: false});
 
-const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));
+const prover = await EthProver.latest(createProvider(USER_CONFIG, CHAINS.MAINNET));
 
 const ENS_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 

@@ -1,8 +1,12 @@
 import { ScrollRollup } from '../../src/scroll/ScrollRollup.js';
 import { createProviderPair } from '../providers.js';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 const config = ScrollRollup.mainnetConfig;
-const rollup = await ScrollRollup.create(createProviderPair(config), config);
+const rollup = await ScrollRollup.create(
+  createProviderPair(USER_CONFIG, config),
+  config
+);
 
 console.log({
   CommitmentVerifier: rollup.CommitmentVerifier.target,

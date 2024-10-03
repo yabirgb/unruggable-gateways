@@ -6,12 +6,16 @@ import { createProviderPair, providerURL } from '../providers.js';
 import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
+import { USER_CONFIG } from '../../scripts/environment.js';
 
 const config = ZKSyncRollup.mainnetConfig;
 describe(pairName(config), async () => {
-  const rollup = new ZKSyncRollup(createProviderPair(config), config);
+  const rollup = new ZKSyncRollup(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   const foundry = await Foundry.launch({
-    fork: providerURL(config.chain1),
+    fork: providerURL(USER_CONFIG, config.chain1),
     infoLog: false,
     infiniteCallGas: true, // Blake2s is ~12m gas per proof!
   });
