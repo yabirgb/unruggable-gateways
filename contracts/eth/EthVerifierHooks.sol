@@ -31,7 +31,7 @@ contract EthVerifierHooks is IVerifierHooks {
 
     function verifyStorageValue(
         bytes32 storageRoot,
-        address,
+        address /* target */,
         uint256 slot,
         bytes memory proof
     ) external pure returns (bytes32) {

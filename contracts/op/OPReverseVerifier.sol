@@ -57,7 +57,7 @@ contract OPReverseVerifier is AbstractVerifier {
         );
         blockHash = _hooks.verifyStorageValue(
             storageRoot,
-            address(0),
+            address(_l1Block),
             SLOT_HASH,
             p.storageProof
         );

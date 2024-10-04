@@ -12,16 +12,14 @@ describe('ZKSyncProver', async () => {
   const commit = await rollup.fetchLatestCommit();
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
-    infoLog: true,
+    infoLog: false,
   });
   afterAll(() => foundry.shutdown());
 
-  const smt = await foundry.deploy({
-    file: 'ZKSyncSMT',
-  });
+  const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
   const verifier = await foundry.deploy({
-    file: 'ZKSyncSelfVerifier',
-    args: [smt],
+    file: 'ZKSyncVerifierHooks',
+    args: [ZKSyncSMT],
   });
 
   test('unused account is null', async () => {

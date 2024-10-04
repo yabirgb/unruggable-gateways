@@ -4,6 +4,7 @@ import { ZeroHash } from 'ethers/constants';
 import { keccak256 } from 'ethers/crypto';
 import { decodeRlp } from 'ethers/utils';
 import { toPaddedHex } from '../utils.js';
+import { encodeRlp } from 'ethers';
 
 // https://github.com/ethereum/consensus-specs/blob/dev/ssz/merkle-proofs.md
 // https://eips.ethereum.org/EIPS/eip-7545
@@ -39,6 +40,7 @@ export function verifyAccountState(
   const [nonce, balance, storageRoot, codeHash] = decoded;
   return { nonce, balance, storageRoot, codeHash };
 }
+
 export function verifyStorageValue(
   slot: BigNumberish,
   storageProof: EthProof,
@@ -123,7 +125,7 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
     }
     if (node.decoded.length == BRANCH_NODE_SIZE) {
       if (keyIndex == keyNibbles.length) break;
-      nodeID = node.decoded[keyNibbles[keyIndex]];
+      nodeID = getNodeId(node.decoded[keyNibbles[keyIndex]]);
       keyDelta = 1;
     } else {
       const pathNibbles = toNibbles(node.decoded[0]);
@@ -137,10 +139,10 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
         case PREFIX_EXTENSION_EVEN:
         case PREFIX_EXTENSION_ODD: {
           if (shared != pathRemainder.length) {
-            nodeID = '0x';
+            nodeID = RLP_NULL;
             break outer;
           } else {
-            nodeID = node.decoded[1];
+            nodeID = getNodeId(node.decoded[1]);
             keyDelta = shared;
             continue;
           }
@@ -150,7 +152,7 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
           if (pathRemainder.length == shared && keyRemainder.length == shared) {
             keyIndex += shared;
           }
-          nodeID = '0x';
+          nodeID = RLP_NULL;
           break outer;
         }
         default:
@@ -161,8 +163,12 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
   return {
     pathLength,
     keyRemainder: keyNibbles.slice(keyIndex),
-    final: nodeID == '0x',
+    final: nodeID === RLP_NULL,
   };
+}
+
+function getNodeId(v: HexString) {
+  return v.length < 66 ? encodeRlp(v) : v;
 }
 
 function assertRlpVector(rlp: HexString) {

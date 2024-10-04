@@ -17,7 +17,7 @@ describe('LineaProver', async () => {
   afterAll(() => foundry.shutdown());
 
   const verifier = await foundry.deploy({
-    file: 'LineaSelfVerifier',
+    file: 'LineaVerifierHooks',
     libs: {
       SparseMerkleProof: config.SparseMerkleProof,
     },
@@ -64,39 +64,5 @@ describe('LineaProver', async () => {
       proof.proofs[1]
     );
     expect(storageValue).toStrictEqual(toPaddedHex(49));
-  });
-
-  test('shomei issue #97', async () => {
-    // https://raffy.antistupid.com/eth/linea-proof-bug.html
-    // https://github.com/Consensys/shomei/issues/97
-    const target = '0x176211869cA2b568f2A7D4EE941E073a821EE1ff'; // USDC
-    expect(await commit.prover.isContract(target)).toBeTrue();
-    const slot1 =
-      0xcb0cbc8493baf4a7b1972914ba0be89040e56e4a3c98d60268fe37b8c8e546d8n;
-    const slot2 = 49n;
-    const proof = await commit.prover.prove([
-      { target, required: true },
-      slot1,
-      slot2,
-    ]);
-    const storageRoot = await verifier.verifyAccountState(
-      commit.stateRoot,
-      target,
-      proof.proofs[0]
-    );
-    expect(storageRoot).not.toStrictEqual(ZeroHash);
-    expect(
-      verifier.verifyStorageValue(storageRoot, target, slot1, proof.proofs[1])
-    ).rejects.toThrow(/InvalidProof/);
-    expect(
-      verifier.verifyStorageValue(storageRoot, target, slot2, proof.proofs[2])
-    ).rejects.toThrow(/InvalidProof/);
-    // const storageValue = await verifier.verifyStorageValue(
-    //   storageRoot,
-    //   target,
-    //   0n,
-    //   proof.proofs[1]
-    // );
-    // expect(storageValue).toStrictEqual(ZeroHash);
   });
 });

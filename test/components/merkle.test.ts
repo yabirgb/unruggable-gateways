@@ -11,7 +11,7 @@ import { toPaddedHex } from '../../src/utils.js';
 async function setup() {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
-  await foundry.nextBlock(); // force mine a block
+  await foundry.nextBlock();
   return {
     foundry,
     async prover() {
@@ -50,12 +50,10 @@ async function setup() {
 }
 
 describe('merkle', async () => {
-  test(`nonexistent EOAs don't exist`, async () => {
+  test(`nonexistent EOA does not exist`, async () => {
     const T = await setup();
     const P = await T.prover();
-    for (let i = 0; i < 1; i++) {
-      await P.assertDoesNotExist(toPaddedHex(i, 20));
-    }
+    await P.assertDoesNotExist(toPaddedHex(0xdead, 20));
   });
 
   test('EOA with balance exists', async () => {

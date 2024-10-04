@@ -44,7 +44,6 @@ contract ScrollVerifierHooks is IVerifierHooks {
         bytes memory encodedProof
     ) external view returns (bytes32 storageRoot) {
         bytes[] memory proof = abi.decode(encodedProof, (bytes[]));
-        //bytes32 raw = bytes32(bytes20(account));
         bytes32 key = poseidonHash1(bytes20(account)); // left aligned
         (bytes32 leafHash, bytes memory leaf) = walkTree(key, proof, stateRoot);
         // HOW DO I TELL THIS DOESNT EXIST?

@@ -9,6 +9,7 @@ export type RPCInfo = {
   readonly ankr?: string;
   readonly infura?: string;
   readonly alchemy?: string;
+  readonly alchemyPremium?: boolean;
 };
 
 export const RPC_INFO = new Map<Chain, RPCInfo>(
@@ -228,7 +229,8 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         chain: CHAINS.BSC,
         rpc: 'https://bsc-dataseed.bnbchain.org',
         //infura: 'bsc-mainnet', // 20241002: eth_getProof doesn't work
-        // alchemy: 'bnb-mainnet', // requires premium
+        alchemy: 'bnb-mainnet',
+        alchemyPremium: true,
         ankr: 'bsc',
       },
       {
@@ -252,7 +254,11 @@ function decideProvider(chain: Chain) {
   if (!info) throw new Error(`unknown provider: ${chain}`);
   // 20240830: so far, alchemy has the best support
   let apiKey;
-  if (info.alchemy && (apiKey = process.env.ALCHEMY_KEY)) {
+  if (
+    info.alchemy &&
+    (apiKey = process.env.ALCHEMY_KEY) &&
+    (!info.alchemyPremium || !!process.env.ALCHEMY_PREMIUM)
+  ) {
     return {
       info,
       type: 'alchemy',

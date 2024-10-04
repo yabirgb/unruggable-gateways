@@ -1,6 +1,6 @@
 import type { RollupDeployment } from '../rollup.js';
 import type { HexAddress, ProviderPair } from '../types.js';
-import { type ABIOutputProposal, ORACLE_ABI } from './types.js';
+import { type ABIOutputTuple, ORACLE_ABI } from './types.js';
 import { Contract } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
@@ -113,8 +113,7 @@ export class OPRollup extends AbstractOPRollup {
   }
   protected override async _fetchCommit(index: bigint) {
     // this fails with ARRAY_RANGE_ERROR when invalid
-    const output: ABIOutputProposal =
-      await this.L2OutputOracle.getL2Output(index);
+    const output: ABIOutputTuple = await this.L2OutputOracle.getL2Output(index);
     return this.createCommit(index, output.l2BlockNumber);
   }
 

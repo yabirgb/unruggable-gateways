@@ -8,6 +8,7 @@ import '../../lib/optimism/packages/contracts-bedrock/src/dispute/interfaces/IDi
 
 interface IOptimismPortal {
     function disputeGameFactory() external view returns (IDisputeGameFactory);
+
     function respectedGameType() external view returns (GameType);
     // we don't care if the root was blacklisted, this only applies to withdrawals
     //function disputeGameBlacklist(IDisputeGame game) external view returns (bool);
@@ -93,7 +94,13 @@ contract OPFaultVerifier is AbstractVerifier {
         return
             GatewayVM.evalRequest(
                 req,
-                ProofSequence(0, p.outputRootProof.stateRoot, p.proofs, p.order,  _hooks)
+                ProofSequence(
+                    0,
+                    p.outputRootProof.stateRoot,
+                    p.proofs,
+                    p.order,
+                    _hooks
+                )
             );
     }
 }
