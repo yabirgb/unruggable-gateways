@@ -11,7 +11,8 @@ import { toPaddedHex } from '../../src/utils.js';
 async function setup() {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
-  await foundry.nextBlock();
+  //await foundry.nextBlock();
+  await foundry.deploy('contract C {}');
   return {
     foundry,
     async prover() {
