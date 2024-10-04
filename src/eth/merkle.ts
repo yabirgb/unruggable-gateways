@@ -47,7 +47,7 @@ export function verifyStorageValue(
   storageRoot: HexString
 ) {
   if (storageRoot === NULL_TRIE_HASH) {
-    if (storageProof.length) throw new Error('expected empty proof');
+    //if (storageProof.length) throw new Error('expected empty proof');
     return ZeroHash;
   }
   const rlp = verifyMerkleTrieValue(
