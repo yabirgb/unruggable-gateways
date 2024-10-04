@@ -1,6 +1,16 @@
 import { Contract, ZeroAddress } from 'ethers';
 import { Foundry } from '@adraffy/blocksmith';
 
+// export async function deployProxy(foundry: Foundry, verifier: Contract) {
+//   const wallet = foundry.wallets.admin;
+//   const proxy = await foundry.deploy({
+//     import:
+//       '@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol',
+//     args: [verifier, wallet, '0x'],
+//   });
+//   return new Contract(proxy.target, verifier.interface, wallet);
+// }
+
 const foundry = await Foundry.launch();
 
 const ownerWallet = await foundry.ensureWallet('owner');

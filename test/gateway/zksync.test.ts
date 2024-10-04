@@ -3,8 +3,7 @@ import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
-import { runSlotDataTests } from './tests.js';
-import { deployProxy, pairName } from './common.js';
+import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
@@ -18,24 +17,21 @@ describe(pairName(config), async () => {
   });
   afterAll(() => foundry.shutdown());
   const gateway = new Gateway(rollup);
-  const ccip = await serve(gateway, {
-    protocol: 'raw',
-    log: false,
-  });
+  const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
-  const smt = await foundry.deploy({ file: 'ZKSyncSMT' });
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
+  const hooks = await foundry.deploy({
+    file: 'ZKSyncVerifierHooks',
+    args: [ZKSyncSMT],
+  });
   const verifier = await foundry.deploy({
     file: 'ZKSyncVerifier',
-    args: [smt],
+    args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.DiamondProxy],
+    libs: { GatewayVM },
   });
-  const proxy = await deployProxy(foundry, verifier);
-  await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
-  await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-  await foundry.confirm(proxy.setDiamond(rollup.DiamondProxy));
-  // https://explorer.zksync.io/address/0x1Cd42904e173EA9f7BA05BbB685882Ea46969dEc#contract
-  const reader = await foundry.deploy({
-    file: 'SlotDataReader',
-    args: [proxy, '0x1Cd42904e173EA9f7BA05BbB685882Ea46969dEc'],
+  await setupTests(verifier, {
+    // https://explorer.zksync.io/address/0x1Cd42904e173EA9f7BA05BbB685882Ea46969dEc#contract
+    slotDataContract: '0x1Cd42904e173EA9f7BA05BbB685882Ea46969dEc',
   });
-  runSlotDataTests(reader);
 });

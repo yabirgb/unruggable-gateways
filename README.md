@@ -4,51 +4,57 @@
 
 # Unruggable Gateways 
 
-This repository provides an end-to-end code solution for resolving data from rollup chains and verifying it against state posted to Layer 1 Ethereum.
+This repository provides an end-to-end solution for proving data from rollup chains and verifying it against state posted on the parent chain.
 
 ![Unruggable Gateways CI](https://github.com/unruggable-labs/unruggable-gateways/actions/workflows/unruggable-gateways.yml/badge.svg)
 
 ## Quickstart
 
-Install our npm package:
+`npm i @unruggable/gateways` [&check;](https://www.npmjs.com/package/@unruggable/unruggable-gateways)
 
-`$ npm i @unruggable/gateways` [&check;](https://www.npmjs.com/package/@unruggable/unruggable-gateways)
-
-We have extensive [documentation](https://gateway-docs.unruggable.com), with a slightly less quick [Quickstart](https://gateway-docs.unruggable.com/quickstart). 
-
-The [examples](https://gateway-docs.unruggable.com/examples) page may be of particular interest. 
-
-We also have an [examples repo](https://github.com/unruggable-labs/gateway-examples) that utilises our npm package to demonstrate both simple and complex use cases in a few clicks.
+* We have extensive [documentation](https://gateway-docs.unruggable.com), with a slightly less quick [Quickstart](https://gateway-docs.unruggable.com/quickstart). 
+* The [examples](https://gateway-docs.unruggable.com/examples) page may be of particular interest. 
+* We also have an [examples repo](https://github.com/unruggable-labs/gateway-examples) that utilises our npm package to demonstrate both simple and complex use cases in a few clicks.
 
 ## Architecture
 
-The core components of a chain solution are:
-
-- **Gateway**: A HTTP server that handles responding to a virtual machine request by interfacing with the appropriate rollup to return proofs of the requested data stored on that chain.
-- **Verifier**: A Solidity smart contract (deployed on Layer 1) that verifies the proofs returned by the gateway and returns the proven data values.
-- **Prover**: A Solidity library (deployed on Layer 1) that handles the chain-specific proving process.
-
-In addition to these core components, we have provided TypeScript implementations of the request builder ([vm.ts](https://github.com/unruggable-labs/unruggable-gateways/blob/main/src/vm.ts)) and the provers (listed below) to allow smart contract implementors to quickly iterate and test when building solutions.
+- **Request** &mdash; a program that fetches data from one or more contracts
+	* Requests can be constructed in [Solidity](./contracts/GatewayFetcher.sol) or [TypeScript](./src/vm.ts) using (almost) the same syntax
+- **Commit** &mdash; a commitment (eg. `StateRoot`) of one chain on another
+- **VM** &mdash; a machine that executes a **Request** for a **Commit**
+	* TypeScript &mdash; records sequence of necessary proofs
+	* Solidity &mdash; verifies sequence of supplied proofs (in the same order)
+- **Rollup** (TypeScript) &mdash; traverses **Commit** history, generates a **Commit** proof and supplies a **Prover**
+- **Prover** (TypeScript) &mdash; generates chain-specific proofs for Account and Storage
+- **Gateway** (TypeScript) &mdash; receives a **Request**, finds the appropriate **Commit**, executes the **VM**, and responds with a sequence of proofs via [CCIP-Read](https://eips.ethereum.org/EIPS/eip-3668)
+- **Verifier** (Solidity) &mdash; verifies a **Commit** proof and executes the **VM** with rollup-specific **Hooks**
+- **Verifier Hooks** (Solidity) &mdash; verifies Account and Storage proofs
 
 ## Chain Support
+* Rollups &amp; Verifers
+	* [OP](./src/op/OPRollup.ts) &mdash; Base, Blast, Celo, Cyber, Fraxtal, Mantle, Mode, opBNB, Redstone, Shape, Zora
+	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; Optimism
+	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
+	* [Linea](./src/linea/LineaRollup.ts)
+	* [Polygon PoS](./src/polygon/PolygonPoSRollup.ts)
+	* [Polygon ZK](./src/polygon/PolygonZKRollup.ts) &mdash; *WIP*
+	* [Scroll](./src/scroll/ScrollRollup.ts)
+	* [Taiko](./src/taiko/TaikoRollup.ts)
+	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
+	* [Reverse OP](./src/op/OPReverseRollup.ts) &mdash; L2 &rarr; L1 for any Superchain
+	* [Self](./src/eth/EthSelfRollup.ts) &mdash; any Chain to itself
+* Provers
+	* [Eth](./src/eth//EthProver.ts) &mdash; `eth_getProof`
+	* [Linea](./src/linea/LineaProver.ts) &mdash; `linea_getProof`
+	* [ZKSync](./src/zksync/ZKSyncProver.ts) &mdash; `zks_getProof`
+* Verifier Hooks
+	* [Eth](./contracts/eth/EthVerifierHooks.sol) &mdash; [Patricia Merkle Tree](./contracts/eth/MerkleTrie.sol)
+	* [Linea](./contracts/linea/LineaVerifierHooks.sol) &mdash; [Sparse Merkle Tree](./contracts/linea/SparseMerkleProof.sol) + [Mimc](./contracts/linea/Mimc.sol)
+	* [Scroll](./contracts/scroll/ScrollVerifierHooks.sol) &mdash; Binary Merkle Tree + Poseidon
+	* [ZKSync](./contracts/zksync/ZKSyncVerifierHooks.sol) &mdash; [Sparse Merkle Tree](./contracts/zksync/ZKSyncSMT.sol) + [Blake2S](./contracts/zksync/Blake2S.sol)
 
-There are currently implementations for the following chains:
 
-```bash
-Arbitrum
-Base
-Blast
-Fraxtal
-Linea
-Optimism
-Polygon PoS
-Scroll
-Taiko
-ZKSync
-Zora
-```
-
-If you are interested in building out a solution for another chain, please take a look at our our [Contribution Guidelines](#contribution-guidelines) and/or [get in touch](https://unruggable.com/contact).
+If you are interested in building a solution for another chain, please take a look at our our [Contribution Guidelines](#contribution-guidelines) and/or [get in touch](https://unruggable.com/contact).
 
 ## Setup
 
@@ -57,26 +63,10 @@ If you are interested in building out a solution for another chain, please take 
 1. `bun i`
 1. create [`.env`](./.env.example)
 
-## Support
-* Provers
-	* [EthProver](./src/eth//EthProver.ts) &rarr; `eth_getProof`
-	* [LineaProver](./src/linea/LineaProver.ts) &rarr; `linea_getProof`
-	* [ZKSyncProver](./src/zksync/ZKSyncProver.ts) &rarr; `zks_getProof`
-* Rollups: 
-	* [OP](./src/op/OPRollup.ts) &mdash; Base, Blast, Fraxtal, Zora
-	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; OP Mainnet
-	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
-	* [Linea](./src/linea/LineaRollup.ts)
-	* [Polygon PoS](./src/polygon/PolygonPoSRollup.ts)
-	* [Polygon ZK](./src/polygon/PolygonZKRollup.ts) &mdash; *WIP*
-	* [Scroll](./src/scroll/ScrollRollup.ts)
-	* [Taiko](./src/taiko/TaikoRollup.ts)
-	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
-
 ## Running a Gateway
 
 * `bun run serve <chain> [port]`
-	* Chain names: `arb1` `base` `blast` `fraxtal` `linea` `op` `polygon` `scroll` `taiko` `zksync` `zora`
+	* Chain names: `arb1` `base-testnet` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `lineaV1` `linea` `mantle` `mode` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `taiko` `zksync` `zora`
 	* Default port: `8000`
 
 ## Testing

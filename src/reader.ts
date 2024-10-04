@@ -68,13 +68,46 @@ export class ProgramReader {
   private parseArgs(op: number) {
     // TODO: this is probably incomplete
     switch (op) {
-      case OP.DEBUG:
-        return { label: this.readSmallStr() };
-      case OP.PUSH_VALUE:
+      //case OP.PUSH_0:
+      case OP.PUSH_1:
+      case OP.PUSH_2:
+      case OP.PUSH_3:
+      case OP.PUSH_4:
+      case OP.PUSH_5:
+      case OP.PUSH_6:
+      case OP.PUSH_7:
+      case OP.PUSH_8:
+      case OP.PUSH_9:
+      case OP.PUSH_10:
+      case OP.PUSH_11:
+      case OP.PUSH_12:
+      case OP.PUSH_13:
+      case OP.PUSH_14:
+      case OP.PUSH_15:
+      case OP.PUSH_16:
+      case OP.PUSH_17:
+      case OP.PUSH_18:
+      case OP.PUSH_19:
+      case OP.PUSH_20:
+      case OP.PUSH_21:
+      case OP.PUSH_22:
+      case OP.PUSH_23:
+      case OP.PUSH_24:
+      case OP.PUSH_25:
+      case OP.PUSH_26:
+      case OP.PUSH_27:
+      case OP.PUSH_28:
+      case OP.PUSH_29:
+      case OP.PUSH_30:
+      case OP.PUSH_31:
+      case OP.PUSH_32:
+        return { bytes: this.readBytes(op) };
       case OP.PUSH_BYTES:
         return { bytes: this.readSmallBytes() };
       case OP.EVAL_LOOP:
         return { flags: this.readByte() };
+      case OP.DEBUG:
+        return { label: this.readSmallStr() };
       default:
         return {};
     }

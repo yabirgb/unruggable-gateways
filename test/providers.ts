@@ -9,6 +9,7 @@ export type RPCInfo = {
   readonly ankr?: string;
   readonly infura?: string;
   readonly alchemy?: string;
+  readonly alchemyPremium?: boolean;
 };
 
 export const RPC_INFO = new Map<Chain, RPCInfo>(
@@ -27,6 +28,13 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         ankr: 'eth_sepolia',
         infura: 'sepolia',
         alchemy: 'eth-sepolia',
+      },
+      {
+        chain: CHAINS.HOLESKY,
+        rpc: 'https:;/rpc.ankr.com/eth_holesky/', //'https://rpc.holesky.ethpandaops.io',
+        ankr: 'eth_holesky',
+        infura: 'holesky',
+        alchemy: 'eth-holesky',
       },
       {
         // https://docs.optimism.io/chain/networks#op-mainnet
@@ -86,11 +94,13 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         chain: CHAINS.SCROLL,
         rpc: 'https://rpc.scroll.io',
         ankr: 'scroll',
+        infura: 'scroll-mainnet',
       },
       {
         chain: CHAINS.SCROLL_SEPOLIA,
         rpc: 'https://sepolia-rpc.scroll.io',
         ankr: 'scroll_sepolia_testnet',
+        infura: 'scroll-sepolia',
       },
       {
         // https://docs.taiko.xyz/network-reference/rpc-configuration#taiko-mainnet
@@ -208,6 +218,33 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
       //   chain: CHAINS.GNOSIS,
       //   rpc: 'https://rpc.gnosischain.com',
       // },
+      {
+        // https://docs.shape.network/documentation/technical-details/network-information
+        chain: CHAINS.SHAPE,
+        rpc: 'https://mainnet.shape.network',
+        alchemy: 'shape-mainnet',
+      },
+      {
+        // https://docs.bnbchain.org/bnb-smart-chain/
+        chain: CHAINS.BSC,
+        rpc: 'https://bsc-dataseed.bnbchain.org',
+        //infura: 'bsc-mainnet', // 20241002: eth_getProof doesn't work
+        alchemy: 'bnb-mainnet',
+        alchemyPremium: true,
+        ankr: 'bsc',
+      },
+      {
+        // https://docs.bnbchain.org/bnb-opbnb/get-started/network-info/
+        chain: CHAINS.OP_BNB,
+        rpc: 'https://opbnb-mainnet-rpc.bnbchain.org',
+        infura: 'opbnb-mainnet',
+      },
+      {
+        // https://docs.celo.org/network#celo-alfajores
+        chain: CHAINS.CELO_ALFAJORES,
+        rpc: 'https://alfajores-forno.celo-testnet.org',
+        //infura: 'celo-alfajores', // 20241002: eth_getProof doesn't work
+      },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])
 );
@@ -217,7 +254,11 @@ function decideProvider(chain: Chain) {
   if (!info) throw new Error(`unknown provider: ${chain}`);
   // 20240830: so far, alchemy has the best support
   let apiKey;
-  if (info.alchemy && (apiKey = process.env.ALCHEMY_KEY)) {
+  if (
+    info.alchemy &&
+    (apiKey = process.env.ALCHEMY_KEY) &&
+    (!info.alchemyPremium || !!process.env.ALCHEMY_PREMIUM)
+  ) {
     return {
       info,
       type: 'alchemy',

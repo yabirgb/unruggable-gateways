@@ -9,8 +9,12 @@ import { describe } from '../bun-describe-fix.js';
 describe('hashed', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
-    file: 'EthSelfVerifier',
+    file: 'SelfVerifier',
+    args: [[], 0, hooks],
+    libs: { GatewayVM },
   });
   // this is almost ~400 rpc calls!
   const bytes = hexlify(randomBytes(12345));
@@ -134,7 +138,7 @@ describe('hashed', async () => {
               .readHashedBytes()
               .addOutput()
           )
-        ).rejects.toThrow('InvalidProof');
+        ).rejects.toThrow('InvalidProof()');
       });
     });
   }

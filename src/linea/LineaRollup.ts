@@ -96,8 +96,8 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['uint256', 'bytes[]', 'bytes'],
-      [commit.index, proofSeq.proofs, proofSeq.order]
+      ['tuple(uint256, bytes[], bytes)'],
+      [[commit.index, proofSeq.proofs, proofSeq.order]]
     );
   }
 

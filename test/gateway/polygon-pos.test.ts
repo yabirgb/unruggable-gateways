@@ -3,8 +3,7 @@ import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
-import { runSlotDataTests } from './tests.js';
-import { deployProxy, pairName } from './common.js';
+import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
@@ -21,21 +20,23 @@ describe.skipIf(!!process.env.IS_CI)(pairName(config), async () => {
   });
   afterAll(() => foundry.shutdown());
   const gateway = new Gateway(rollup);
-  const ccip = await serve(gateway, {
-    protocol: 'raw',
-    log: false,
-  });
+  const ccip = await serve(gateway, { protocol: 'raw', log: false });
   afterAll(() => ccip.http.close());
-  const verifier = await foundry.deploy({ file: 'PolygonPoSVerifier' });
-  const proxy = await deployProxy(foundry, verifier);
-  await foundry.confirm(proxy.setGatewayURLs([ccip.endpoint]));
-  await foundry.confirm(proxy.setWindow(rollup.defaultWindow));
-  await foundry.confirm(proxy.setRootChain(rollup.RootChain.target));
-  await foundry.confirm(proxy.setPoster(rollup.poster.address));
-  // https://polygonscan.com/address/0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361#code
-  const reader = await foundry.deploy({
-    file: 'SlotDataReader',
-    args: [proxy, '0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361'],
+  const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+  const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
+  const verifier = await foundry.deploy({
+    file: 'PolygonPoSVerifier',
+    args: [
+      [ccip.endpoint],
+      rollup.defaultWindow,
+      hooks,
+      rollup.RootChain,
+      rollup.poster,
+    ],
+    libs: { GatewayVM },
   });
-  runSlotDataTests(reader);
+  await setupTests(verifier, {
+    // https://polygonscan.com/address/0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361#code
+    slotDataContract: '0x5BBf0fD3Dd8252Ee03bA9C03cF92F33551584361',
+  });
 });

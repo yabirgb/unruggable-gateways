@@ -1,6 +1,6 @@
 import type { RollupDeployment } from '../rollup.js';
 import type { HexAddress, ProviderPair } from '../types.js';
-import { type ABIOutputProposal, ORACLE_ABI } from './types.js';
+import { type ABIOutputTuple, ORACLE_ABI } from './types.js';
 import { Contract } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
 import { AbstractOPRollup, type OPCommit } from './AbstractOPRollup.js';
@@ -70,6 +70,27 @@ export class OPRollup extends AbstractOPRollup {
     L2OutputOracle: '0xa426A052f657AEEefc298b3B5c35a470e4739d69',
   };
 
+  // https://docs.shape.network/documentation/technical-details/contract-addresses#mainnet
+  static readonly shapeMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.SHAPE,
+    L2OutputOracle: '0x6Ef8c69CfE4635d866e3E02732068022c06e724D',
+  };
+
+  // https://docs.bnbchain.org/bnb-opbnb/core-concepts/opbnb-protocol-addresses/
+  static readonly opBNBMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.BSC,
+    chain2: CHAINS.OP_BNB,
+    L2OutputOracle: '0x153CAB79f4767E2ff862C94aa49573294B13D169',
+  };
+
+  // https://storage.googleapis.com/cel2-rollup-files/alfajores/deployment-l1.json
+  static readonly celoAlfajoresConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.HOLESKY,
+    chain2: CHAINS.CELO_ALFAJORES,
+    L2OutputOracle: '0x4a2635e9e4f6e45817b1D402ac4904c1d1752438',
+  };
+
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {
     super(providers);
@@ -92,8 +113,7 @@ export class OPRollup extends AbstractOPRollup {
   }
   protected override async _fetchCommit(index: bigint) {
     // this fails with ARRAY_RANGE_ERROR when invalid
-    const output: ABIOutputProposal =
-      await this.L2OutputOracle.getL2Output(index);
+    const output: ABIOutputTuple = await this.L2OutputOracle.getL2Output(index);
     return this.createCommit(index, output.l2BlockNumber);
   }
 

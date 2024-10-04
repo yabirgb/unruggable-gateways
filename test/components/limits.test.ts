@@ -83,7 +83,7 @@ describe('limits', async () => {
       .setSlot(1)
       .readHashedBytes();
     await exec(prover, passReq);
-    expect(exec(prover, failReq)).rejects.toThrowError(/^too many bytes:/);
+    expect(exec(prover, failReq)).rejects.toThrow(/^too many bytes:/);
   });
 
   test('max assemble bytes', async () => {
@@ -96,7 +96,7 @@ describe('limits', async () => {
     const req = double(new GatewayRequest().push(1), 5);
     await exec(prover, req);
     double(req); // one more
-    expect(exec(prover, req)).rejects.toThrowError(/^too many bytes:/);
+    expect(exec(prover, req)).rejects.toThrow(/^too many bytes:/);
   });
 
   test('max proofs', async () => {

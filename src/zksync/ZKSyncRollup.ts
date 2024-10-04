@@ -134,8 +134,8 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['bytes', 'bytes[]', 'bytes'],
-      [commit.abiEncodedBatch, proofSeq.proofs, proofSeq.order]
+      ['tuple(bytes, bytes[], bytes)'],
+      [[commit.abiEncodedBatch, proofSeq.proofs, proofSeq.order]]
     );
   }
 

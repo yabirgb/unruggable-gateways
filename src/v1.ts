@@ -9,10 +9,6 @@ import { hexlify, getBytes, toUtf8Bytes } from 'ethers/utils';
 import { toPaddedHex } from './utils.js';
 import { GatewayRequest } from './vm.js';
 
-// export const GATEWAY_ABI = new ethers.Interface([
-// 	`function getStorageSlots(address addr, bytes32[] commands, bytes[] constants) returns (bytes)`,
-// ]);
-
 const FLAG_DYNAMIC = 0x01;
 
 const MAX_CONSTS = 32;
@@ -40,8 +36,7 @@ export class GatewayRequestV1 {
     );
   }
   private addConst(x: BytesLike) {
-    if (this.constants.length >= MAX_CONSTS)
-      throw new Error('constants overflow');
+    if (this.constants.length >= MAX_CONSTS) throw new Error('too many inputs');
     this.constants.push(hexlify(x));
     return this.constants.length - 1;
   }
@@ -71,7 +66,7 @@ export class GatewayRequestV1 {
     this.buf.push(OP_FOLLOW_REF | i);
     return this;
   }
-  element(x: BigNumberish | boolean) {
+  element(x: BigNumberish) {
     return this.elementBytes(toPaddedHex(x));
   }
   elementStr(s: string) {
@@ -85,10 +80,6 @@ export class GatewayRequestV1 {
     this.buf.push(OP_ADD_CONST | this.addConst(toPaddedHex(x)));
     return this;
   }
-  // encodeCall() {
-  // 	this.end();
-  // 	return GATEWAY_ABI.encodeFunctionData('getStorageSlots', [this.target, this.commands, this.constants]);
-  // }
   v2() {
     this.end();
     const req = new GatewayRequest();

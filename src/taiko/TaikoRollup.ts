@@ -96,8 +96,8 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['uint256', 'bytes32', 'bytes[]', 'bytes'],
-      [commit.index, commit.parentHash, proofSeq.proofs, proofSeq.order]
+      ['tuple(uint256, bytes32, bytes[], bytes)'],
+      [[commit.index, commit.parentHash, proofSeq.proofs, proofSeq.order]]
     );
   }
 

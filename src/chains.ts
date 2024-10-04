@@ -6,6 +6,7 @@ import type { Chain } from './types.js';
 export const CHAINS = {
   MAINNET: 1n,
   SEPOLIA: 11155111n,
+  HOLESKY: 17000n,
   OP: 10n,
   OP_SEPOLIA: 11155420n,
   ZKSYNC: 324n,
@@ -36,6 +37,10 @@ export const CHAINS = {
   CYBER_SEPOLIA: 111557560n,
   REDSTONE: 690n,
   // GNOSIS: 100n, // L1: must verify against withdrawal signatures?
+  SHAPE: 360n,
+  BSC: 56n,
+  OP_BNB: 204n,
+  CELO_ALFAJORES: 44787n,
 } as const satisfies Record<string, Chain>;
 
 const NAMES = new Map<Chain, string>(

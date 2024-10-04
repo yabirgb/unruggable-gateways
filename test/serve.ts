@@ -1,7 +1,7 @@
 import { createProviderPair, createProvider } from './providers.js';
 import { chainName } from '../src/chains.js';
 import { Gateway } from '../src/gateway.js';
-import { OPRollup } from '../src/op/OPRollup.js';
+import { OPConfig, OPRollup } from '../src/op/OPRollup.js';
 import { OPFaultRollup } from '../src/op/OPFaultRollup.js';
 import { OPReverseRollup } from '../src/op/OPReverseRollup.js';
 import { NitroRollup } from '../src/nitro/NitroRollup.js';
@@ -14,6 +14,8 @@ import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
 import { CHAINS } from '../src/chains.js';
 import type { Serve } from 'bun';
+import { Chain } from '../src/types.js';
+import { RollupDeployment } from '../src/rollup.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
 // https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws65lsm4xq.ccipr.eth
@@ -145,46 +147,43 @@ async function createGateway(name: string) {
       const config = ZKSyncRollup.mainnetConfig;
       return new Gateway(new ZKSyncRollup(createProviderPair(config), config));
     }
-    case 'base': {
-      const config = OPRollup.baseMainnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'blast': {
-      const config = OPRollup.blastMainnnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'fraxtal': {
-      const config = OPRollup.fraxtalMainnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'mode': {
-      const config = OPRollup.modeMainnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'mantle': {
-      const config = OPRollup.mantleMainnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'cyber': {
-      const config = OPRollup.cyberMainnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'redstone': {
-      const config = OPRollup.redstoneMainnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'zora': {
-      const config = OPRollup.zoraMainnetConfig;
-      return new Gateway(new OPRollup(createProviderPair(config), config));
-    }
-    case 'self-eth': {
-      return new Gateway(new EthSelfRollup(createProvider(CHAINS.MAINNET)));
-    }
-    case 'self-sepolia': {
-      return new Gateway(new EthSelfRollup(createProvider(CHAINS.SEPOLIA)));
-    }
-    default: {
+    case 'base':
+      return createOPGateway(OPRollup.baseMainnetConfig);
+    case 'blast':
+      return createOPGateway(OPRollup.blastMainnnetConfig);
+    case 'celo-alfajores':
+      return createOPGateway(OPRollup.celoAlfajoresConfig);
+    case 'cyber':
+      return createOPGateway(OPRollup.cyberMainnetConfig);
+    case 'fraxtal':
+      return createOPGateway(OPRollup.fraxtalMainnetConfig);
+    case 'mantle':
+      return createOPGateway(OPRollup.mantleMainnetConfig);
+    case 'mode':
+      return createOPGateway(OPRollup.modeMainnetConfig);
+    case 'opbnb':
+      return createOPGateway(OPRollup.opBNBMainnetConfig);
+    case 'redstone':
+      return createOPGateway(OPRollup.redstoneMainnetConfig);
+    case 'shape':
+      return createOPGateway(OPRollup.shapeMainnetConfig);
+    case 'zora':
+      return createOPGateway(OPRollup.zoraMainnetConfig);
+    case 'self-eth':
+      return createSelfGateway(CHAINS.MAINNET);
+    case 'self-sepolia':
+      return createSelfGateway(CHAINS.SEPOLIA);
+    case 'self-holesky':
+      return createSelfGateway(CHAINS.HOLESKY);
+    default:
       throw new Error(`unknown gateway: ${name}`);
-    }
   }
+}
+
+function createSelfGateway(chain: Chain) {
+  return new Gateway(new EthSelfRollup(createProvider(chain)));
+}
+
+function createOPGateway(config: RollupDeployment<OPConfig>) {
+  return new Gateway(new OPRollup(createProviderPair(config), config));
 }

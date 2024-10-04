@@ -4,6 +4,7 @@ import { ZeroHash } from 'ethers/constants';
 import { keccak256 } from 'ethers/crypto';
 import { decodeRlp } from 'ethers/utils';
 import { toPaddedHex } from '../utils.js';
+import { encodeRlp } from 'ethers';
 
 // https://github.com/ethereum/consensus-specs/blob/dev/ssz/merkle-proofs.md
 // https://eips.ethereum.org/EIPS/eip-7545
@@ -27,24 +28,29 @@ type AccountState = {
   codeHash: HexString;
 };
 
-export function proveAccountState(
+export function verifyAccountState(
   target: HexString,
   accountProof: EthProof,
   stateRoot: HexString
 ): AccountState | undefined {
-  const rlp = proveMerkleTrieValue(target, accountProof, stateRoot, true);
+  const rlp = verifyMerkleTrieValue(target, accountProof, stateRoot, true);
   if (!rlp) return;
   const decoded = assertRlpVector(rlp);
   if (decoded.length != 4) throw new Error('invalid account state');
   const [nonce, balance, storageRoot, codeHash] = decoded;
   return { nonce, balance, storageRoot, codeHash };
 }
-export function proveStorageValue(
+
+export function verifyStorageValue(
   slot: BigNumberish,
   storageProof: EthProof,
   storageRoot: HexString
 ) {
-  const rlp = proveMerkleTrieValue(
+  if (storageRoot === NULL_TRIE_HASH) {
+    //if (storageProof.length) throw new Error('expected empty proof');
+    return ZeroHash;
+  }
+  const rlp = verifyMerkleTrieValue(
     toPaddedHex(slot),
     storageProof,
     storageRoot,
@@ -57,7 +63,7 @@ export function proveStorageValue(
 }
 
 // same arg order as MerkleTrie.get()
-export function proveMerkleTrieValue(
+export function verifyMerkleTrieValue(
   key: HexString,
   proof: EthProof,
   root: HexString,
@@ -80,7 +86,7 @@ export function proveMerkleTrieValue(
       root
     );
     if (keyRemainder.length) {
-      if (!final) new Error('key remainder');
+      if (!final) throw new Error('key remainder');
       return;
     }
     const { decoded } = nodes[pathLength - 1];
@@ -94,6 +100,11 @@ export function proveMerkleTrieValue(
     });
   }
 }
+
+const PREFIX_EXTENSION_EVEN = 0;
+const PREFIX_EXTENSION_ODD = 1;
+const PREFIX_LEAF_EVEN = 2;
+const PREFIX_LEAF_ODD = 3;
 
 // this mirrors MerkleTrie.sol
 function walk(nodes: TrieNode[], key: HexString, root: HexString) {
@@ -114,31 +125,30 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
     }
     if (node.decoded.length == BRANCH_NODE_SIZE) {
       if (keyIndex == keyNibbles.length) break;
-      nodeID = node.decoded[keyNibbles[keyIndex]];
+      nodeID = getNodeId(node.decoded[keyNibbles[keyIndex]]);
       keyDelta = 1;
     } else {
       const pathNibbles = toNibbles(node.decoded[0]);
       const pathRemainder = pathNibbles.subarray(pathNibbles[0] & 1 ? 1 : 2);
       const keyRemainder = keyNibbles.subarray(keyIndex);
       const shared = getSharedNibbleLength(pathRemainder, keyRemainder);
-      if (keyRemainder.length < pathRemainder.length)
+      if (keyRemainder.length < pathRemainder.length) {
         throw new Error('invalid key length');
+      }
       switch (pathNibbles[0]) {
-        case 0: // PREFIX_EXTENSION_EVEN
-        case 1: {
-          // PREFIX_EXTENSION_ODD
+        case PREFIX_EXTENSION_EVEN:
+        case PREFIX_EXTENSION_ODD: {
           if (shared != pathRemainder.length) {
             nodeID = RLP_NULL;
             break outer;
           } else {
-            nodeID = node.decoded[1];
+            nodeID = getNodeId(node.decoded[1]);
             keyDelta = shared;
             continue;
           }
         }
-        case 2: // PREFIX_LEAF_EVEN
-        case 3: {
-          // PREFIX_LEAF_ODD
+        case PREFIX_LEAF_EVEN:
+        case PREFIX_LEAF_ODD: {
           if (pathRemainder.length == shared && keyRemainder.length == shared) {
             keyIndex += shared;
           }
@@ -153,14 +163,19 @@ function walk(nodes: TrieNode[], key: HexString, root: HexString) {
   return {
     pathLength,
     keyRemainder: keyNibbles.slice(keyIndex),
-    final: nodeID == RLP_NULL,
+    final: nodeID === RLP_NULL,
   };
+}
+
+function getNodeId(v: HexString) {
+  return v.length < 66 ? encodeRlp(v) : v;
 }
 
 function assertRlpVector(rlp: HexString) {
   const v = decodeRlp(rlp);
-  if (!Array.isArray(v) || !v.every((x) => typeof x === 'string'))
+  if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) {
     throw new Error('expected rlp vector');
+  }
   return v as HexString[];
 }
 function toNibbles(s: HexString) {

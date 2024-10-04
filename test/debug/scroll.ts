@@ -31,9 +31,9 @@ const verifier = await foundry.deploy({
 console.log(proof.accountProof.length);
 
 try {
-	const storageRoot = await verifier.proveAccountState(stateRoot, target, EthProver.encodeProof(proof.accountProof));
+	const storageRoot = await verifier.verifyAccountState(stateRoot, target, EthProver.encodeProof(proof.accountProof));
 	console.log({storageRoot});
-	const storageValue = await verifier.proveStorageValue(storageRoot, ZeroAddress, storageProof.key, EthProver.encodeProof(storageProof.proof));
+	const storageValue = await verifier.verifyStorageValue(storageRoot, ZeroAddress, storageProof.key, EthProver.encodeProof(storageProof.proof));
 	console.log({storageValue});
 } catch (err) {
 	console.log(err);
