@@ -30,8 +30,6 @@ This repository provides an end-to-end solution for proving data from rollup cha
 - **Verifier** (Solidity) &mdash; verifies a **Commit** proof and executes the **VM** with rollup-specific **Hooks**
 - **Verifier Hooks** (Solidity) &mdash; verifies Account and Storage proofs
 
-In addition to these core components, we have provided TypeScript implementations of the request builder ([vm.ts](https://github.com/unruggable-labs/unruggable-gateways/blob/main/src/vm.ts)) and the provers (listed below) to allow smart contract implementors to quickly iterate and test when building solutions.
-
 ## Chain Support
 * Rollups &amp; Verifers
 	* [OP](./src/op/OPRollup.ts) &mdash; Base, Blast, Celo, Cyber, Fraxtal, Mantle, Mode, opBNB, Redstone, Shape, Zora
@@ -68,7 +66,7 @@ If you are interested in building a solution for another chain, please take a lo
 ## Running a Gateway
 
 * `bun run serve <chain> [port]`
-	* Chain names: `op` `base-testnet` `reverse-op` `arb1` `linea` `lineaV1` `polygon` `scroll` `taiko` `zksync` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `mantle` `mode` `opbnb` `redstone` `shape` `zora` `self-eth` `self-sepolia` `self-holesky`
+	* Chain names: `arb1` `base-testnet` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `lineaV1` `linea` `mantle` `mode` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `taiko` `zksync` `zora`
 	* Default port: `8000`
 
 ## Testing

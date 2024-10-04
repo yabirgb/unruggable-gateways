@@ -10,4 +10,4 @@ for (const match of code.slice(index).matchAll(/case '([^\']+?)'/g)) {
 
 console.log(names);
 
-console.log(names.map(x => `\`${x}\``).join(' '));
+console.log(names.map(x => `\`${x}\``).sort().join(' '));
