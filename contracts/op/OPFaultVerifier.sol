@@ -16,13 +16,13 @@ interface IOptimismPortal {
 interface IOPFaultGameFinder {
     function findGameIndex(
         IOptimismPortal portal,
-        uint256 minAge,
+        uint256 minAgeSec,
         uint256 gameTypeBitMask,
         uint256 gameCount
     ) external view returns (uint256);
     function gameAtIndex(
         IOptimismPortal portal,
-        uint256 minAge,
+        uint256 minAgeSec,
         uint256 gameTypeBitMask,
         uint256 gameIndex
     )
@@ -40,14 +40,14 @@ struct OPFaultParams {
     IOptimismPortal portal;
     IOPFaultGameFinder gameFinder;
     uint256 gameTypeBitMask;
-    uint256 minAge;
+    uint256 minAgeSec;
 }
 
 contract OPFaultVerifier is AbstractVerifier {
     IOptimismPortal immutable _portal;
     IOPFaultGameFinder immutable _gameFinder;
     uint256 immutable _gameTypeBitMask;
-    uint256 immutable _minAge;
+    uint256 immutable _minAgeSec;
 
     constructor(
         string[] memory urls,
@@ -58,13 +58,18 @@ contract OPFaultVerifier is AbstractVerifier {
         _portal = params.portal;
         _gameFinder = params.gameFinder;
         _gameTypeBitMask = params.gameTypeBitMask;
-        _minAge = params.minAge;
+        _minAgeSec = params.minAgeSec;
     }
 
     function getLatestContext() external view virtual returns (bytes memory) {
         return
             abi.encode(
-                _gameFinder.findGameIndex(_portal, _minAge, _gameTypeBitMask, 0)
+                _gameFinder.findGameIndex(
+                    _portal,
+                    _minAgeSec,
+                    _gameTypeBitMask,
+                    0
+                )
             );
     }
 
@@ -83,7 +88,7 @@ contract OPFaultVerifier is AbstractVerifier {
         uint256 gameIndex1 = abi.decode(context, (uint256));
         GatewayProof memory p = abi.decode(proof, (GatewayProof));
         (, , IDisputeGame gameProxy, uint256 blockNumber) = _gameFinder
-            .gameAtIndex(_portal, _minAge, _gameTypeBitMask, p.gameIndex);
+            .gameAtIndex(_portal, _minAgeSec, _gameTypeBitMask, p.gameIndex);
         require(blockNumber != 0, 'OPFault: invalid game');
         if (p.gameIndex != gameIndex1) {
             (, , IDisputeGame gameProxy1) = _portal

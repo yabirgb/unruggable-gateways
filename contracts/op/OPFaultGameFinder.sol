@@ -35,7 +35,7 @@ contract OPFaultGameFinder {
 
     function findGameIndex(
         IOptimismPortal portal,
-        uint256 minAge,
+        uint256 minAgeSec,
         uint256 gameTypeBitMask,
         uint256 gameCount
     ) external view virtual returns (uint256) {
@@ -55,7 +55,7 @@ contract OPFaultGameFinder {
                     gameType,
                     created,
                     gameTypeBitMask,
-                    minAge
+                    minAgeSec
                 )
             ) {
                 return gameCount;
@@ -66,7 +66,7 @@ contract OPFaultGameFinder {
 
     function gameAtIndex(
         IOptimismPortal portal,
-        uint256 minAge,
+        uint256 minAgeSec,
         uint256 gameTypeBitMask,
         uint256 gameIndex
     )
@@ -84,7 +84,13 @@ contract OPFaultGameFinder {
         IDisputeGameFactory factory = portal.disputeGameFactory();
         (gameType, created, gameProxy) = factory.gameAtIndex(gameIndex);
         if (
-            _isGameUsable(gameProxy, gameType, created, gameTypeBitMask, minAge)
+            _isGameUsable(
+                gameProxy,
+                gameType,
+                created,
+                gameTypeBitMask,
+                minAgeSec
+            )
         ) {
             l2BlockNumber = gameProxy.l2BlockNumber();
         }
@@ -95,14 +101,14 @@ contract OPFaultGameFinder {
         uint256 gameType,
         uint256 created,
         uint256 gameTypeBitMask,
-        uint256 minAge
+        uint256 minAgeSec
     ) internal view returns (bool) {
         if (gameTypeBitMask & (1 << gameType) == 0) return false;
-        if (minAge == 0) {
+        if (minAgeSec == 0) {
             return gameProxy.status() == DEFENDER_WINS;
         } else {
             return
-                created <= block.timestamp - minAge &&
+                created <= block.timestamp - minAgeSec &&
                 gameProxy.status() != CHALLENGER_WINS;
         }
     }
