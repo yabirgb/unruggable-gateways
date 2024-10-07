@@ -60,8 +60,8 @@ describe('ops', async () => {
       proofSeq.proofs,
       proofSeq.order
     );
-    expect(res.outputs.toArray()).toEqual(values);
-    expect(res.exitCode).toEqual(BigInt(state.exitCode));
+    expect(res.outputs.toArray(), 'outputs').toEqual(values);
+    expect(res.exitCode, 'exitCode').toEqual(BigInt(state.exitCode));
     return { ...state, values, stack, proofSeq };
   }
 
@@ -329,7 +329,7 @@ describe('ops', async () => {
 
   test('dup nothing is error', async () => {
     const req = new GatewayRequest().dup();
-    expect(verify(req)).rejects.toThrow('back overflow');
+    expect(verify(req)).rejects.toThrow('stack underflow');
   });
 
   test('dup2', async () => {
@@ -346,7 +346,7 @@ describe('ops', async () => {
 
   test('swap nothing is error', async () => {
     const req = new GatewayRequest().swap();
-    expect(verify(req)).rejects.toThrow('back overflow');
+    expect(verify(req)).rejects.toThrow('stack underflow');
   });
 
   test('swap mixed', async () => {

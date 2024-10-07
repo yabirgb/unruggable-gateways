@@ -8,8 +8,9 @@ library GatewayFetcher {
     // verifier execution is only constrainted by stack and gas
     // max outputs = 255
     // TODO: this could be configurable during constructor?
-    uint256 constant MAX_OPS = 2048;
-    uint256 constant MAX_INPUTS = 64;
+    // memory use doesn't really matter during view construction
+    // however it does matter
+    uint256 constant MAX_OPS = 8192;
 
     // thrown if limits above are exceeded
     error RequestOverflow();
@@ -23,12 +24,10 @@ library GatewayFetcher {
     }
     function newCommand() internal pure returns (GatewayRequest memory) {
         bytes memory v = new bytes(MAX_OPS);
-        bytes[] memory m = new bytes[](MAX_INPUTS);
         assembly {
             mstore(v, 0)
-            mstore(m, 0)
         }
-        return GatewayRequest(v, m);
+        return GatewayRequest(v);
     }
 
     function addByte(
@@ -40,17 +39,16 @@ library GatewayFetcher {
         if (n >= MAX_OPS) revert RequestOverflow();
         assembly {
             mstore(v, add(n, 1))
+            mstore8(add(add(v, 32), n), i)
         }
-        v[n] = bytes1(i);
         return r;
     }
-    function addSmallBytes(
+    function addBytes(
         GatewayRequest memory r,
         bytes memory v
     ) internal pure returns (GatewayRequest memory) {
-        if (v.length > 255) revert RequestOverflow();
-        r.addByte(uint8(v.length));
         bytes memory buf = r.ops;
+        if (r.ops.length + v.length >= MAX_OPS) revert RequestOverflow();
         assembly {
             let dst := add(add(buf, 32), mload(buf))
             let src := add(v, 32)
@@ -69,35 +67,18 @@ library GatewayFetcher {
         return r;
     }
 
-    function defineInput(
-        GatewayRequest memory r,
-        bytes memory v
-    ) internal pure returns (uint256 i) {
-        bytes[] memory m = r.inputs;
-        uint256 n = m.length;
-        if (n >= MAX_INPUTS) revert RequestOverflow();
-        assembly {
-            mstore(m, add(n, 1))
-        }
-        m[n] = v;
-        return uint8(n);
-    }
-
     function encode(
         GatewayRequest memory r
     ) internal pure returns (bytes memory) {
-        return abi.encode(r.ops, r.inputs);
+        return abi.encodePacked(r.ops);
     }
-
-    // function outputCount(GatewayRequest memory r) internal pure returns (uint8) {
-    // 	return uint8(r.ops[0]);
-    // }
 
     function debug(
         GatewayRequest memory r,
         string memory label
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_DEBUG).addSmallBytes(bytes(label));
+        bytes memory v = bytes(label);
+        return r.addByte(OP_DEBUG).push(v.length).addBytes(v);
     }
 
     function push(
@@ -182,10 +163,7 @@ library GatewayFetcher {
         GatewayRequest memory r,
         bytes memory v
     ) internal pure returns (GatewayRequest memory) {
-        return
-            v.length <= 32
-                ? r.addByte(OP_PUSH_BYTES).addSmallBytes(v)
-                : r.push(r.defineInput(v)).addByte(OP_PUSH_INPUT);
+        return r.addByte(OP_PUSH_BYTES).push(v.length).addBytes(v);
     }
 
     function pushTarget(
@@ -326,11 +304,11 @@ library GatewayFetcher {
         return r.addByte(OP_REQ_NONZERO);
     }
 
-    function pushInput(
+    function pushStack(
         GatewayRequest memory r,
         uint8 i
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(i).addByte(OP_PUSH_INPUT);
+        return r.push(i).addByte(OP_PUSH_STACK);
     }
     function pushOutput(
         GatewayRequest memory r,

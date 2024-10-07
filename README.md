@@ -1,5 +1,7 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/unruggable-labs/unruggable-gateways/main/unruggable-logo-black.png" style = "width:300px;" alt = "Unruggable Gateways" />
+	<picture>
+		<img src="https://raw.githubusercontent.com/unruggable-labs/unruggable-gateways/main/unruggable-logo-black.png" style="width:300px;" alt="Unruggable Gateways">
+	</picture>
 </p>
 
 # Unruggable Gateways 
@@ -19,7 +21,7 @@ This repository provides an end-to-end solution for proving data from rollup cha
 ## Architecture
 
 - **Request** &mdash; a program that fetches data from one or more contracts
-	* Requests can be constructed in [Solidity](./contracts/GatewayFetcher.sol) or [TypeScript](./src/vm.ts) using (almost) the same syntax
+	* constructable in [Solidity](./contracts/GatewayFetcher.sol) or [TypeScript](./src/vm.ts) using (almost) the same syntax
 - **Commit** &mdash; a commitment (eg. `StateRoot`) of one chain on another
 - **VM** &mdash; a machine that executes a **Request** for a **Commit**
 	* TypeScript &mdash; records sequence of necessary proofs
@@ -37,22 +39,22 @@ This repository provides an end-to-end solution for proving data from rollup cha
 	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
 	* [Linea](./src/linea/LineaRollup.ts)
 	* [Polygon PoS](./src/polygon/PolygonPoSRollup.ts)
-	* [Polygon ZK](./src/polygon/PolygonZKRollup.ts) &mdash; *WIP*
+	* [Polygon ZK](./src/polygon/ZKEVMRollup.ts) &mdash; *WIP*
 	* [Scroll](./src/scroll/ScrollRollup.ts)
 	* [Taiko](./src/taiko/TaikoRollup.ts)
 	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
-	* [Reverse OP](./src/op/OPReverseRollup.ts) &mdash; L2 &rarr; L1 for any Superchain
+	* [Reverse OP](./src/op/ReverseOPRollup.ts) &mdash; L2 &rarr; L1 for any Superchain
 	* [Self](./src/eth/EthSelfRollup.ts) &mdash; any Chain to itself
 * Provers
 	* [Eth](./src/eth//EthProver.ts) &mdash; `eth_getProof`
 	* [Linea](./src/linea/LineaProver.ts) &mdash; `linea_getProof`
 	* [ZKSync](./src/zksync/ZKSyncProver.ts) &mdash; `zks_getProof`
+	* [ZKEVM](./src/polygon/ZKEVMProver.ts) &mdash; `zkevm_getProof`
 * Verifier Hooks
 	* [Eth](./contracts/eth/EthVerifierHooks.sol) &mdash; [Patricia Merkle Tree](./contracts/eth/MerkleTrie.sol)
 	* [Linea](./contracts/linea/LineaVerifierHooks.sol) &mdash; [Sparse Merkle Tree](./contracts/linea/SparseMerkleProof.sol) + [Mimc](./contracts/linea/Mimc.sol)
 	* [Scroll](./contracts/scroll/ScrollVerifierHooks.sol) &mdash; Binary Merkle Tree + Poseidon
 	* [ZKSync](./contracts/zksync/ZKSyncVerifierHooks.sol) &mdash; [Sparse Merkle Tree](./contracts/zksync/ZKSyncSMT.sol) + [Blake2S](./contracts/zksync/Blake2S.sol)
-
 
 If you are interested in building a solution for another chain, please take a look at our our [Contribution Guidelines](#contribution-guidelines) and/or [get in touch](https://unruggable.com/contact).
 
@@ -66,14 +68,14 @@ If you are interested in building a solution for another chain, please take a lo
 ## Running a Gateway
 
 * `bun run serve <chain> [port]`
-	* Chain names: `arb1` `base-testnet` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `lineaV1` `linea` `mantle` `mode` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `taiko` `zksync` `zora`
+	* Chains: `arb1` `base-testnet` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `lineaV1` `linea` `mantle` `mode` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `taiko` `zksync` `zora`
 	* Default port: `8000`
 
 ## Testing
 
 There is an extensive test suite available for testing individual components of the solution in an isolated manner. 
 
-Using [blocksmith.js](https://github.com/adraffy/blocksmith.js/) and [Foundry](https://getfoundry.sh/) we fork the chain in question (such that can interact with contracts deployed on a real network) and then deploy and test against an isolated unit (for example the chain specific verifier).
+Using [Foundry](https://getfoundry.sh/) and [blocksmith.js](https://github.com/adraffy/blocksmith.js/), we fork the chain in question (such that can interact with contracts deployed on a real network) and then deploy and test against an isolated unit (for example the chain specific verifier).
 
 Commands available include:
 

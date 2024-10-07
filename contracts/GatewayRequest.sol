@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 struct GatewayRequest {
     bytes ops;
-    bytes[] inputs;
 }
 
 // eval flags
@@ -55,7 +54,7 @@ uint8 constant OP_PUSH_TARGET = 34;
 uint8 constant OP_PUSH_STACK_SIZE = 35;
 
 uint8 constant OP_PUSH_BYTES = 40;
-uint8 constant OP_PUSH_INPUT = 41;
+uint8 constant OP_PUSH_STACK = 41;
 uint8 constant OP_PUSH_OUTPUT = 42;
 
 uint8 constant OP_TARGET = 50;

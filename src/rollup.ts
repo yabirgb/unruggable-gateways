@@ -30,7 +30,7 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   // "limit targets" => prover.maxUniqueTargets = 1
   configure: (<T extends C>(commit: T) => void) | undefined;
   latestBlockTag: BigNumberish = 'finalized';
-  getLogsStepSize = 1000n;
+  getLogsStepSize = 1000;
   readonly provider1: Provider;
   readonly provider2: Provider;
   constructor(providers: ProviderPair) {

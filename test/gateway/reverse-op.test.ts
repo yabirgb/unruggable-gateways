@@ -1,4 +1,4 @@
-import { OPReverseRollup } from '../../src/op/OPReverseRollup.js';
+import { ReverseOPRollup } from '../../src/op/ReverseOPRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
@@ -7,14 +7,14 @@ import { setupTests, pairName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
-const config = OPReverseRollup.mainnetConfig;
+const config = ReverseOPRollup.mainnetConfig;
 describe.skipIf(!!process.env.IS_CV)(pairName(config, true), async () => {
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain2),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());
-  const rollup = new OPReverseRollup(createProviderPair(config), config);
+  const rollup = new ReverseOPRollup(createProviderPair(config), config);
   // NOTE: prove against prefork block, since state diverged on our fork
   rollup.latestBlockTag = (await foundry.provider.getBlockNumber()) - 5;
   const gateway = new Gateway(rollup);
@@ -23,7 +23,7 @@ describe.skipIf(!!process.env.IS_CV)(pairName(config, true), async () => {
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
-    file: 'OPReverseVerifier',
+    file: 'ReverseOPVerifier',
     args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.L1Block],
     libs: { GatewayVM },
   });

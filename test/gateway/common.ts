@@ -104,9 +104,12 @@ export function testOPFault(
         [ccip.endpoint],
         rollup.defaultWindow,
         hooks,
-        rollup.OptimismPortal,
-        gameFinder,
-        rollup.gameTypeBitMask,
+        [
+          rollup.OptimismPortal,
+          gameFinder,
+          rollup.gameTypeBitMask,
+          rollup.minAgeSec,
+        ],
       ],
       libs: { GatewayVM },
     });
