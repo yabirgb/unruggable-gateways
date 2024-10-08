@@ -5,22 +5,35 @@ import {AbstractVerifier} from '../AbstractVerifier.sol';
 import {IVerifierHooks} from '../IVerifierHooks.sol';
 import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {RLPReader, RLPReaderExt} from '../RLPReaderExt.sol';
-import {IRollupCore, Node} from './IRollupCore.sol';
+import {Node, IRollupCore} from './IRollupCore.sol';
 
-contract NitroVerifier is AbstractVerifier {
+contract UnfinalizedNitroVerifier is AbstractVerifier {
     IRollupCore immutable _rollup;
+    uint256 immutable _minBlocks;
 
     constructor(
         string[] memory urls,
         uint256 window,
         IVerifierHooks hooks,
-        IRollupCore rollup
+        IRollupCore rollup,
+        uint256 minBlocks
     ) AbstractVerifier(urls, window, hooks) {
         _rollup = rollup;
+        _minBlocks = minBlocks;
     }
 
     function getLatestContext() external view returns (bytes memory) {
-        return abi.encode(_rollup.latestConfirmed());
+        uint64 i = _rollup.latestNodeCreated();
+        uint256 b = block.number - _minBlocks;
+        while (true) {
+            Node memory node = _rollup.getNode(i);
+            if (node.createdAtBlock <= b) {
+                return abi.encode(i);
+            }
+            if (i == 0) break;
+            --i;
+        }
+        revert('UnfinalizedNitro: no node');
     }
 
     struct GatewayProof {
@@ -40,15 +53,8 @@ contract NitroVerifier is AbstractVerifier {
         GatewayProof memory p = abi.decode(proof, (GatewayProof));
         Node memory node = _rollup.getNode(p.nodeNum);
         if (p.nodeNum != nodeNum1) {
-			// it wasn't want we requested
             Node memory node1 = _rollup.getNode(nodeNum1);
-			// check if node is between latest and our window
             _checkWindow(node1.createdAtBlock, node.createdAtBlock);
-			// check if node is member of confirmed chain
-            while (node1.prevNum > p.nodeNum) {
-                node1 = _rollup.getNode(node1.prevNum);
-            }
-            require(node1.prevNum == p.nodeNum, 'Nitro: not confirmed');
         }
         bytes32 confirmData = keccak256(
             abi.encodePacked(keccak256(p.rlpEncodedBlock), p.sendRoot)

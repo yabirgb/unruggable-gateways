@@ -1,5 +1,5 @@
-import { OPFaultRollup } from '../../src/op/OPFaultRollup.js';
 import { createProviderPair } from '../providers.js';
+import { OPFaultRollup } from '../../src/op/OPFaultRollup.js';
 
 for (const minAgeSec of [0, 86400, 3600, 1]) {
 	const config = {...OPFaultRollup.baseTestnetConfig, minAgeSec};

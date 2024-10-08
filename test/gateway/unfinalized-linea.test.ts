@@ -1,4 +1,5 @@
 import { LineaRollup } from '../../src/linea/LineaRollup.js';
+import { UnfinalizedLineaRollup } from '../../src/linea/UnfinalizedLineaRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
@@ -7,12 +8,19 @@ import { setupTests, testName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
+// NOTE: this doesn't work yet because shomei
+// does not produce proofs before finalization
+
 const config = LineaRollup.mainnetConfig;
-describe(testName(config), async () => {
-  const rollup = new LineaRollup(createProviderPair(config), config);
+describe.skipIf(true)(testName(config, { unfinalized: true }), async () => {
+  const rollup = new UnfinalizedLineaRollup(
+    createProviderPair(config),
+    config,
+    300
+  );
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
-    infoLog: false,
+    infoLog: true,
   });
   afterAll(() => foundry.shutdown());
   const gateway = new Gateway(rollup);
@@ -29,7 +37,7 @@ describe(testName(config), async () => {
     },
   });
   const verifier = await foundry.deploy({
-    file: 'LineaVerifier',
+    file: 'UnfinalizedLineaVerifier',
     args: [
       [ccip.endpoint],
       rollup.defaultWindow,

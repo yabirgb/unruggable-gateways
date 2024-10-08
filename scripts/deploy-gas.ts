@@ -23,7 +23,7 @@ await foundry.deploy({
 // few examples
 await foundry.deploy({
   file: 'OPVerifier',
-  args: [[], 0, A, A],
+  args: [[], 0, A, A, 0],
   libs: { GatewayVM },
 });
 await foundry.deploy({
@@ -42,14 +42,14 @@ await foundry.shutdown();
 console.log(new Date());
 console.log(report);
 
-// 2024-10-07T00:05:55.095Z
+// 2024-10-08T03:37:34.275Z
 // {
 //   GatewayVM: 1879334n,
 //   EthVerifierHooks: 1295526n,
 //   ScrollVerifierHooks: 555817n,
 //   ZKSyncVerifierHooks: 325104n,
-//   LineaVerifierHooks: 819513n,
-//   OPVerifier: 1045507n,
-//   OPFaultVerifier: 1216547n,
+//   LineaVerifierHooks: 819501n,
+//   OPVerifier: 1118912n,
+//   OPFaultVerifier: 1216535n,
 //   ReverseOPVerifier: 1473514n,
 // }

@@ -3,12 +3,12 @@ import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
-import { setupTests, pairName } from './common.js';
+import { setupTests, testName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
 const config = ZKSyncRollup.mainnetConfig;
-describe(pairName(config), async () => {
+describe(testName(config), async () => {
   const rollup = new ZKSyncRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),

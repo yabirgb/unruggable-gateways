@@ -89,8 +89,12 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   }
 }
 
-export abstract class AbstractRollupV1<
-  C extends RollupCommit<AbstractProver>,
-> extends AbstractRollup<C> {
-  abstract encodeWitnessV1(commit: C, proofSeq: ProofSequenceV1): HexString;
+export interface RollupWitnessV1<C extends RollupCommit<AbstractProver>> {
+  encodeWitnessV1(commit: C, proofSeq: ProofSequenceV1): HexString;
+}
+
+export function supportsV1<R extends Rollup>(
+  rollup: R
+): rollup is R & RollupWitnessV1<RollupCommitType<R>> {
+  return 'encodeWitnessV1' in rollup;
 }

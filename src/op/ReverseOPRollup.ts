@@ -21,6 +21,7 @@ import { Contract } from 'ethers/contract';
 export type OPReverseConfig = {
   L1Block?: HexAddress;
   //storageSlot?: bigint;
+  commitStep?: number;
 };
 
 // https://github.com/ethereum-optimism/optimism/blob/develop/packages/contracts-bedrock/src/L2/L1Block.sol
@@ -59,6 +60,7 @@ export class ReverseOPRollup extends AbstractRollup<ReverseOPCommit> {
   };
 
   readonly L1Block: Contract;
+  readonly commitStep;
   //readonly storageSlot: bigint; // using const SLOT_* instead
   constructor(providers: ProviderPair, config: OPReverseConfig) {
     super(providers);
@@ -68,8 +70,12 @@ export class ReverseOPRollup extends AbstractRollup<ReverseOPCommit> {
       L1_BLOCK_ABI,
       this.provider2
     );
+    this.commitStep = BigInt(config.commitStep ?? 1);
   }
 
+  private align(index: bigint) {
+    return index - (index % this.commitStep);
+  }
   async findL2Block(l1BlockNumber: bigint) {
     let b = (await this.provider2.getBlockNumber()) + 1;
     let a = Math.max(0, b - EVM_BLOCKHASH_DEPTH);
@@ -91,13 +97,15 @@ export class ReverseOPRollup extends AbstractRollup<ReverseOPCommit> {
     throw new Error(`unable to find block: ${l1BlockNumber}`);
   }
 
-  override fetchLatestCommitIndex(): Promise<bigint> {
-    return this.L1Block.number({ blockTag: this.latestBlockTag });
+  override async fetchLatestCommitIndex(): Promise<bigint> {
+    return this.align(
+      await this.L1Block.number({ blockTag: this.latestBlockTag })
+    );
   }
   protected override async _fetchParentCommitIndex(
     commit: ReverseOPCommit
   ): Promise<bigint> {
-    return commit.index - 1n;
+    return this.align(commit.index - 1n);
   }
   protected override async _fetchCommit(
     index: bigint

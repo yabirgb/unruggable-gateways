@@ -1,7 +1,5 @@
 <p align="center">
-	<picture>
-		<img src="https://raw.githubusercontent.com/unruggable-labs/unruggable-gateways/main/unruggable-logo-black.png" style="width:300px;" alt="Unruggable Gateways">
-	</picture>
+	<img src="https://raw.githubusercontent.com/unruggable-labs/unruggable-gateways/main/unruggable-logo-black.png" width="300" alt="Unruggable Gateways">
 </p>
 
 # Unruggable Gateways 
@@ -21,16 +19,16 @@ This repository provides an end-to-end solution for proving data from rollup cha
 ## Architecture
 
 - **Request** &mdash; a program that fetches data from one or more contracts
-	* constructable in [Solidity](./contracts/GatewayFetcher.sol) or [TypeScript](./src/vm.ts) using (almost) the same syntax
+	* constructable in [Solidity](./contracts/GatewayFetcher.sol) and [TypeScript](./src/vm.ts) using (almost) the same syntax
 - **Commit** &mdash; a commitment (eg. `StateRoot`) of one chain on another
 - **VM** &mdash; a machine that executes a **Request** for a **Commit**
 	* TypeScript &mdash; records sequence of necessary proofs
 	* Solidity &mdash; verifies sequence of supplied proofs (in the same order)
 - **Rollup** (TypeScript) &mdash; traverses **Commit** history, generates a **Commit** proof and supplies a **Prover**
-- **Prover** (TypeScript) &mdash; generates chain-specific proofs for Account and Storage
+- **Prover** (TypeScript) &mdash; generates rollup-specific Account and Storage proofs
 - **Gateway** (TypeScript) &mdash; receives a **Request**, finds the appropriate **Commit**, executes the **VM**, and responds with a sequence of proofs via [CCIP-Read](https://eips.ethereum.org/EIPS/eip-3668)
-- **Verifier** (Solidity) &mdash; verifies a **Commit** proof and executes the **VM** with rollup-specific **Hooks**
-- **Verifier Hooks** (Solidity) &mdash; verifies Account and Storage proofs
+- **Verifier** (Solidity) &mdash; verifies a **Commit** proof and executes the **VM** with **Hooks**
+- **Verifier Hooks** (Solidity) &mdash; verifies rollup-specific Account and Storage proofs
 
 ## Chain Support
 * Rollups &amp; Verifers

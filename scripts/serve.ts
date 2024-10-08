@@ -16,6 +16,7 @@ import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
 import { Contract } from 'ethers/contract';
+import { toUnpaddedHex } from '../src/utils.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
 // https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws65lsm4xq.ccipr.eth
@@ -46,7 +47,7 @@ const config = {
   chain1: chainName(gateway.rollup.provider1._network.chainId),
   chain2: chainName(gateway.rollup.provider2._network.chainId),
   since: new Date(),
-  ...paramsFromRollup(gateway.rollup),
+  ...paramsFromRollup(gateway.rollup), // experimental
 };
 
 console.log(new Date(), `${config.rollup} on ${port}`);
@@ -95,7 +96,6 @@ export default {
     }
   },
 } satisfies Serve;
-// await serve(gateway, { protocol: 'raw', port: parseInt(port) || 8000 });
 
 async function createGateway(name: string) {
   switch (name) {
@@ -136,9 +136,11 @@ async function createGateway(name: string) {
     }
     case 'scroll': {
       const config = ScrollRollup.mainnetConfig;
-      return new Gateway(
-        await ScrollRollup.create(createProviderPair(config), config)
-      );
+      return new Gateway(new ScrollRollup(createProviderPair(config), config));
+    }
+    case 'scroll-testnet': {
+      const config = ScrollRollup.testnetConfig;
+      return new Gateway(new ScrollRollup(createProviderPair(config), config));
     }
     case 'taiko': {
       const config = TaikoRollup.mainnetConfig;
@@ -206,6 +208,11 @@ function paramsFromRollup(rollup: Rollup) {
       info[k] = v.target;
     } else {
       switch (typeof v) {
+        case 'bigint': {
+          const i = Number(v);
+          info[k] = Number.isInteger(i) ? i : toUnpaddedHex(v);
+          break;
+        }
         case 'string':
         case 'boolean':
         case 'number':

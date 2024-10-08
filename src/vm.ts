@@ -938,9 +938,10 @@ export abstract class BlockProver extends AbstractProver {
   // absolutely disgusting typescript
   static async latest<T extends InstanceType<typeof BlockProver>>(
     this: new (...a: ConstructorParameters<typeof BlockProver>) => T,
-    provider: Provider
+    provider: Provider,
+    offset = 0
   ) {
-    return new this(provider, await provider.getBlockNumber());
+    return new this(provider, (await provider.getBlockNumber()) - offset);
   }
   readonly block: HexString;
   constructor(provider: Provider, block: BigNumberish) {

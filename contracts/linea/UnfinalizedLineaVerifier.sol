@@ -5,7 +5,7 @@ import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
 import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {ILineaRollup} from './ILineaRollup.sol';
 
-contract LineaVerifier is AbstractVerifier {
+contract UnfinalizedLineaVerifier is AbstractVerifier {
     ILineaRollup immutable _rollup;
 
     constructor(
@@ -18,25 +18,38 @@ contract LineaVerifier is AbstractVerifier {
     }
 
     function getLatestContext() external view returns (bytes memory) {
-        return abi.encode(_rollup.currentL2BlockNumber());
+        return abi.encode(block.number - 1);
     }
 
     struct GatewayProof {
-        uint256 l2BlockNumber;
+        uint256 l1BlockNumber;
+        bytes abiEncodedTuple;
         bytes[] proofs;
         bytes order;
     }
 
     function getStorageValues(
-        bytes memory context,
+        bytes memory /*context*/,
         GatewayRequest memory req,
         bytes memory proof
     ) external view returns (bytes[] memory, uint8 exitCode) {
-        uint256 l2BlockNumber1 = abi.decode(context, (uint256));
+        //uint256 l1BlockNumber1 = abi.decode(context, (uint256));
         GatewayProof memory p = abi.decode(proof, (GatewayProof));
-        _checkWindow(l2BlockNumber1, p.l2BlockNumber);
-        bytes32 stateRoot = _rollup.stateRootHashes(p.l2BlockNumber);
-        if (stateRoot == bytes32(0)) revert('Linea: not finalized');
+        // TODO: need to prove p.l1BlockNumber somehow
+        //_checkWindow(p.l1BlockNumber, l1BlockNumber1);
+        uint256 l2BlockNumber = _rollup.shnarfFinalBlockNumbers(
+            keccak256(p.abiEncodedTuple)
+        );
+        // this is the only guard available
+        // the shnarf must be newer than the finalization
+        require(
+            l2BlockNumber > _rollup.currentL2BlockNumber(),
+            'UnfinalizedLinea: l2'
+        );
+        bytes32 stateRoot;
+        assembly {
+            stateRoot := mload(add(p, 96)) // see: ShnarfData
+        }
         return
             GatewayVM.evalRequest(
                 req,
