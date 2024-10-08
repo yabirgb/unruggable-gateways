@@ -40,7 +40,7 @@ contract NitroVerifier is AbstractVerifier {
         GatewayProof memory p = abi.decode(proof, (GatewayProof));
         Node memory node = _rollup.getNode(p.nodeNum);
         if (p.nodeNum != nodeNum1) {
-			// it wasn't want we requested
+			// it wasn't what we requested
             Node memory node1 = _rollup.getNode(nodeNum1);
 			// check if node is between latest and our window
             _checkWindow(node1.createdAtBlock, node.createdAtBlock);

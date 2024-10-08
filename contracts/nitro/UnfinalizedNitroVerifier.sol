@@ -59,7 +59,7 @@ contract UnfinalizedNitroVerifier is AbstractVerifier {
         bytes32 confirmData = keccak256(
             abi.encodePacked(keccak256(p.rlpEncodedBlock), p.sendRoot)
         );
-        require(confirmData == node.confirmData, 'Nitro: confirmData');
+        require(confirmData == node.confirmData, 'UnfinalizedNitro: confirmData');
         RLPReader.RLPItem[] memory v = RLPReader.readList(p.rlpEncodedBlock);
         bytes32 stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]); // see: rlp.ts: encodeRlpBlock()
         return

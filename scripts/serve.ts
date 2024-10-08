@@ -19,12 +19,13 @@ import { Contract } from 'ethers/contract';
 import { toUnpaddedHex } from '../src/utils.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
-// https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws65lsm4xq.ccipr.eth
+// [raffy] https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws62duoryc6.ccipr.eth
 // 1. bun serve lineaV1
 // 2. https://adraffy.github.io/CCIPRewriter.sol/test/
 // 3. enter name: "raffy.linea.eth"
 // 4. enter endpoint: "http://localhost:8000"
 // 5. click (Resolve)
+// 6. https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.eth.nb2hi4b2f4xwy33dmfwgq33toq5dqmbqgaxq.ccipr.eth
 
 let prefetch = false;
 const args = process.argv.slice(2).filter((x) => {

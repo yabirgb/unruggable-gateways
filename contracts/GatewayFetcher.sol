@@ -8,8 +8,6 @@ library GatewayFetcher {
     // verifier execution is only constrainted by stack and gas
     // max outputs = 255
     // TODO: this could be configurable during constructor?
-    // memory use doesn't really matter during view construction
-    // however it does matter
     uint256 constant MAX_OPS = 8192;
 
     // thrown if limits above are exceeded
@@ -283,7 +281,7 @@ library GatewayFetcher {
     }
     function dup(
         GatewayRequest memory r,
-        uint8 back
+        uint256 back
     ) internal pure returns (GatewayRequest memory) {
         return r.push(back).addByte(OP_DUP);
     }
@@ -294,7 +292,7 @@ library GatewayFetcher {
     }
     function swap(
         GatewayRequest memory r,
-        uint8 back
+        uint256 back
     ) internal pure returns (GatewayRequest memory) {
         return r.push(back).addByte(OP_SWAP);
     }
@@ -306,13 +304,13 @@ library GatewayFetcher {
 
     function pushStack(
         GatewayRequest memory r,
-        uint8 i
+        uint256 i
     ) internal pure returns (GatewayRequest memory) {
         return r.push(i).addByte(OP_PUSH_STACK);
     }
     function pushOutput(
         GatewayRequest memory r,
-        uint8 i
+        uint256 i
     ) internal pure returns (GatewayRequest memory) {
         return r.push(i).addByte(OP_PUSH_OUTPUT);
     }
@@ -446,7 +444,7 @@ library GatewayFetcher {
     function evalLoop(
         GatewayRequest memory r,
         uint8 flags,
-        uint8 back
+        uint256 back
     ) internal pure returns (GatewayRequest memory) {
         return r.push(back).addByte(OP_EVAL_LOOP).addByte(flags);
     }
