@@ -6,9 +6,10 @@ struct GatewayRequest {
 }
 
 // eval flags
-uint8 constant STOP_ON_SUCCESS = 1;
-uint8 constant STOP_ON_FAILURE = 2;
-uint8 constant ACQUIRE_STATE = 4;
+uint8 constant STOP_ON_SUCCESS = 1 << 0;
+uint8 constant STOP_ON_FAILURE = 1 << 1;
+uint8 constant ACQUIRE_STATE = 1 << 2;
+uint8 constant KEEP_ARGS = 1 << 3;
 
 // exit codes
 uint8 constant EXIT_NOT_A_CONTRACT = 254;
@@ -95,7 +96,7 @@ uint8 constant OP_SHIFT_LEFT = 113;
 uint8 constant OP_SHIFT_RIGHT = 114;
 uint8 constant OP_NOT = 115;
 
-uint8 constant OP_NONZERO = 120;
+uint8 constant OP_IS_ZERO = 120;
 uint8 constant OP_EQ = 121;
 uint8 constant OP_LT = 122;
 uint8 constant OP_GT = 123;

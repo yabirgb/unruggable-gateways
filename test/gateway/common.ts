@@ -20,12 +20,13 @@ import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
 export function testName(
-  pair: ChainPair,
+  { chain1, chain2 }: ChainPair,
   { reverse = false, unfinalized = false } = {}
 ) {
-  const shaft = unfinalized ? '=!=' : '=';
-  const arrow = reverse ? `<${shaft}` : `${shaft}>`;
-  return `${chainName(pair.chain1)} ${arrow} ${chainName(pair.chain2)}`;
+  const arrow = unfinalized ? '=!=>' : '=>';
+  const names = [chain1, chain2].map(chainName);
+  if (reverse) names.reverse();
+  return `${names[0]} ${arrow} ${names[1]}`;
 }
 
 type TestOptions = {

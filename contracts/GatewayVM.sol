@@ -19,7 +19,7 @@ library GatewayVM {
     error RequestInvalid();
 
     // current limit is 256 because of stackBits
-    uint256 constant MAX_STACK = 64;
+    uint256 constant MAX_STACK = 256;
 
     function dump(Machine memory vm, string memory label) internal view {
         console2.log('DEBUG(%s)', label);
@@ -40,16 +40,7 @@ library GatewayVM {
         console2.log('[memory=%s gas=%s]', mem, gasleft());
     }
 
-    function uint256FromBytes(bytes memory v) internal pure returns (uint256) {
-        return
-            uint256(
-                v.length < 32
-                    ? bytes32(v) >> ((32 - v.length) << 3)
-                    : bytes32(v)
-            );
-    }
-
-    // TODO: this checks beyond bound
+    // TODO: this checks beyond unaligned bound
     function isZeros(bytes memory v) internal pure returns (bool ret) {
         assembly {
             let p := add(v, 32)
@@ -59,8 +50,7 @@ library GatewayVM {
             } lt(p, e) {
                 p := add(p, 32)
             } {
-                if iszero(iszero(mload(p))) {
-                    // != 0
+                if mload(p) {
                     ret := 0
                     break
                 }
@@ -88,7 +78,7 @@ library GatewayVM {
     function pushBytes(Machine memory vm, bytes memory v) internal pure {
         uint256 x;
         assembly {
-            x := v
+            x := v // bytes => ptr
         }
         vm.push(x, false);
     }
@@ -115,14 +105,18 @@ library GatewayVM {
     function stackAsUint256(
         Machine memory vm,
         uint256 i
-    ) internal pure returns (uint256) {
-        uint256 x = vm.stack[i];
-        if (vm.isStackRaw(i)) return x;
-        bytes memory v;
-        assembly {
-            v := x
+    ) internal pure returns (uint256 x) {
+        x = vm.stack[i];
+        if (!vm.isStackRaw(i)) {
+            uint256 n;
+            assembly {
+                n := mload(x) // length
+                x := mload(add(x, 32)) // first 32 bytes w/right pad
+                if lt(n, 32) {
+                    x := shr(shl(3, sub(32, n)), x) // remove right pad
+                }
+            }
         }
-        return uint256FromBytes(v);
     }
     function stackAsBytes(
         Machine memory vm,
@@ -133,7 +127,7 @@ library GatewayVM {
             v = abi.encode(x);
         } else {
             assembly {
-                v := x
+                v := x // ptr => bytes
             }
         }
     }
@@ -164,29 +158,29 @@ library GatewayVM {
     ) internal pure returns (uint256 ptr) {
         uint256 pos = vm.pos;
         bytes memory buf = vm.buf;
-        if (pos + n > buf.length) revert RequestInvalid();
+        uint256 end = pos + n;
+        if (end > buf.length) revert RequestInvalid();
+        vm.pos = end;
         assembly {
-            ptr := add(add(buf, 32), pos)
+            ptr := add(add(buf, 32), pos) // ptr of start in vm.buf
         }
-        vm.pos = pos + n;
     }
     function readByte(Machine memory vm) internal pure returns (uint8 i) {
         uint256 src = vm.checkRead(1);
         assembly {
-            i := shr(248, mload(src))
+            i := shr(248, mload(src)) // read one byte
         }
     }
     function readUint(
         Machine memory vm,
         uint256 n
-    ) internal pure returns (uint256 word) {
+    ) internal pure returns (uint256 x) {
         if (n == 0) return 0;
+        if (n > 32) revert RequestInvalid();
         uint256 src = vm.checkRead(n);
         assembly {
-            word := mload(src)
+            x := shr(shl(3, sub(32, n)), mload(src)) // remove right pad
         }
-        word >>= (32 - n) << 3;
-        //assembly { word := shr(shl(3, sub(32, n)), mload(src)) }
     }
     function readBytes(
         Machine memory vm,
@@ -220,12 +214,12 @@ library GatewayVM {
         Machine memory vm,
         uint256 count
     ) internal view returns (bytes memory v) {
-        v = new bytes(count << 5);
+        v = new bytes(count << 5); // memory for count slots
         for (uint256 i; i < count; ) {
             uint256 value = vm.getStorage(vm.slot + i);
-            i += 1;
             assembly {
-                mstore(add(v, shl(5, i)), value)
+                i := add(i, 1)
+                mstore(add(v, shl(5, i)), value) // append(value)
             }
         }
     }
@@ -237,7 +231,7 @@ library GatewayVM {
             // small
             v = new bytes((first & 0xFF) >> 1);
             assembly {
-                mstore(add(v, 32), first)
+                mstore(add(v, 32), first) // set first 32 bytes
             }
         } else {
             // large
@@ -247,9 +241,9 @@ library GatewayVM {
             uint256 slot = uint256(keccak256(abi.encode(vm.slot))); // array start
             for (uint256 i; i < first; ) {
                 uint256 value = vm.getStorage(slot + i);
-                i += 1;
                 assembly {
-                    mstore(add(v, shl(5, i)), value)
+                    i := add(i, 1)
+                    mstore(add(v, shl(5, i)), value) // append(value)
                 }
             }
         }
@@ -273,9 +267,9 @@ library GatewayVM {
         uint256 slot = uint256(keccak256(abi.encode(vm.slot))); // array start
         for (uint256 i; i < count; ) {
             uint256 value = vm.getStorage(slot + i);
-            i += 1;
             assembly {
-                mstore(add(v, shl(5, add(i, 1))), value)
+                i := add(i, 1)
+                mstore(add(v, shl(5, add(i, 1))), value) // append(value)
             }
         }
     }
@@ -392,7 +386,7 @@ library GatewayVM {
                     uint256 temp = vm.stackAsUint256(i);
                     assembly {
                         mstore(0, temp)
-                        temp := keccak256(0, 32)
+                        temp := keccak256(0, 32) // efficient keccak
                     }
                     vm.pushUint256(temp);
                 } else {
@@ -448,8 +442,8 @@ library GatewayVM {
                 vm.pushUint256(vm.popAsUint256() > last ? 1 : 0);
             } else if (op == OP_NOT) {
                 vm.pushUint256(~vm.popAsUint256());
-            } else if (op == OP_NONZERO) {
-                vm.pushUint256(vm.isStackZeros(vm.pop()) ? 0 : 1);
+            } else if (op == OP_IS_ZERO) {
+                vm.pushUint256(vm.isStackZeros(vm.pop()) ? 1 : 0);
             } else if (op == OP_EVAL_INLINE) {
                 bytes memory program = vm.popAsBytes();
                 uint256 pos = vm.pos;
@@ -467,7 +461,8 @@ library GatewayVM {
                 vm2.buf = vm.popAsBytes();
                 vm2.proofs = vm.proofs;
                 vm2.stack = new uint256[](MAX_STACK);
-                while (count > 0 && vm.stackSize > 0) {
+                if (count > vm.stackSize) count = vm.stackSize;
+                while (count > 0) {
                     --count;
                     vm2.target = vm.target;
                     vm2.storageRoot = vm.storageRoot;
@@ -479,22 +474,24 @@ library GatewayVM {
                     if (
                         (flags &
                             (
-                                evalCommand(vm2, outputs) != 0
+                                vm2.evalCommand(outputs) != 0
                                     ? STOP_ON_FAILURE
                                     : STOP_ON_SUCCESS
                             )) != 0
                     ) {
+                        if ((flags & KEEP_ARGS) == 0) {
+                            vm.stackSize -= count;
+                        }
+                        if ((flags & ACQUIRE_STATE) != 0) {
+                            vm.target = vm2.target;
+                            vm.storageRoot = vm2.storageRoot;
+                            vm.slot = vm2.slot;
+                            for (i = 0; i < vm2.stackSize; i += 1) {
+                                vm.push(vm2.stack[i], vm2.isStackRaw(i));
+                            }
+                        }
                         break;
                     }
-                }
-                vm.stackSize = vm.stackSize > count ? vm.stackSize - count : 0;
-                if ((flags & ACQUIRE_STATE) != 0) {
-                    vm.target = vm2.target;
-                    vm.storageRoot = vm2.storageRoot;
-                    vm.slot = vm2.slot;
-					for (uint256 i; i < vm2.stackSize; i += 1) {
-						vm.push(vm2.stack[i], vm2.isStackRaw(i));
-					}
                 }
             } else if (op == OP_DEBUG) {
                 vm.dump(string(vm.readBytes(vm.readByte())));

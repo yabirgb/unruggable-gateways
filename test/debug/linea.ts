@@ -1,26 +1,49 @@
-import { createProvider } from '../providers.js';
-import { CHAINS } from '../../src/chains.js';
-import { LineaProver } from '../../src/linea/LineaProver.js';
-import { EthProver } from '../../src/eth/EthProver.js';
+import { Foundry } from '@adraffy/blocksmith';
+import { LineaRollup } from '../../src/linea/LineaRollup.js';
+import { UnfinalizedLineaRollup } from '../../src/linea/UnfinalizedLineaRollup.js';
+import { createProviderPair, providerURL } from '../providers.js';
+import { ABI_CODER } from '../../src/utils.js';
+import { GatewayRequest } from '../../src/vm.js';
 
-const provider = createProvider(CHAINS.LINEA);
+const config = LineaRollup.mainnetConfig;
+const rollup = new UnfinalizedLineaRollup(
+  createProviderPair(config),
+  config,
+  (86400 * 2) / 12
+);
 
-const prover_linea = await LineaProver.latest(provider, 100);
-const prover_eth = new EthProver(provider, prover_linea.block);
+const commit = await rollup.fetchLatestCommit();
 
+console.log(commit);
 
-//console.log(await prover_eth.fetchBlock());
+const foundry = await Foundry.launch({
+	fork: providerURL(config.chain1)
+});
+const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+const hooks = await foundry.deploy({
+  file: 'LineaVerifierHooks',
+  libs: {
+    SparseMerkleProof: config.SparseMerkleProof,
+  },
+});
+const verifier = await foundry.deploy({
+  file: 'UnfinalizedLineaVerifier',
+  args: [[], rollup.defaultWindow, hooks, config.L1MessageService],
+  libs: { GatewayVM },
+});
 
-const A = '0xA219439258ca9da29E9Cc4cE5596924745e12B93';
-//console.log(await prover_eth.getProofs(A, [0n]));
+const req = new GatewayRequest(1).setTarget('0x48F5931C5Dbc2cD9218ba085ce87740157326F59').read().setOutput(0);
+const vm = await commit.prover.evalRequest(req);
+const proofSeq = await commit.prover.prove(vm.needs);
 
-process.on('unhandledRejection', e => {
-	console.log('chonk', (e as Error).stack);
-})
+console.log(commit.abiEncodedTuple);
 
-try {
-	await prover_linea.getProofs(A, [0n]);
+const answer = await verifier.getStorageValues(
+	'0x', //ABI_CODER.encode(['uint256'], [commit.index]),
+	req.toTuple(),
+	rollup.encodeWitness(commit, proofSeq)
+);
 
-} catch (err) {
+console.log(answer);
 
-}
+await foundry.shutdown();

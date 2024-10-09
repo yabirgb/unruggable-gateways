@@ -82,7 +82,7 @@ export const GATEWAY_OP = {
   SHIFT_RIGHT: 114,
   NOT: 115,
 
-  NONZERO: 120,
+  IS_ZERO: 120,
   EQ: 121,
   LT: 122,
   GT: 123,

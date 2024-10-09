@@ -28,3 +28,7 @@ export type ProofSequenceV1 = {
   readonly accountProof: EncodedProof;
   readonly storageProofs: EncodedProof[];
 };
+
+export type KeyOf<C, T> = {
+  [K in keyof C]: C[K] extends T ? K : never;
+}[keyof C];
