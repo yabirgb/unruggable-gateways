@@ -50,7 +50,7 @@ describe('microcode', async () => {
     );
   });
 
-  test('x SLOT_ADD == x PUSH_SLOT PLUS SLOT', async () => {
+  test('SLOT_ADD == PUSH_SLOT PLUS SLOT', async () => {
     const contract = await foundry.deploy(`
       contract X { 
         uint256 pad; 

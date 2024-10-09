@@ -5,7 +5,7 @@ import {AbstractVerifier, IVerifierHooks} from '../AbstractVerifier.sol';
 import {GatewayRequest, GatewayVM, ProofSequence} from '../GatewayVM.sol';
 import {ILineaRollup} from './ILineaRollup.sol';
 
-import 'forge-std/console2.sol';
+//import 'forge-std/console2.sol';
 
 contract UnfinalizedLineaVerifier is AbstractVerifier {
     ILineaRollup immutable _rollup;
