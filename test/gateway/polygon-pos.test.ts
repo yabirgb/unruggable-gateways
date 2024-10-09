@@ -3,13 +3,13 @@ import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
-import { setupTests, pairName } from './common.js';
+import { setupTests, testName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
 
 const config = PolygonPoSRollup.mainnetConfig;
 // 20240923: disabled until polygon has non-erigon rpcs
-describe.skipIf(!!process.env.IS_CI)(pairName(config), async () => {
+describe.skipIf(!!process.env.IS_CI)(testName(config), async () => {
   const rollup = new PolygonPoSRollup(createProviderPair(config), config);
   rollup.configure = (c) => {
     c.prover.proofRetryCount = 5; // hack for failing eth_getProof

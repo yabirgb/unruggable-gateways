@@ -2,10 +2,11 @@ import { ScrollRollup } from '../../src/scroll/ScrollRollup.js';
 import { createProviderPair } from '../providers.js';
 
 const config = ScrollRollup.mainnetConfig;
-const rollup = await ScrollRollup.create(createProviderPair(config), config);
+const rollup = new ScrollRollup(createProviderPair(config), config);
 
 console.log({
-  CommitmentVerifier: rollup.CommitmentVerifier.target,
+  ScrollChain: rollup.ScrollChain.target,
+  poseidon: rollup.poseidon,
   apiURL: rollup.apiURL,
   defaultWindow: rollup.defaultWindow,
 });

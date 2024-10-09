@@ -13,6 +13,7 @@ commit.prover.proofLRU.clear();
 
 await logTime('getStorage(cold)', commit.prover.getStorage(config.L2OutputOracle, 0n));
 await logTime('getProofs(warm)', commit.prover.getProofs(config.L2OutputOracle, [1n]));
+await logTime('getProofs(hot)', commit.prover.getProofs(config.L2OutputOracle, [1n]));
 await logTime('getStorage(hot)', commit.prover.getStorage(config.L2OutputOracle, 0n));
 
 await logTime('prove(hot)', commit.prover.prove([

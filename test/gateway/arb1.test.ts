@@ -3,12 +3,12 @@ import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
 import { providerURL, createProviderPair } from '../providers.js';
-import { setupTests, pairName } from './common.js';
+import { setupTests, testName } from './common.js';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
 const config = NitroRollup.arb1MainnetConfig;
-describe(pairName(config), async () => {
+describe(testName(config), async () => {
   const rollup = new NitroRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),

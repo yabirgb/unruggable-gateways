@@ -21,7 +21,7 @@ export * from './rollup.js';
 export * from './op/AbstractOPRollup.js';
 export * from './op/OPRollup.js';
 export * from './op/OPFaultRollup.js';
-export * from './op/OPReverseRollup.js';
+export * from './op/ReverseOPRollup.js';
 export * from './nitro/NitroRollup.js';
 export * from './linea/LineaRollup.js';
 export * from './polygon/PolygonPoSRollup.js';
