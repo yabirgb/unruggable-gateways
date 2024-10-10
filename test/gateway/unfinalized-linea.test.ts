@@ -7,7 +7,8 @@ import { createProviderPair, providerURL } from '../../src/providers.js';
 import { setupTests, testName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
-import { USER_CONFIG } from '../../src/environment.js';
+import { testConfig } from '../../src/environment.js';
+import { chainName } from '../../src/chains.js';
 
 // NOTE: since shomei does not produce proofs before finalization
 // this approach wont work however the verifier does work
@@ -18,12 +19,12 @@ describe.skipIf(!!process.env.IS_CI)(
   testName(config, { unfinalized: true }),
   async () => {
     const rollup = new UnfinalizedLineaRollup(
-      createProviderPair(USER_CONFIG, config),
+      createProviderPair(testConfig(chainName(config.chain2)), config),
       config,
       (86400 * 2) / 12 // ~2 days of blocks >= finalization period
     );
     const foundry = await Foundry.launch({
-      fork: providerURL(USER_CONFIG, config.chain1),
+      fork: providerURL(testConfig(chainName(config.chain2)), config.chain1),
       infoLog: false,
     });
     afterAll(() => foundry.shutdown());

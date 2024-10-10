@@ -6,16 +6,16 @@ import { providerURL, createProviderPair } from '../../src/providers.js';
 import { setupTests, testName } from './common.js';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
-import { USER_CONFIG } from '../../src/environment.js';
+import { testConfig } from '../../src/environment.js';
 
 const config = NitroRollup.arb1MainnetConfig;
 describe(testName(config), async () => {
   const rollup = new NitroRollup(
-    createProviderPair(USER_CONFIG, config),
+    createProviderPair(testConfig('ARB1'), config),
     config
   );
   const foundry = await Foundry.launch({
-    fork: providerURL(USER_CONFIG, config.chain1),
+    fork: providerURL(testConfig('ARB1'), config.chain1),
     infoLog: false,
   });
   afterAll(() => foundry.shutdown());

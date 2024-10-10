@@ -3,7 +3,10 @@ import { createProviderPair } from '../../src/providers.js';
 import { USER_CONFIG } from '../../src/environment.js';
 
 const config = ZKSyncRollup.mainnetConfig;
-const rollup = new ZKSyncRollup(createProviderPair(USER_CONFIG, config), config);
+const rollup = new ZKSyncRollup(
+  createProviderPair(USER_CONFIG, config),
+  config
+);
 
 rollup.provider2.on('debug', (e) => {
   if (e.action === 'sendRpcPayload') {

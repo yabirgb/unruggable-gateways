@@ -6,18 +6,22 @@ import { providerURL, createProviderPair } from '../../src/providers.js';
 import { setupTests, testName } from './common.js';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
-import { USER_CONFIG } from '../../src/environment.js';
+import { testConfig } from '../../src/environment.js';
+import { chainName } from '../../src/chains.js';
 
 const config = NitroRollup.arb1MainnetConfig;
 describe.skipIf(!!process.env.IS_CI)(
   testName(config, { unfinalized: true }),
   async () => {
-    const rollup = new NitroRollup(createProviderPair(USER_CONFIG, config), {
-      ...config,
-      minAgeBlocks: 300,
-    });
+    const rollup = new NitroRollup(
+      createProviderPair(testConfig(chainName(config.chain2)), config),
+      {
+        ...config,
+        minAgeBlocks: 300,
+      }
+    );
     const foundry = await Foundry.launch({
-      fork: providerURL(USER_CONFIG, config.chain1),
+      fork: providerURL(testConfig(chainName(config.chain2)), config.chain1),
       infoLog: false,
     });
     afterAll(() => foundry.shutdown());

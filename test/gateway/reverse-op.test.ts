@@ -6,19 +6,20 @@ import { providerURL, createProviderPair } from '../../src/providers.js';
 import { setupTests, testName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
-import { USER_CONFIG } from '../../src/environment.js';
+import { testConfig } from '../../src/environment.js';
+import { chainName } from '../../src/chains.js';
 
 const config = ReverseOPRollup.mainnetConfig;
 describe.skipIf(!!process.env.IS_CV)(
   testName(config, { reverse: true }),
   async () => {
     const foundry = await Foundry.launch({
-      fork: providerURL(USER_CONFIG, config.chain2),
+      fork: providerURL(testConfig(chainName(config.chain2)), config.chain2),
       infoLog: false,
     });
     afterAll(() => foundry.shutdown());
     const rollup = new ReverseOPRollup(
-      createProviderPair(USER_CONFIG, config),
+      createProviderPair(testConfig(chainName(config.chain2)), config),
       config
     );
     // NOTE: prove against prefork block, since state diverged on our fork

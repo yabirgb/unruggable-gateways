@@ -9,7 +9,10 @@ import { USER_CONFIG } from '../../src/environment.js';
 
 describe('LineaProver', async () => {
   const config = LineaRollup.mainnetConfig;
-  const gateway = new LineaRollup(createProviderPair(USER_CONFIG, config), config);
+  const gateway = new LineaRollup(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   const commit = await gateway.fetchLatestCommit();
   const foundry = await Foundry.launch({
     fork: providerURL(USER_CONFIG, config.chain1),

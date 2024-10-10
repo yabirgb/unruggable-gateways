@@ -9,7 +9,10 @@ import { USER_CONFIG } from '../../src/environment.js';
 
 describe('ZKSyncProver', async () => {
   const config = ZKSyncRollup.mainnetConfig;
-  const rollup = new ZKSyncRollup(createProviderPair(USER_CONFIG, config), config);
+  const rollup = new ZKSyncRollup(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   const commit = await rollup.fetchLatestCommit();
   const foundry = await Foundry.launch({
     fork: providerURL(USER_CONFIG, config.chain1),

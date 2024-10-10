@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { CHAINS_NAMES } from './chains.js';
 
 const args: { [key: string]: string } = {};
 process.argv.slice(2).forEach((arg) => {
@@ -24,3 +25,11 @@ export const USER_CONFIG = envFileContent
     acc[key.trim()] = value.trim();
     return acc;
   }, {});
+
+export const testConfig = (chainName: string) => {
+  if (![...CHAINS_NAMES.values()].includes(chainName)) {
+    throw new TypeError(`unknown chain name: ${chainName}`);
+  }
+  USER_CONFIG['CHAIN_NAME'] = chainName;
+  return USER_CONFIG;
+};
