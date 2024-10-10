@@ -2,16 +2,20 @@ import { ZKSyncRollup } from '../../src/zksync/ZKSyncRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { createProviderPair, providerURL } from '../providers.js';
+import { createProviderPair, providerURL } from '../../src/providers.js';
 import { setupTests, testName } from './common.js';
 import { describe } from '../bun-describe-fix.js';
 import { afterAll } from 'bun:test';
+import { USER_CONFIG } from '../../src/environment.js';
 
 const config = ZKSyncRollup.mainnetConfig;
 describe(testName(config), async () => {
-  const rollup = new ZKSyncRollup(createProviderPair(config), config);
+  const rollup = new ZKSyncRollup(
+    createProviderPair(USER_CONFIG, config),
+    config
+  );
   const foundry = await Foundry.launch({
-    fork: providerURL(config.chain1),
+    fork: providerURL(USER_CONFIG, config.chain1),
     infoLog: false,
     infiniteCallGas: true, // Blake2s is ~12m gas per proof!
   });

@@ -2,21 +2,22 @@ import { NitroRollup } from '../../src/nitro/NitroRollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { serve } from '@resolverworks/ezccip';
 import { Foundry } from '@adraffy/blocksmith';
-import { providerURL, createProviderPair } from '../providers.js';
+import { providerURL, createProviderPair } from '../../src/providers.js';
 import { setupTests, testName } from './common.js';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
+import { USER_CONFIG } from '../../src/environment.js';
 
 const config = NitroRollup.arb1MainnetConfig;
 describe.skipIf(!!process.env.IS_CI)(
   testName(config, { unfinalized: true }),
   async () => {
-    const rollup = new NitroRollup(createProviderPair(config), {
+    const rollup = new NitroRollup(createProviderPair(USER_CONFIG, config), {
       ...config,
       minAgeBlocks: 300,
     });
     const foundry = await Foundry.launch({
-      fork: providerURL(config.chain1),
+      fork: providerURL(USER_CONFIG, config.chain1),
       infoLog: false,
     });
     afterAll(() => foundry.shutdown());

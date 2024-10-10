@@ -1,6 +1,6 @@
 {
   "name": "@unruggable/gateways",
-  "version": "0.1.1",
+  "version": "0.1.2-dev.7",
   "description": "Trustless Ethereum Multichain Gateway",
   "publishConfig": {
     "access": "public"
@@ -21,7 +21,7 @@
   "scripts": {
     "check": "tsc -p . --noEmit",
     "forge": "forge build --force",
-    "serve": "bun scripts/serve.ts",
+    "serve": "bun scripts/serve-bun.ts",
     "test": "IS_CI=1 bun test --timeout 25000",
     "test-all": "bun test --timeout 25000",
     "test-components": "bun scripts/opcodes.ts && bun test test/components/* --timeout 25000",
@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@resolverworks/ezccip": "^0.0.15",
+    "@whatwg-node/server": "^0.9.49",
     "ethers": "^6.13.3"
   },
   "peerDependencies": {
