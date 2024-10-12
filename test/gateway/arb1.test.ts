@@ -1,6 +1,6 @@
 import { NitroRollup } from '../../src/nitro/NitroRollup.js';
 import { Gateway } from '../../src/gateway.js';
-import { serve } from '@resolverworks/ezccip';
+import { serve } from '@resolverworks/ezccip/serve';
 import { Foundry } from '@adraffy/blocksmith';
 import { providerURL, createProviderPair } from '../providers.js';
 import { setupTests, testName } from './common.js';

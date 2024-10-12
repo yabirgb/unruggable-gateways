@@ -8,21 +8,21 @@ describe('microcode', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
   afterAll(() => foundry.shutdown());
 
-  async function compare(req1: GatewayRequest, req2: GatewayRequest) {
+  async function compare(single: GatewayRequest, multi: GatewayRequest) {
     const prover = await EthProver.latest(foundry.provider);
     // the requests should be different
-    expect(req1.ops, 'program').not.toEqual(req2.ops);
-    const vm1 = await prover.evalRequest(req1);
-    const vm2 = await prover.evalRequest(req2);
+    expect(single.ops, 'program').not.toEqual(multi.ops);
+    const vm1 = await prover.evalRequest(single);
+    const vm2 = await prover.evalRequest(multi);
     expect(vm1.exitCode, 'exitCode').toEqual(vm2.exitCode);
     const outputs1 = await vm1.resolveOutputs();
     const outputs2 = await vm2.resolveOutputs();
     // the outputs should be the same
     expect(outputs1, 'outputs').toEqual(outputs2);
-    //console.log(req1.ops.length, req2.ops.length);
+    expect(single.ops.length < multi.ops.length, 'ops').toBeTrue();
   }
 
-  test('SLOT_FOLLOW == PUSH_SLOT CONCAT KECCAK SLOT', async () => {
+  test('x FOLLOW == x GET_SLOT CONCAT KECCAK SET_SLOT', async () => {
     const contract = await foundry.deploy(`
       contract X {
         mapping (uint256 => uint256) map;
@@ -41,7 +41,7 @@ describe('microcode', async () => {
       new GatewayRequest()
         .setTarget(contract.target)
         .push(1)
-        .pushSlot()
+        .getSlot()
         .concat()
         .keccak()
         .slot()
@@ -50,7 +50,7 @@ describe('microcode', async () => {
     );
   });
 
-  test('SLOT_ADD == PUSH_SLOT PLUS SLOT', async () => {
+  test('x ADD_SLOT == x GET_SLOT PLUS SET_SLOT', async () => {
     const contract = await foundry.deploy(`
       contract X { 
         uint256 pad; 
@@ -66,7 +66,7 @@ describe('microcode', async () => {
         .addOutput(),
       new GatewayRequest()
         .setTarget(contract.target)
-        .pushSlot()
+        .getSlot()
         .push(1)
         .plus()
         .slot()
@@ -75,17 +75,39 @@ describe('microcode', async () => {
     );
   });
 
-  test('PUSH_STACK(x) == PUSH_STACK_SIZE PUSH(1) SUBTRACT PUSH(x) SUBTRACT DUP', async () => {
+  test('x PUSH_STACK == STACK_SIZE PUSH(1) SUBTRACT PUSH(x) SUBTRACT DUP', async () => {
     await compare(
       new GatewayRequest().push(123).pushStack(0).addOutput(),
       new GatewayRequest()
         .push(123)
-        .pushStackSize() // length
+        .stackSize() // length
         .push(1)
         .subtract() // length - 1
         .push(0) // index = 0
         .subtract() // (length - 1) - index
         .op('DUP')
+        .addOutput()
+    );
+  });
+
+  test('x y DUP DUP(2) LT SWAP POP == x y DUP(1) DUP(1) GT SWAP POP', async () => {
+    await compare(
+      new GatewayRequest()
+        .push(1)
+        .push(2)
+        .dup()
+        .dup(2)
+        .lt()
+        .op('SWAP')
+        .pop()
+        .addOutput(),
+      new GatewayRequest()
+        .push(1)
+        .push(2)
+        .dup2()
+        .gt()
+        .op('SWAP')
+        .pop()
         .addOutput()
     );
   });

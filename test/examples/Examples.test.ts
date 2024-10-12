@@ -78,7 +78,7 @@ test('SLOT_FOLLOW == PUSH_SLOT CONCAT KECCAK SLOT', async () => {
     new GatewayRequest()
       .setTarget(contract.target)
       .push(1)
-      .pushSlot()
+      .getSlot()
       .concat()
       .keccak()
       .slot()
@@ -107,7 +107,7 @@ test('SLOT_ADD == PUSH_SLOT PLUS SLOT', async () => {
       .addOutput(),
     new GatewayRequest()
       .setTarget(contract.target)
-      .pushSlot()
+      .getSlot()
       .push(1)
       .plus()
       .slot()
@@ -124,7 +124,7 @@ test('PUSH_STACK(i) == PUSH_STACK_SIZE PUSH(1) SUBTRACT PUSH(i) SUBTRACT DUP', a
     new GatewayRequest().push(123).pushStack(0).addOutput(),
     new GatewayRequest()
       .push(123)
-      .pushStackSize() // length
+      .stackSize() // length
       .push(1)
       .subtract() // length - 1
       .push(0) // index = 0

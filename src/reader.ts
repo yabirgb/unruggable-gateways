@@ -31,7 +31,7 @@ export class ProgramReader {
   static fromProgram(program: GatewayProgram) {
     return new this(Uint8Array.from(program.ops));
   }
-  static fromEncoded(v: BytesLike) {
+  static fromBytes(v: BytesLike) {
     return new this(getBytes(v));
   }
   pos = 0;

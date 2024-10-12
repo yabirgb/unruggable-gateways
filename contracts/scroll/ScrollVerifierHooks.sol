@@ -10,7 +10,7 @@ interface IPoseidon {
     ) external view returns (bytes32);
 }
 
-//import "forge-std/console2.sol";
+//import "forge-std/console.sol";
 
 contract ScrollVerifierHooks is IVerifierHooks {
     IPoseidon immutable _poseidon;
@@ -137,13 +137,13 @@ contract ScrollVerifierHooks is IVerifierHooks {
     ) internal view returns (bytes32 expectedHash, bytes memory v) {
         expectedHash = rootHash;
         bool done;
-        //console2.log("[WALK PROOF] %s", proof.length);
+        //console.log("[WALK PROOF] %s", proof.length);
         for (uint256 i; ; i++) {
             if (i == proof.length) revert InvalidProof();
             v = proof[i];
             bool left = uint256(key >> i) & 1 == 0;
             uint256 nodeType = uint8(v[0]);
-            //console2.log("[%s] %s %s", i, nodeType, left ? "L" : "R");
+            //console.log("[%s] %s %s", i, nodeType, left ? "L" : "R");
             if (nodeType == NODE_LEAF) {
                 // 20240917: tate noted 1 slot trie is just a terminal node
                 if (done || i == 0) break;
@@ -172,7 +172,7 @@ contract ScrollVerifierHooks is IVerifierHooks {
                         : nodeType == NODE_BRANCH_LEAF
                 )
             ) {
-                //console2.log("done = true");
+                //console.log("done = true");
                 done = true;
             }
         }
@@ -188,7 +188,7 @@ contract ScrollVerifierHooks is IVerifierHooks {
     ) internal view returns (bytes32) {
         //uint256 g = gasleft();
         return _poseidon.poseidon([uint256(v0), uint256(v1)], domain);
-        //console2.log("hash: %s", g - gasleft());
+        //console.log("hash: %s", g - gasleft());
         /*
 		// try POSEIDON.poseidon([uint256(v0), uint256(v1)], domain) returns (bytes32 h) {
 		// 	return h;

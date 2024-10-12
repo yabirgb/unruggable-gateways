@@ -9,13 +9,11 @@ try {
   const code = readFileSync(
     new URL('../contracts/GatewayRequest.sol', import.meta.url),
     { encoding: 'utf8' }
-  );
+  ).replace(/^.*library GatewayOP\s+{([^}]+)}.*$/s, (_, x) => x);
   const jsMap = new Map<string, number>(Object.entries(GATEWAY_OP));
   const solMap = new Map<string, number>();
-  for (const match of code.matchAll(
-    /^uint8 constant OP_([0-9A-Z_]+)\s*=\s*(\d+)/gm
-  )) {
-    solMap.set(match[1], parseInt(match[2]));
+  for (const match of code.matchAll(/^\s*uint8\s*constant([^=]+)=\s*(\d+)/gm)) {
+    solMap.set(match[1].trim(), parseInt(match[2]));
   }
   const union = new Set([...solMap.keys(), ...jsMap.keys()]);
   const seen = new Set<number>();
@@ -41,6 +39,9 @@ try {
   for (let i = 0; i <= 32; i++) {
     const name = `PUSH_${i}`;
     expect(solMap.get(name), name).toEqual(i);
+  }
+  if (process.argv.length == 2) {
+    console.log(Object.fromEntries([...jsMap]));
   }
 } finally {
   await foundry.shutdown();

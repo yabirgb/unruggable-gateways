@@ -3,7 +3,7 @@ import type { RollupDeployment } from '../../src/rollup.js';
 import { Gateway } from '../../src/gateway.js';
 import { createProviderPair, providerURL } from '../providers.js';
 import { chainName } from '../../src/chains.js';
-import { serve } from '@resolverworks/ezccip';
+import { serve } from '@resolverworks/ezccip/serve';
 import { DeployedContract, Foundry } from '@adraffy/blocksmith';
 import { runSlotDataTests } from './tests.js';
 import { type OPConfig, OPRollup } from '../../src/op/OPRollup.js';
