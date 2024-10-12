@@ -80,7 +80,7 @@ export function pow256(base: bigint, exp: bigint) {
   let res = 1n;
   while (exp) {
     if (exp & 1n) res = BigInt.asUintN(256, res * base);
-    exp = exp >> 1n;
+    exp >>= 1n;
     base = BigInt.asUintN(256, base * base);
   }
   return res;
@@ -416,12 +416,14 @@ export class GatewayVM {
     readonly targets = new Map<HexString, TargetNeed>()
   ) {}
   checkOutputIndex(i: number) {
-    if (i >= this.outputs.length) throw new Error(`invalid output index: ${i}`);
+    if (i >= this.outputs.length) {
+      throw new Error(`invalid output index: ${i}/${this.outputs.length}`);
+    }
     return i;
   }
   checkStackIndex(i: number) {
     if (i < 0 || i >= this.stack.length) {
-      throw new Error(`invalid stack index: ${i}`);
+      throw new Error(`invalid stack index: ${i}/${this.stack.length}`);
     }
     return i;
   }
@@ -475,6 +477,7 @@ export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}${slot.toString(16)}`;
 }
 
+// TODO: totalAssembledBytes
 export abstract class AbstractProver {
   // general proof cache
   readonly proofLRU = new LRU<string, any>(10000);
@@ -566,7 +569,6 @@ export abstract class AbstractProver {
     while (reader.remaining) {
       const op = reader.readByte();
       if (op <= 32) {
-        //vm.push('0x' + reader.readBytes(op).slice(2).padStart(64, '0'));
         vm.pushUint256(reader.readBytes(op));
         continue;
       }
@@ -616,7 +618,7 @@ export abstract class AbstractProver {
         case OP.PUSH_BYTES: {
           vm.push(
             reader.readBytes(
-              checkSize(reader.readNumber(), this.maxAssembleBytes)
+              checkSize(reader.readWordSize(), this.maxAssembleBytes)
             )
           );
           continue;
@@ -685,7 +687,6 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.READ_BYTES: {
-          // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
           const { target, slot } = vm;
           const { value, slots } = await this.getStorageBytes(target, slot);
           vm.needs.push(slot, ...slots);
@@ -910,6 +911,7 @@ export abstract class AbstractProver {
     size: number;
     slots: bigint[]; // note: does not include header slot!
   }> {
+    // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
     const first = await this.getStorage(target, slot, fast);
     let size = parseInt(first.slice(64), 16); // last byte
     if ((size & 1) == 0) {
