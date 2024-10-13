@@ -618,7 +618,7 @@ export abstract class AbstractProver {
         case OP.PUSH_BYTES: {
           vm.push(
             reader.readBytes(
-              checkSize(reader.readWordSize(), this.maxAssembleBytes)
+              checkSize(reader.readUint(), this.maxAssembleBytes)
             )
           );
           continue;

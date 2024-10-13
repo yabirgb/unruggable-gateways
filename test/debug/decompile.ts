@@ -17,7 +17,9 @@ const req = new GatewayRequest(2)
   .pushBytes('0xDEADBEEF')
   .setOutput(1)
   .push(true)
-  .assertNonzero(1);
+  .assertNonzero(1)
+  .requireContract(2)
+  .requireNonzero(3);
 
 //console.log(req.toTuple());
 

@@ -50,10 +50,10 @@ export class ProgramReader {
     this.checkRead(n);
     return hexlify(this.ops.subarray(this.pos, (this.pos += n)));
   }
-  readWordSize() {
+  readUint() {
     const n = this.readByte();
-	if (n > 32) throw new Error(`expected word size: ${n}`);
-    return n ? parseInt(this.readBytes(n)) : 0;
+    if (n > 32) throw new Error(`expected word size: ${n}`);
+    return n ? BigInt(this.readBytes(n)) : 0n;
   }
   readSmallStr() {
     return toUtf8String(this.readBytes(this.readByte()));
@@ -96,7 +96,7 @@ export class ProgramReader {
       case OP.PUSH_32:
         return { bytes: this.readBytes(op) };
       case OP.PUSH_BYTES:
-        return { bytes: this.readBytes(this.readWordSize()) };
+        return { bytes: this.readBytes(Number(this.readUint())) };
       case OP.EVAL_LOOP:
         return { flags: this.readByte() };
       case OP.ASSERT:
