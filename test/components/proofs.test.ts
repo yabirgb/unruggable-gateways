@@ -5,7 +5,7 @@ import { describe } from '../bun-describe-fix.js';
 
 describe('proofs', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const contract = await foundry.deploy({
     sol: `
       contract C {

@@ -1,5 +1,5 @@
 import { Foundry } from '@adraffy/blocksmith';
-import { serve } from '@resolverworks/ezccip';
+import { serve } from '@resolverworks/ezccip/serve';
 import { ethers } from 'ethers';
 import { createProviderPair, providerURL } from '../providers.js';
 import { LineaGatewayV1 } from '../../src/linea/LineaGatewayV1.js';
@@ -49,5 +49,5 @@ async function resolve(name: string) {
   console.log({ address, avatar });
 }
 
-ccip.http.close();
+ccip.shutdown;
 await foundry.shutdown();

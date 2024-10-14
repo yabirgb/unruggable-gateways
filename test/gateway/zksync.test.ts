@@ -1,6 +1,6 @@
 import { ZKSyncRollup } from '../../src/zksync/ZKSyncRollup.js';
 import { Gateway } from '../../src/gateway.js';
-import { serve } from '@resolverworks/ezccip';
+import { serve } from '@resolverworks/ezccip/serve';
 import { Foundry } from '@adraffy/blocksmith';
 import { createProviderPair, providerURL } from '../providers.js';
 import { setupTests, testName } from './common.js';
@@ -15,10 +15,10 @@ describe(testName(config), async () => {
     infoLog: false,
     infiniteCallGas: true, // Blake2s is ~12m gas per proof!
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
-  afterAll(() => ccip.http.close());
+  afterAll(ccip.shutdown);
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
   const hooks = await foundry.deploy({

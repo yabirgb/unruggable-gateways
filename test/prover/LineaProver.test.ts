@@ -14,7 +14,7 @@ describe('LineaProver', async () => {
     fork: providerURL(config.chain1),
     infoLog: false,
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
 
   const verifier = await foundry.deploy({
     file: 'LineaVerifierHooks',

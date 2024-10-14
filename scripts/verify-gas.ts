@@ -1,9 +1,8 @@
 import type { ChainPair, HexAddress, ProviderPair } from '../src/types.js';
 import type { Rollup, RollupCommitType } from '../src/rollup.js';
-import { Foundry } from '@adraffy/blocksmith';
+import { type DeployedContract, Foundry } from '@adraffy/blocksmith';
 import { createProvider, providerURL } from '../test/providers.js';
 import { chainName } from '../src/chains.js';
-import { Contract } from 'ethers';
 import { GatewayRequest } from '../src/vm.js';
 import { ABI_CODER } from '../src/utils.js';
 import { OPFaultRollup } from '../src/op/OPFaultRollup.js';
@@ -13,7 +12,7 @@ import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
 
 async function createEstimator<R extends Rollup>(
-  verifier: Contract,
+  verifier: DeployedContract,
   rollup: R,
   commit?: RollupCommitType<R>
 ) {

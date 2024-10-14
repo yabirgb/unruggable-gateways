@@ -1,5 +1,5 @@
-import type { KeyOf } from '../../src/types.js';
-import { GatewayProgram, GatewayRequest } from '../../src/vm.js';
+import type { KeyOf, BigNumberish } from '../../src/types.js';
+import { GatewayProgram, GatewayRequest, pow256 } from '../../src/vm.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { Foundry } from '@adraffy/blocksmith';
 import { id as keccakStr } from 'ethers/hash';
@@ -21,7 +21,7 @@ function toPaddedArray(v: Parameters<typeof toPaddedHex>[0][]) {
 
 describe('ops', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
@@ -78,34 +78,34 @@ describe('ops', async () => {
     expect(values[0]).toEqual(toPaddedHex(1));
   });
 
+  test('setOutput: overflow', async () => {
+    const req = new GatewayRequest().push(1).setOutput(0);
+    expect(verify(req)).rejects.toThrow(/invalid output index: \d+/);
+  });
+
   test('addOutput', async () => {
     const req = new GatewayRequest().push(1).addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(toPaddedHex(1));
   });
 
-  test('setOutput overflow', async () => {
-    const req = new GatewayRequest().push(1).setOutput(0);
-    expect(verify(req)).rejects.toThrow(/invalid output index: \d+/);
-  });
-
   test('setSlot', async () => {
-    const req = new GatewayRequest().push(123).slot().pushSlot().addOutput();
+    const req = new GatewayRequest().push(123).slot().getSlot().addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(toPaddedHex(123));
   });
 
   test('addSlot', async () => {
-    const req = new GatewayRequest().push(123).addSlot().pushSlot().addOutput();
+    const req = new GatewayRequest().push(123).addSlot().getSlot().addOutput();
     const { values } = await verify(req);
     expect(values[0]).toEqual(toPaddedHex(123));
   });
 
   test('stack size', async () => {
     const req = new GatewayRequest();
-    req.pushStackSize();
-    req.pushStackSize();
-    req.pushStackSize();
+    req.stackSize();
+    req.stackSize();
+    req.stackSize();
     const { values } = await verify(req.drain(3));
     expect(values).toEqual(toPaddedArray([0, 1, 2]));
   });
@@ -188,6 +188,7 @@ describe('ops', async () => {
   testBinary('times', (a, b) => a * b);
   testBinary('divide', (a, b) => a / b);
   testBinary('mod', (a, b) => a % b);
+  testBinary('pow', pow256);
   testBinary('and', (a, b) => a & b);
   testBinary('or', (a, b) => a | b);
   testBinary('xor', (a, b) => a ^ b);
@@ -227,23 +228,23 @@ describe('ops', async () => {
       sum += x;
     }
     req.addOutput();
-    const state = await verify(req);
-    expect(state.values[0]).toEqual(toPaddedHex(sum));
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([sum]));
   });
 
   test('plus wraps', async () => {
     const req = new GatewayRequest().push(3).push(-1).plus().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(2));
+    expect(values).toEqual(toPaddedArray([2]));
   });
 
   test('times wraps', async () => {
     const req = new GatewayRequest().push(2).push(-1).times().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(-2));
+    expect(values).toEqual(toPaddedArray([-2]));
   });
 
-  test('divide by zero', async () => {
+  test('divide: by zero => error', async () => {
     const req = new GatewayRequest().push(1).push(0).divide().addOutput();
     expect(verify(req)).rejects.toThrow('divi'); // NOTE: node/bun use diff message
   });
@@ -251,7 +252,7 @@ describe('ops', async () => {
   test('not', async () => {
     const req = new GatewayRequest().push(0).not().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(-1n));
+    expect(values).toEqual(toPaddedArray([-1]));
   });
 
   test('isZero', async () => {
@@ -270,7 +271,7 @@ describe('ops', async () => {
     const shift = rngUint(1);
     const req = new GatewayRequest().push(x).shl(shift).addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(x << shift));
+    expect(values).toEqual(toPaddedArray([x << shift]));
   });
 
   testRepeat('shift right', async () => {
@@ -278,10 +279,10 @@ describe('ops', async () => {
     const shift = rngUint(1);
     const req = new GatewayRequest().push(x).shr(shift).addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(x >> shift));
+    expect(values).toEqual(toPaddedArray([x >> shift]));
   });
 
-  test('cast to uint256', async () => {
+  test('cast => uint256', async () => {
     const value = '0x88';
     const req = new GatewayRequest()
       .pushBytes(value) // NOTE: not push()
@@ -291,25 +292,41 @@ describe('ops', async () => {
       .or() // turns bytes(0x88) into uint256(0x88)
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(value);
-    expect(values[1]).toEqual(toPaddedHex(value));
+    expect(values).toEqual([value, toPaddedHex(value)]);
   });
 
-  test('dup last', async () => {
+  test('pushStack', async () => {
+    const req = new GatewayRequest().push(1).pushStack(0);
+    const { values } = await verify(req.drain(2));
+    expect(values).toEqual(toPaddedArray([1, 1]));
+  });
+
+  test('pushStack: deep', async () => {
+    const req = new GatewayRequest().push(1).push(2).push(3).pushStack(2);
+    const { values } = await verify(req.drain(4));
+    expect(values).toEqual(toPaddedArray([1, 2, 3, 3]));
+  });
+
+  test('pushStack: beyond => error', async () => {
+    const req = new GatewayRequest().pushStack(0);
+    expect(verify(req)).rejects.toThrow(/invalid stack index:/);
+  });
+
+  test('dup', async () => {
     const req = new GatewayRequest().push(1).dup();
     const { values } = await verify(req.drain(2));
     expect(values).toEqual(toPaddedArray([1, 1]));
   });
 
-  test('dup deep', async () => {
+  test('dup: deep', async () => {
     const req = new GatewayRequest().push(1).push(2).push(3).dup(2);
     const { values } = await verify(req.drain(4));
     expect(values).toEqual(toPaddedArray([1, 2, 3, 1]));
   });
 
-  test('dup nothing is error', async () => {
+  test('dup: beyond => error', async () => {
     const req = new GatewayRequest().dup();
-    expect(verify(req)).rejects.toThrow('stack underflow');
+    expect(verify(req)).rejects.toThrow(/invalid stack index:/);
   });
 
   test('dup2', async () => {
@@ -324,12 +341,12 @@ describe('ops', async () => {
     expect(values).toEqual(toPaddedArray([2, 1]));
   });
 
-  test('swap nothing is error', async () => {
+  test('swap: nothing => error', async () => {
     const req = new GatewayRequest().swap();
-    expect(verify(req)).rejects.toThrow('stack underflow');
+    expect(verify(req)).rejects.toThrow(/invalid stack index:/);
   });
 
-  test('swap mixed', async () => {
+  test('swap: mixed', async () => {
     const req = new GatewayRequest()
       .pushStr('chonk')
       .push(1)
@@ -337,72 +354,67 @@ describe('ops', async () => {
       .addOutput()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(utf8Hex('chonk'));
-    expect(values[1]).toEqual(toPaddedHex(1));
+    expect(values).toEqual([utf8Hex('chonk'), toPaddedHex(1)]);
   });
 
   test('pop', async () => {
     const req = new GatewayRequest().push(1).push(2).pop().addOutput();
     const { values } = await verify(req);
-    expect(values.length).toEqual(1);
-    expect(values[0]).toEqual(toPaddedHex(1));
+    expect(values).toEqual(toPaddedArray([1]));
   });
 
-  test('pop nothing is allowed', async () => {
+  test('pop: nothing => ok', async () => {
     const req = new GatewayRequest().pop();
     await verify(req);
   });
 
-  test('pushSlot', async () => {
-    const value = 1337;
-    const req = new GatewayRequest().setSlot(value).pushSlot().addOutput();
+  test('getSlot', async () => {
+    const req = new GatewayRequest().setSlot(1337).getSlot().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(value));
+    expect(values).toEqual(toPaddedArray([1337]));
   });
 
-  test('pushTarget', async () => {
+  test('getTarget', async () => {
     const req = new GatewayRequest()
       .setTarget(contract.target)
-      .pushTarget()
+      .getTarget()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(contract.target.toLowerCase());
+    expect(values).toEqual([contract.target.toLowerCase()]);
   });
 
   test('pushOutput', async () => {
-    const value = 1337;
     const req = new GatewayRequest(2)
-      .push(value)
+      .push(1337)
       .setOutput(0)
       .pushOutput(0)
       .setOutput(1);
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(value));
-    expect(values[1]).toEqual(toPaddedHex(value));
+    expect(values).toEqual(toPaddedArray([1337, 1337]));
   });
 
-  test('follow value', async () => {
+  test('follow', async () => {
     const req = new GatewayRequest()
       .setTarget(contract.target)
       .setSlot(6)
       .pushStr('raffy')
-      .follow()
+      .follow() // map["raffy"]
       .readBytes()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(utf8Hex('raffy'));
+    expect(values).toEqual([utf8Hex('raffy')]);
   });
 
-  test('followIndex value', async () => {
+  test('followIndex', async () => {
     const req = new GatewayRequest()
       .setTarget(contract.target)
       .setSlot(5)
-      .push(1) // names[1]
-      .followIndex()
+      .push(1)
+      .followIndex() // names[1]
       .readBytes()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(utf8Hex('raffy'));
+    expect(values).toEqual([utf8Hex('raffy')]);
   });
 
   test('string[]', async () => {
@@ -418,8 +430,7 @@ describe('ops', async () => {
       .readBytes()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(3));
-    expect(values[1]).toEqual(utf8Hex('chonk'));
+    expect(values).toEqual([toPaddedHex(3), utf8Hex('chonk')]);
   });
 
   test('read', async () => {
@@ -432,20 +443,19 @@ describe('ops', async () => {
       .read()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(1));
-    expect(values[1]).toEqual(toPaddedHex(2));
+    expect(values).toEqual(toPaddedArray([1, 2]));
   });
 
-  test('read no target', async () => {
+  test('read: initial state', async () => {
     const req = new GatewayRequest().read().addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(toPaddedHex(0));
+    expect(values).toEqual(toPaddedArray([0]));
   });
 
   test('read(0)', async () => {
     const req = new GatewayRequest().read(0).addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual('0x');
+    expect(values).toEqual(['0x']);
   });
 
   test('read(2)', async () => {
@@ -455,7 +465,7 @@ describe('ops', async () => {
       .read(2)
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(concat([toPaddedHex(1), toPaddedHex(2)]));
+    expect(values).toEqual([concat(toPaddedArray([1, 2]))]);
   });
 
   test('readBytes small', async () => {
@@ -465,7 +475,7 @@ describe('ops', async () => {
       .readBytes()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(utf8Hex('abc'));
+    expect(values).toEqual([utf8Hex('abc')]);
   });
 
   test('readBytes big', async () => {
@@ -475,7 +485,7 @@ describe('ops', async () => {
       .readBytes()
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(utf8Hex('abc'.repeat(20)));
+    expect(values).toEqual([utf8Hex('abc'.repeat(20))]);
   });
 
   test('readArray', async () => {
@@ -485,46 +495,58 @@ describe('ops', async () => {
       .readArray(96 >> 3)
       .addOutput();
     const { values } = await verify(req);
-    expect(values[0]).toEqual(
-      '0x000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000020000000000000000000000010000000000000000000000000000000000000000000000000000000000000003'
-    );
+    expect(values).toEqual([
+      '0x000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000020000000000000000000000010000000000000000000000000000000000000000000000000000000000000003',
+    ]);
   });
 
-  test('requireNonzero on non-zero', async () => {
-    const req = new GatewayRequest();
-    req.push(1).requireNonzero();
-    req.pushStr('abc').requireNonzero();
-    req.pushBytes('0x0001').requireNonzero();
+  test('exit', async () => {
+    const req = new GatewayRequest().exit(123);
     const { exitCode } = await verify(req);
-    expect(exitCode).toEqual(GatewayProgram.Exitcode.SUCCESS);
+    expect(exitCode).toEqual(123);
   });
 
-  test('requireNonzero on zero', async () => {
+  test('assertNonzero', async () => {
+    const req = new GatewayRequest();
+    req.push(0).assertNonzero(123);
+    const { exitCode } = await verify(req);
+    expect(exitCode).toEqual(123);
+  });
+
+  test('requireNonzero: zero', async () => {
     const req = new GatewayRequest();
     req.push(0).requireNonzero();
     const { exitCode } = await verify(req);
-    expect(exitCode).toEqual(GatewayProgram.Exitcode.IS_ZERO);
+    expect(exitCode).toEqual(1);
   });
 
-  test('requireContract on contract', async () => {
+  test('requireNonzero: nonzero', async () => {
+    const req = new GatewayRequest();
+    req.push(1).requireNonzero();
+    req.pushStr('abc').requireNonzero(2);
+    req.pushBytes('0x0001').requireNonzero(3);
+    const { exitCode } = await verify(req);
+    expect(exitCode).toEqual(0);
+  });
+
+  test('requireContract: initial state', async () => {
+    const req = new GatewayRequest().requireContract(1);
+    const { exitCode } = await verify(req);
+    expect(exitCode).toEqual(1);
+  });
+
+  test('requireContract: 0xDEAD', async () => {
+    const req = new GatewayRequest().setTarget('0xDEAD').requireContract(1);
+    const { exitCode } = await verify(req);
+    expect(exitCode).toEqual(1);
+  });
+
+  test('requireContract: contract', async () => {
     const req = new GatewayRequest()
       .setTarget(contract.target)
       .requireContract();
     const { exitCode } = await verify(req);
-    expect(exitCode).toEqual(GatewayProgram.Exitcode.SUCCESS);
-  });
-
-  test('requireContract on init', async () => {
-    const req = new GatewayRequest();
-    req.requireContract();
-    const { exitCode } = await verify(req);
-    expect(exitCode).toEqual(GatewayProgram.Exitcode.NOT_A_CONTRACT);
-  });
-
-  test('requireContract on 0xDEAD', async () => {
-    const req = new GatewayRequest().setTarget('0xDEAD').requireContract();
-    const { exitCode } = await verify(req);
-    expect(exitCode).toEqual(GatewayProgram.Exitcode.NOT_A_CONTRACT);
+    expect(exitCode).toEqual(0);
   });
 
   test('evalLoop: requireContract', async () => {
@@ -534,10 +556,10 @@ describe('ops', async () => {
     req.push(A); // success => stop, acquire => target = A
     req.push(0); // failure
     req.push('0xDEAD'); // failure
-    req.pushProgram(new GatewayProgram().target().requireContract());
+    req.pushProgram(new GatewayProgram().target().requireContract(1));
     req.evalLoop({ success: true, acquire: true });
-    req.pushStackSize().setOutput(0);
-    req.pushTarget().setOutput(1); // out[1] = A
+    req.stackSize().setOutput(0);
+    req.getTarget().setOutput(1); // out[1] = A
     const { values } = await verify(req);
     expect(values).toEqual([toPaddedHex(0), A]);
   });
@@ -550,7 +572,7 @@ describe('ops', async () => {
     req.pushStr(''); // failure
     req.pushProgram(new GatewayProgram().requireNonzero().setOutput(1));
     req.evalLoop({ success: true });
-    req.pushStackSize().setOutput(0);
+    req.stackSize().setOutput(0);
     const { values } = await verify(req);
     expect(values).toEqual(toPaddedArray([0, 456]));
   });
@@ -580,7 +602,7 @@ describe('ops', async () => {
     req.push(3); //
     req.pushProgram(new GatewayProgram());
     req.evalLoop({ count: 3 });
-    req.pushStackSize().setOutput(0);
+    req.stackSize().setOutput(0);
     const { values } = await verify(req.drain(1));
     expect(values).toEqual(toPaddedArray([1, 123]));
   });
@@ -593,7 +615,7 @@ describe('ops', async () => {
     req.push(3); // success
     req.pushProgram(new GatewayProgram().requireNonzero().setOutput(1));
     req.evalLoop({ failure: true });
-    req.pushStackSize().setOutput(0);
+    req.stackSize().setOutput(0);
     const { values } = await verify(req);
     expect(values).toEqual(toPaddedArray([0, 3]));
   });
@@ -606,7 +628,7 @@ describe('ops', async () => {
     req.push(3); // success, out[1] = 3
     req.pushProgram(new GatewayProgram().requireNonzero().setOutput(1));
     req.evalLoop({ failure: true, keep: true });
-    req.pushStackSize().setOutput(0);
+    req.stackSize().setOutput(0);
     const { values } = await verify(req.drain(2));
     expect(values).toEqual(toPaddedArray([2, 3, 123, 456]));
   });
@@ -618,7 +640,7 @@ describe('ops', async () => {
     req.push(0); // failure
     req.pushProgram(new GatewayProgram().requireNonzero().setOutput(1));
     req.evalLoop({ success: true });
-    req.pushStackSize().setOutput(0);
+    req.stackSize().setOutput(0);
     const { values } = await verify(req);
     expect(values).toEqual(toPaddedArray([0, 3]));
   });
@@ -641,7 +663,7 @@ describe('ops', async () => {
         .setOutput(0)
     );
     req.evalLoop({ success: true, keep: true });
-    req.pushStackSize().setOutput(1);
+    req.stackSize().setOutput(1);
     const { values } = await verify(req.drain(1));
     expect(values).toEqual(toPaddedArray([2, 1, 123]));
   });
@@ -666,35 +688,26 @@ describe('ops', async () => {
         .times() // x^2
     );
     req.evalLoop({ success: true, acquire: true });
-    req.pushStackSize().setOutput(0);
+    req.stackSize().setOutput(0);
     const { values } = await verify(req.drain(1));
     expect(values).toEqual(toPaddedArray([1, 8 ** 2]));
   });
 
-  test('eval: push(from)', async () => {
-    const req = new GatewayRequest(1);
-    req.pushProgram(new GatewayProgram().push(1300).push(37));
-    req.eval();
-    req.plus().setOutput(0);
-    const { values } = await verify(req);
-    expect(values).toEqual(toPaddedArray([1337]));
-  });
-
-  test('eval: push(to) + setOutput', async () => {
-    const req = new GatewayRequest(1);
-    req.push(1300).push(37);
-    req.pushProgram(new GatewayProgram().plus().setOutput(0));
-    req.eval();
-    const { values } = await verify(req);
-    expect(values).toEqual(toPaddedArray([1337]));
-  });
-
-  test('eval: push(to/from)', async () => {
+  test('eval: push', async () => {
     const req = new GatewayRequest(1);
     req.push(1300);
     req.pushProgram(new GatewayProgram().push(37).plus());
     req.eval();
     req.setOutput(0);
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([1337]));
+  });
+
+  test('eval: setOutput', async () => {
+    const req = new GatewayRequest(1);
+    req.push(1337);
+    req.pushProgram(new GatewayProgram().setOutput(0));
+    req.eval();
     const { values } = await verify(req);
     expect(values).toEqual(toPaddedArray([1337]));
   });
@@ -705,7 +718,34 @@ describe('ops', async () => {
     req.pushProgram(new GatewayProgram().requireNonzero());
     req.eval();
     const { exitCode } = await verify(req);
-    expect(exitCode).toEqual(GatewayRequest.Exitcode.IS_ZERO);
+    expect(exitCode).toEqual(1);
   });
-  // TODO: need more eval tests
+
+  test('eval: conditional', async () => {
+    const req = new GatewayRequest(1);
+    req.push(1337);
+    req.pushProgram(new GatewayProgram().concat()).push(false).evalIf();
+    req.pushProgram(new GatewayProgram().setOutput(0)).push(true).evalIf();
+    const { values } = await verify(req);
+    expect(values).toEqual(toPaddedArray([1337]));
+  });
+
+  // experimental
+  test('IF(c, t, f) == t f c IS_ZERO SWAP POP', async () => {
+    async function f(c: boolean, t: BigNumberish, f: BigNumberish) {
+      const { values } = await verify(
+        new GatewayRequest()
+          .push(t)
+          .push(f)
+          .push(c)
+          .isZero()
+          .op('SWAP')
+          .pop()
+          .addOutput()
+      );
+      expect(values).toEqual(toPaddedArray([c ? t : f]));
+    }
+    await f(true, 1, 2);
+    await f(false, 1, 2);
+  });
 });

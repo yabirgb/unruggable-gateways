@@ -40,12 +40,6 @@ const STOP_ON_FAILURE = 1 << 1;
 const ACQUIRE_STATE = 1 << 2;
 const KEEP_ARGS = 1 << 3;
 
-const EXIT = {
-  SUCCESS: 0, // do we need this?
-  NOT_A_CONTRACT: 254,
-  IS_ZERO: 253,
-};
-
 function isZeros(hex: HexString) {
   return /^0x0*$/.test(hex);
 }
@@ -82,10 +76,18 @@ export function solidityFollowSlot(slot: BigNumberish, key: BytesLike) {
   // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
   return BigInt(keccak256(concat([key, toPaddedHex(slot)])));
 }
+export function pow256(base: bigint, exp: bigint) {
+  let res = 1n;
+  while (exp) {
+    if (exp & 1n) res = BigInt.asUintN(256, res * base);
+    exp >>= 1n;
+    base = BigInt.asUintN(256, base * base);
+  }
+  return res;
+}
 
 export class GatewayProgram {
   static readonly Opcode = OP;
-  static readonly Exitcode = EXIT;
   constructor(readonly ops: number[] = []) {}
   clone() {
     return new GatewayProgram(this.ops.slice());
@@ -131,7 +133,7 @@ export class GatewayProgram {
     return this.push(x).target();
   }
   target() {
-    return this.addByte(OP.TARGET);
+    return this.addByte(OP.SET_TARGET);
   }
 
   setOutput(i: number) {
@@ -141,7 +143,10 @@ export class GatewayProgram {
     return this.addByte(OP.SET_OUTPUT);
   }
   eval() {
-    return this.addByte(OP.EVAL_INLINE);
+    return this.push(true).evalIf();
+  }
+  evalIf() {
+    return this.addByte(OP.EVAL);
   }
   evalLoop(
     opts: {
@@ -163,6 +168,18 @@ export class GatewayProgram {
       .addByte(OP.EVAL_LOOP)
       .addByte(flags);
   }
+  exit(exitCode: number) {
+    return this.push(false).assertNonzero(exitCode);
+  }
+  assertNonzero(exitCode: number) {
+    return this.addByte(OP.ASSERT).addByte(exitCode);
+  }
+  requireContract(exitCode = 1) {
+    return this.isContract().assertNonzero(exitCode); // NOTE: does not consume stack
+  }
+  requireNonzero(exitCode = 1) {
+    return this.dup().assertNonzero(exitCode); // NOTE: does not consume stack
+  }
 
   setSlot(x: BigNumberish) {
     return this.push(x).slot();
@@ -171,23 +188,16 @@ export class GatewayProgram {
     return this.push(x).addSlot();
   }
   addSlot() {
-    return this.addByte(OP.SLOT_ADD);
+    return this.addByte(OP.ADD_SLOT);
   }
   slot() {
-    return this.addByte(OP.SLOT);
+    return this.addByte(OP.SET_SLOT);
   }
   follow() {
-    return this.addByte(OP.SLOT_FOLLOW);
+    return this.addByte(OP.FOLLOW);
   }
   followIndex() {
-    return this.pushSlot().keccak().slot().addSlot();
-  }
-
-  requireContract() {
-    return this.addByte(OP.REQ_CONTRACT);
-  }
-  requireNonzero() {
-    return this.addByte(OP.REQ_NONZERO);
+    return this.getSlot().keccak().slot().addSlot();
   }
 
   pop() {
@@ -224,14 +234,17 @@ export class GatewayProgram {
   pushProgram(program: GatewayProgram) {
     return this.pushBytes(program.encode());
   }
-  pushSlot() {
-    return this.addByte(OP.PUSH_SLOT);
+  getSlot() {
+    return this.addByte(OP.GET_SLOT);
   }
-  pushTarget() {
-    return this.addByte(OP.PUSH_TARGET);
+  getTarget() {
+    return this.addByte(OP.GET_TARGET);
   }
-  pushStackSize() {
-    return this.addByte(OP.PUSH_STACK_SIZE);
+  stackSize() {
+    return this.addByte(OP.STACK_SIZE);
+  }
+  isContract() {
+    return this.addByte(OP.IS_CONTRACT);
   }
 
   concat() {
@@ -264,6 +277,9 @@ export class GatewayProgram {
   }
   mod() {
     return this.addByte(OP.MOD);
+  }
+  pow() {
+    return this.addByte(OP.POW);
   }
   and() {
     return this.addByte(OP.AND);
@@ -309,13 +325,11 @@ export class GatewayProgram {
     return this.dup(1).dup(1);
   }
   min() {
-    // [a, b] => [a, b, a, b]
-    // a > b: [a, b, 1] => [b, a] => [b]
-    // a < b: [a, b, 0] => [a, b] => [a]
-    return this.dup2().gt().addByte(OP.SWAP).pop();
+    //return this.dup2().gt().addByte(OP.SWAP).pop();
+    return this.dup().dup(2).lt().addByte(OP.SWAP).pop();
   }
   max() {
-    return this.dup2().lt().addByte(OP.SWAP).pop();
+    return this.dup().dup(2).gt().addByte(OP.SWAP).pop();
   }
 }
 
@@ -348,9 +362,9 @@ export class GatewayRequest extends GatewayProgram {
   }
   // convenience for draining stack into outputs
   drain(count: number) {
-    const offset = this.outputCount;
-    this.ensureCapacity(offset + count);
-    while (count > 0) this.setOutput(offset + --count);
+    const i = this.outputCount;
+    this.ensureCapacity(i + count);
+    while (count > 0) this.setOutput(i + --count);
     return this;
   }
 }
@@ -402,12 +416,15 @@ export class GatewayVM {
     readonly targets = new Map<HexString, TargetNeed>()
   ) {}
   checkOutputIndex(i: number) {
-    if (i >= this.outputs.length) throw new Error(`invalid output index: ${i}`);
+    if (i >= this.outputs.length) {
+      throw new Error(`invalid output index: ${i}/${this.outputs.length}`);
+    }
     return i;
   }
   checkStackIndex(i: number) {
-    if (i < 0) throw new Error('stack underflow');
-    if (i >= this.stack.length) throw new Error('stack overflow');
+    if (i < 0 || i >= this.stack.length) {
+      throw new Error(`invalid stack index: ${i}/${this.stack.length}`);
+    }
     return i;
   }
   checkBack(back: number) {
@@ -423,6 +440,10 @@ export class GatewayVM {
     if (this.stack.length >= this.maxStack) throw new Error('stack overflow');
     this.stack.push(value);
   }
+  pushUint256(x: BigNumberish | boolean) {
+    // Parameters<typeof toPaddedHex>[0]) {
+    this.push(toPaddedHex(x));
+  }
   pop() {
     if (!this.stack.length) throw new Error('stack underflow');
     return this.stack.pop()!;
@@ -436,18 +457,7 @@ export class GatewayVM {
   }
   async binaryOp(fn: (a: bigint, b: bigint) => bigint | boolean) {
     const [a, b] = await Promise.all(this.popSlice(2).map(unwrap));
-    this.push(toPaddedHex(fn(uint256FromHex(a), uint256FromHex(b))));
-    // const v = this.popSlice(2);
-    // if (typeof v[0] === 'string' && typeof v[1] === 'string') {
-    //   this.push(toPaddedHex(fn(uint256FromHex(v[0]), uint256FromHex(v[1]))));
-    // } else {
-    //   this.push(
-    //     new Wrapped(async () => {
-    //       const [a, b] = await Promise.all(v.map(unwrap));
-    //       return toPaddedHex(fn(uint256FromHex(a), uint256FromHex(b)));
-    //     })
-    //   );
-    // }
+    this.pushUint256(fn(uint256FromHex(a), uint256FromHex(b)));
   }
 }
 
@@ -467,6 +477,7 @@ export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}${slot.toString(16)}`;
 }
 
+// TODO: totalAssembledBytes
 export abstract class AbstractProver {
   // general proof cache
   readonly proofLRU = new LRU<string, any>(10000);
@@ -539,7 +550,7 @@ export abstract class AbstractProver {
 
   // machine interface
   async evalDecoded(v: BytesLike) {
-    return this.evalReader(ProgramReader.fromEncoded(v));
+    return this.evalReader(ProgramReader.fromBytes(v));
   }
   async evalRequest(req: GatewayRequest) {
     return this.evalReader(ProgramReader.fromProgram(req));
@@ -558,12 +569,11 @@ export abstract class AbstractProver {
     while (reader.remaining) {
       const op = reader.readByte();
       if (op <= 32) {
-        //vm.push('0x' + reader.readBytes(op).slice(2).padStart(64, '0'));
-        vm.push(toPaddedHex(reader.readBytes(op)));
+        vm.pushUint256(reader.readBytes(op));
         continue;
       }
       switch (op) {
-        case OP.TARGET: {
+        case OP.SET_TARGET: {
           const target = addressFromHex(await unwrap(vm.pop()));
           // IDEA: this could incrementally build the needs map
           // instead of doing it during prove()
@@ -585,15 +595,15 @@ export abstract class AbstractProver {
           vm.slot = 0n;
           continue;
         }
-        case OP.SLOT_FOLLOW: {
+        case OP.FOLLOW: {
           vm.slot = solidityFollowSlot(vm.slot, await unwrap(vm.pop()));
           continue;
         }
-        case OP.SLOT: {
+        case OP.SET_SLOT: {
           vm.slot = uint256FromHex(await unwrap(vm.pop()));
           continue;
         }
-        case OP.SLOT_ADD: {
+        case OP.ADD_SLOT: {
           vm.slot += uint256FromHex(await unwrap(vm.pop()));
           continue;
         }
@@ -608,21 +618,27 @@ export abstract class AbstractProver {
         case OP.PUSH_BYTES: {
           vm.push(
             reader.readBytes(
-              checkSize(reader.readNumber(), this.maxAssembleBytes)
+              checkSize(reader.readUint(), this.maxAssembleBytes)
             )
           );
           continue;
         }
-        case OP.PUSH_SLOT: {
-          vm.push(toPaddedHex(vm.slot)); // current slot register
+        case OP.GET_SLOT: {
+          vm.pushUint256(vm.slot); // current slot register
           continue;
         }
-        case OP.PUSH_TARGET: {
+        case OP.GET_TARGET: {
           vm.push(vm.target); // current target address
           continue;
         }
-        case OP.PUSH_STACK_SIZE: {
-          vm.push(toPaddedHex(vm.stack.length));
+        case OP.STACK_SIZE: {
+          vm.pushUint256(vm.stack.length);
+          continue;
+        }
+        case OP.IS_CONTRACT: {
+          const need = vm.targets.get(vm.target);
+          if (need) need.required = true;
+          vm.pushUint256(await this.isContract(vm.target));
           continue;
         }
         case OP.PUSH_STACK: {
@@ -671,7 +687,6 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.READ_BYTES: {
-          // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
           const { target, slot } = vm;
           const { value, slots } = await this.getStorageBytes(target, slot);
           vm.needs.push(slot, ...slots);
@@ -713,33 +728,19 @@ export abstract class AbstractProver {
           );
           continue;
         }
-        case OP.REQ_CONTRACT: {
-          const need = vm.targets.get(vm.target);
-          if (need) need.required = true;
-          if (!(await this.isContract(vm.target))) {
-            vm.exitCode = EXIT.NOT_A_CONTRACT;
-            return;
+        case OP.EVAL: {
+          const [code, cond] = vm.popSlice(2);
+          if (!isZeros(await unwrap(cond))) {
+            const program = ProgramReader.fromBytes(await unwrap(code));
+            await this.eval(program, vm, depth + 1);
+            if (vm.exitCode) return;
           }
-          continue;
-        }
-        case OP.REQ_NONZERO: {
-          if (isZeros(await unwrap(vm.stack[vm.checkBack(0)]))) {
-            vm.exitCode = EXIT.IS_ZERO;
-            return;
-          }
-          continue;
-        }
-        case OP.EVAL_INLINE: {
-          const program = ProgramReader.fromEncoded(await unwrap(vm.pop()));
-          await this.eval(program, vm, depth + 1);
-          if (vm.exitCode) return;
           continue;
         }
         case OP.EVAL_LOOP: {
-          // [program, count] + flags => any[]
           const flags = reader.readByte();
           const [code, n] = await Promise.all(vm.popSlice(2).map(unwrap));
-          const program = ProgramReader.fromEncoded(code);
+          const program = ProgramReader.fromBytes(code);
           const vm2 = new GatewayVM(
             vm.outputs,
             vm.maxStack,
@@ -769,20 +770,22 @@ export abstract class AbstractProver {
           }
           continue;
         }
+        case OP.ASSERT: {
+          const code = reader.readByte();
+          if (isZeros(await unwrap(vm.pop()))) {
+            vm.exitCode = code;
+            return;
+          }
+          continue;
+        }
         case OP.KECCAK: {
           vm.push(keccak256(await unwrap(vm.pop())));
-          // const value = vm.pop();
-          // vm.push(new Wrapped(async () => keccak256(await unwrap(value))));
           continue;
         }
         case OP.CONCAT: {
           const v = concat(await Promise.all(vm.popSlice(2).map(unwrap)));
           checkSize((v.length - 2) >> 1, this.maxAssembleBytes);
           vm.push(v);
-          // const v = vm.popSlice(2);
-          // vm.push(
-          //   new Wrapped(async () => concat(await Promise.all(v.map(unwrap))))
-          // );
           continue;
         }
         case OP.SLICE: {
@@ -797,26 +800,10 @@ export abstract class AbstractProver {
             const prefix = pos >= len ? '0x' : dataSlice(v, pos, len);
             vm.push(prefix.padEnd((size + 1) << 1, '0'));
           }
-          // const [pos, size] = await Promise.all(
-          //   vm.popSlice(2).map(async (x) => numberFromHex(await unwrap(x)))
-          // );
-          // const value = vm.pop();
-          // vm.push(
-          //   size
-          //     ? new Wrapped(async () => {
-          //         const v = await unwrap(value);
-          //         const len = (v.length - 2) >> 1;
-          //         const end = pos + size;
-          //         if (len >= end) return dataSlice(v, pos, end);
-          //         const prefix = pos >= len ? '0x' : dataSlice(v, pos, len);
-          //         return prefix.padEnd((size + 1) << 1, '0');
-          //       })
-          //     : '0x'
-          // );
           continue;
         }
         case OP.LENGTH: {
-          vm.push(toPaddedHex(await peekSize(vm.pop())));
+          vm.pushUint256(await peekSize(vm.pop()));
           continue;
         }
         case OP.PLUS: {
@@ -833,6 +820,10 @@ export abstract class AbstractProver {
         }
         case OP.MOD: {
           await vm.binaryOp((a, b) => a % b);
+          continue;
+        }
+        case OP.POW: {
+          await vm.binaryOp(pow256);
           continue;
         }
         case OP.AND: {
@@ -868,11 +859,11 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.IS_ZERO: {
-          vm.push(toPaddedHex(isZeros(await unwrap(vm.pop()))));
+          vm.pushUint256(isZeros(await unwrap(vm.pop())));
           continue;
         }
         case OP.NOT: {
-          vm.push(toPaddedHex(~uint256FromHex(await unwrap(vm.pop()))));
+          vm.pushUint256(~uint256FromHex(await unwrap(vm.pop())));
           continue;
         }
         case OP.DEBUG: {
@@ -920,6 +911,7 @@ export abstract class AbstractProver {
     size: number;
     slots: bigint[]; // note: does not include header slot!
   }> {
+    // https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
     const first = await this.getStorage(target, slot, fast);
     let size = parseInt(first.slice(64), 16); // last byte
     if ((size & 1) == 0) {

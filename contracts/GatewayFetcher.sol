@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import './GatewayRequest.sol';
+import {GatewayRequest, GatewayOP} from './GatewayRequest.sol';
 
 // only happens during request construction
 error RequestOverflow();
@@ -74,9 +74,15 @@ library GatewayFetcher {
         string memory label
     ) internal pure returns (GatewayRequest memory) {
         bytes memory v = bytes(label);
-        return r.addByte(OP_DEBUG).push(v.length).addBytes(v);
+        return r.addByte(GatewayOP.DEBUG).push(v.length).addBytes(v);
     }
 
+    function push(
+        GatewayRequest memory r,
+        bool x
+    ) internal pure returns (GatewayRequest memory) {
+        return r.push(x ? 1 : 0);
+    }
     function push(
         GatewayRequest memory r,
         bytes32 x
@@ -94,12 +100,12 @@ library GatewayFetcher {
         uint256 x
     ) internal pure returns (GatewayRequest memory) {
         // NOTE: compact request building is not necessary
-        // this could just be: return r.addByte(OP_PUSH_32).addBytes(abi.encode(x));
-        if (x == 0) return r.addByte(OP_PUSH_0);
+        // this could just be: return r.addByte(GatewayOP.PUSH_32).addBytes(abi.encode(x));
+        if (x == 0) return r.addByte(GatewayOP.PUSH_0);
         uint8 n = clz(x); // number of leading zeros
         x <<= (n << 3); // right pad
         n = 32 - n; // width w/o pad
-        r.addByte(OP_PUSH_0 + n);
+        r.addByte(GatewayOP.PUSH_0 + n);
         bytes memory v = r.ops;
         assembly {
             let len := mload(v)
@@ -146,45 +152,48 @@ library GatewayFetcher {
         GatewayRequest memory r,
         bytes memory v
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_PUSH_BYTES).push(v.length).addBytes(v);
+        return r.addByte(GatewayOP.PUSH_BYTES).push(v.length).addBytes(v);
     }
 
-    function pushSlot(
+    function getSlot(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_PUSH_SLOT);
+        return r.addByte(GatewayOP.GET_SLOT);
     }
-    function pushTarget(
+    function getTarget(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_PUSH_TARGET);
+        return r.addByte(GatewayOP.GET_TARGET);
     }
-    function pushStackSize(
+    function stackCount(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_PUSH_STACK_SIZE);
+        return r.addByte(GatewayOP.STACK_SIZE);
+    }
+    function isContract(
+        GatewayRequest memory r
+    ) internal pure returns (GatewayRequest memory) {
+        return r.addByte(GatewayOP.IS_CONTRACT);
     }
 
-    // pushBytes() => push()
-    // pushProgram() => push()
     function pushStack(
         GatewayRequest memory r,
         uint256 i
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(i).addByte(OP_PUSH_STACK);
-        // r.pushStackSize().push(1).subtract().push(i).subtract().addByte(OP_DUP);
+        return r.push(i).addByte(GatewayOP.PUSH_STACK);
+        // r.stackCount().push(1).subtract().push(i).subtract().addByte(GatewayOP.DUP);
     }
     function pushOutput(
         GatewayRequest memory r,
         uint256 i
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(i).addByte(OP_PUSH_OUTPUT);
+        return r.push(i).addByte(GatewayOP.PUSH_OUTPUT);
     }
 
     function target(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_TARGET);
+        return r.addByte(GatewayOP.SET_TARGET);
     }
     function setTarget(
         GatewayRequest memory r,
@@ -193,21 +202,26 @@ library GatewayFetcher {
         return r.push(a).target();
     }
 
+    function output(
+        GatewayRequest memory r
+    ) internal pure returns (GatewayRequest memory) {
+        return r.addByte(GatewayOP.SET_OUTPUT);
+    }
     function setOutput(
         GatewayRequest memory r,
         uint8 i
     ) internal pure returns (GatewayRequest memory) {
         return r.push(i).output();
     }
-    function output(
-        GatewayRequest memory r
-    ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_SET_OUTPUT);
-    }
     function eval(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_EVAL_INLINE);
+        return r.push(true).evalIf();
+    }
+    function evalIf(
+        GatewayRequest memory r
+    ) internal pure returns (GatewayRequest memory) {
+        return r.addByte(GatewayOP.EVAL);
     }
     function evalLoop(
         GatewayRequest memory r,
@@ -220,7 +234,31 @@ library GatewayFetcher {
         uint8 flags,
         uint256 count
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(count).addByte(OP_EVAL_LOOP).addByte(flags);
+        return r.push(count).addByte(GatewayOP.EVAL_LOOP).addByte(flags);
+    }
+    function exit(
+        GatewayRequest memory r,
+        uint8 exitCode
+    ) internal pure returns (GatewayRequest memory) {
+        return r.push(false).assertNonzero(exitCode);
+    }
+    function assertNonzero(
+        GatewayRequest memory r,
+        uint8 exitCode
+    ) internal pure returns (GatewayRequest memory) {
+        return r.addByte(GatewayOP.ASSERT).addByte(exitCode);
+    }
+    function requireContract(
+        GatewayRequest memory r,
+        uint8 exitCode
+    ) internal pure returns (GatewayRequest memory) {
+        return r.isContract().assertNonzero(exitCode);
+    }
+    function requireNonzero(
+        GatewayRequest memory r,
+        uint8 exitCode
+    ) internal pure returns (GatewayRequest memory) {
+        return r.dup().assertNonzero(exitCode);
     }
 
     function setSlot(
@@ -238,69 +276,58 @@ library GatewayFetcher {
     function addSlot(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_SLOT_ADD);
-        // return r.pushSlot().add().slot();
+        return r.addByte(GatewayOP.ADD_SLOT);
+        // return r.getSlot().add().slot();
     }
     function slot(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_SLOT);
+        return r.addByte(GatewayOP.SET_SLOT);
     }
     function follow(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_SLOT_FOLLOW);
-        // return r.pushSlot().concat().keccak().slot();
+        return r.addByte(GatewayOP.FOLLOW);
+        // return r.getSlot().concat().keccak().slot();
     }
     function followIndex(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.pushSlot().keccak().slot().addSlot();
-    }
-
-    function requireContract(
-        GatewayRequest memory r
-    ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_REQ_CONTRACT);
-    }
-    function requireNonzero(
-        GatewayRequest memory r
-    ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_REQ_NONZERO);
+        return r.getSlot().keccak().slot().addSlot();
     }
 
     function read(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_READ_SLOT);
+        return r.addByte(GatewayOP.READ_SLOT);
     }
     function read(
         GatewayRequest memory r,
         uint256 n
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(n).addByte(OP_READ_SLOTS);
+        return r.push(n).addByte(GatewayOP.READ_SLOTS);
     }
     function readBytes(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_READ_BYTES);
+        return r.addByte(GatewayOP.READ_BYTES);
     }
     function readHashedBytes(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_READ_HASHED_BYTES);
+        return r.addByte(GatewayOP.READ_HASHED_BYTES);
     }
     function readArray(
         GatewayRequest memory r,
         uint256 step
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(step).addByte(OP_READ_ARRAY);
+        return r.push(step).addByte(GatewayOP.READ_ARRAY);
     }
 
     function pop(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_POP);
+        return r.addByte(GatewayOP.POP);
     }
     function dup(
         GatewayRequest memory r
@@ -311,7 +338,7 @@ library GatewayFetcher {
         GatewayRequest memory r,
         uint256 back
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(back).addByte(OP_DUP);
+        return r.push(back).addByte(GatewayOP.DUP);
     }
     function swap(
         GatewayRequest memory r
@@ -322,23 +349,23 @@ library GatewayFetcher {
         GatewayRequest memory r,
         uint256 back
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(back).addByte(OP_SWAP);
+        return r.push(back).addByte(GatewayOP.SWAP);
     }
 
     function concat(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_CONCAT);
+        return r.addByte(GatewayOP.CONCAT);
     }
     function keccak(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_KECCAK);
+        return r.addByte(GatewayOP.KECCAK);
     }
     function slice(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_SLICE);
+        return r.addByte(GatewayOP.SLICE);
     }
     function slice(
         GatewayRequest memory r,
@@ -350,13 +377,13 @@ library GatewayFetcher {
     function length(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_LENGTH);
+        return r.addByte(GatewayOP.LENGTH);
     }
 
     function plus(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_PLUS);
+        return r.addByte(GatewayOP.PLUS);
     }
     function twosComplement(
         GatewayRequest memory r
@@ -371,69 +398,74 @@ library GatewayFetcher {
     function times(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_TIMES);
+        return r.addByte(GatewayOP.TIMES);
     }
     function divide(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_DIVIDE);
+        return r.addByte(GatewayOP.DIVIDE);
     }
     function mod(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_MOD);
+        return r.addByte(GatewayOP.MOD);
+    }
+    function pow(
+        GatewayRequest memory r
+    ) internal pure returns (GatewayRequest memory) {
+        return r.addByte(GatewayOP.POW);
     }
     function and(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_AND);
+        return r.addByte(GatewayOP.AND);
     }
     function or(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_OR);
+        return r.addByte(GatewayOP.OR);
     }
     function xor(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_XOR);
+        return r.addByte(GatewayOP.XOR);
     }
     function isZero(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_IS_ZERO);
+        return r.addByte(GatewayOP.IS_ZERO);
     }
     function not(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_NOT);
+        return r.addByte(GatewayOP.NOT);
     }
     function shl(
         GatewayRequest memory r,
         uint8 shift
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(shift).addByte(OP_SHIFT_LEFT);
+        return r.push(shift).addByte(GatewayOP.SHIFT_LEFT);
     }
     function shr(
         GatewayRequest memory r,
         uint8 shift
     ) internal pure returns (GatewayRequest memory) {
-        return r.push(shift).addByte(OP_SHIFT_RIGHT);
+        return r.push(shift).addByte(GatewayOP.SHIFT_RIGHT);
     }
     function eq(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_EQ);
+        return r.addByte(GatewayOP.EQ);
     }
     function lt(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_LT);
+        return r.addByte(GatewayOP.LT);
     }
     function gt(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.addByte(OP_GT);
+        return r.addByte(GatewayOP.GT);
     }
     function neq(
         GatewayRequest memory r
@@ -458,11 +490,11 @@ library GatewayFetcher {
     function min(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.dup2().gt().addByte(OP_SWAP).pop();
+        return r.dup2().gt().addByte(GatewayOP.SWAP).pop();
     }
     function max(
         GatewayRequest memory r
     ) internal pure returns (GatewayRequest memory) {
-        return r.dup2().lt().addByte(OP_SWAP).pop();
+        return r.dup2().lt().addByte(GatewayOP.SWAP).pop();
     }
 }

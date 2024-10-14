@@ -1,6 +1,6 @@
 import { NitroRollup } from '../../src/nitro/NitroRollup.js';
 import { Gateway } from '../../src/gateway.js';
-import { serve } from '@resolverworks/ezccip';
+import { serve } from '@resolverworks/ezccip/serve';
 import { Foundry } from '@adraffy/blocksmith';
 import { providerURL, createProviderPair } from '../providers.js';
 import { setupTests, testName } from './common.js';
@@ -14,10 +14,10 @@ describe(testName(config), async () => {
     fork: providerURL(config.chain1),
     infoLog: false,
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
-  afterAll(() => ccip.http.close());
+  afterAll(ccip.shutdown);
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({

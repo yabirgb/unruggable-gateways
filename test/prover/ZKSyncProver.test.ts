@@ -14,7 +14,7 @@ describe('ZKSyncProver', async () => {
     fork: providerURL(config.chain1),
     infoLog: false,
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
 
   const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
   const verifier = await foundry.deploy({

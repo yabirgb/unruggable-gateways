@@ -1,4 +1,4 @@
-import { serve } from '@resolverworks/ezccip';
+import { serve } from '@resolverworks/ezccip/serve';
 import { Foundry } from '@adraffy/blocksmith';
 import { EthSelfRollup } from '../../../src/eth/EthSelfRollup.js';
 import { Gateway } from '../../../src/gateway.js';
@@ -9,12 +9,12 @@ describe('local self', async () => {
   const foundry = await Foundry.launch({
     infoLog: false,
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const rollup = new EthSelfRollup(foundry.provider);
   rollup.latestBlockTag = 'latest';
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
-  afterAll(() => ccip.http.close());
+  afterAll(ccip.shutdown);
 
   // setup verifier
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });

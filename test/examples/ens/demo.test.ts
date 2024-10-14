@@ -5,18 +5,18 @@ import { describe } from '../../bun-describe-fix.js';
 import { afterAll, expect, test } from 'bun:test';
 import { id as keccakStr } from 'ethers/hash';
 import { EnsResolver } from 'ethers/providers';
-import { serve } from '@resolverworks/ezccip';
+import { serve } from '@resolverworks/ezccip/serve';
 
 describe('ens', async () => {
   const foundry = await Foundry.launch({
     infoLog: false,
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const rollup = new EthSelfRollup(foundry.provider);
   rollup.latestBlockTag = 'latest';
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
-  afterAll(() => ccip.http.close());
+  afterAll(ccip.shutdown);
 
   // setup verifier
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
