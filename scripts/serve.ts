@@ -107,6 +107,13 @@ async function createGateway(name: string) {
         ...OPFaultRollup.mainnetConfig,
         minAgeSec: 6 * 3600,
       });
+    case 'op-sepolia':
+      return createOPFaultGateway(OPFaultRollup.testnetConfig);
+    case 'unfinalized-op-sepolia':
+      return createOPFaultGateway({
+        ...OPFaultRollup.testnetConfig,
+        minAgeSec: 6 * 3600,
+      });
     case 'base-testnet':
       return createOPFaultGateway(OPFaultRollup.baseTestnetConfig);
     case 'reverse-op': {

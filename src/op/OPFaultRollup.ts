@@ -38,6 +38,13 @@ export class OPFaultRollup extends AbstractOPRollup {
     GameFinder: GAME_FINDER_MAINNET,
   };
 
+  static readonly testnetConfig: RollupDeployment<OPFaultConfig> = {
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.OP_SEPOLIA,
+    OptimismPortal: '0x16Fc5058F25648194471939df75CF27A2fdC48BC',
+    GameFinder: GAME_FINDER_SEPOLIA,
+  };
+
   // https://docs.base.org/docs/base-contracts/#ethereum-testnet-sepolia
   static readonly baseTestnetConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAINS.SEPOLIA,
