@@ -1,6 +1,6 @@
 {
   "name": "@unruggable/gateways",
-  "version": "0.1.2-dev.7",
+  "version": "0.1.2-dev.8",
   "description": "Trustless Ethereum Multichain Gateway",
   "publishConfig": {
     "access": "public"
@@ -58,7 +58,7 @@
     "prettier": "^3.3.3"
   },
   "dependencies": {
-    "@resolverworks/ezccip": "^0.0.15",
+    "@resolverworks/ezccip": "^0.0.20",
     "@whatwg-node/server": "^0.9.49",
     "ethers": "^6.13.3"
   },
