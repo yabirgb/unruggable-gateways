@@ -26,12 +26,12 @@ contract TestGatewayVM is Test {
     }
 
     function test_smallKeccak() external pure {
-		for (uint256 i = 0; i < 100; i++) {
-	        assertEq(
-    	        GatewayVM.smallKeccak(bytes32(i)),
-        	    keccak256(abi.encode(bytes32(i)))
-        	);
-		}
+        for (uint256 i = 0; i < 100; i++) {
+            assertEq(
+                GatewayVM.smallKeccak(bytes32(i)),
+                keccak256(abi.encode(bytes32(i)))
+            );
+        }
     }
 
 }
