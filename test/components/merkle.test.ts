@@ -10,7 +10,7 @@ import { toPaddedHex } from '../../src/utils.js';
 
 async function setup() {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   await foundry.nextBlock();
   return {
     foundry,

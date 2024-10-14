@@ -6,7 +6,7 @@ import { describe } from '../bun-describe-fix.js';
 
 describe('microcode', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
 
   async function compare(single: GatewayRequest, multi: GatewayRequest) {
     const prover = await EthProver.latest(foundry.provider);

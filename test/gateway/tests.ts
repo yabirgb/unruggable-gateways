@@ -1,11 +1,12 @@
-import type { Contract } from 'ethers/contract';
+import type { DeployedContract } from '@adraffy/blocksmith';
+import type { Contract } from 'ethers';
 import { expect, test } from 'bun:test';
 
 const opts = { enableCcipRead: true };
 
 // imo better to expect(await) than expect().resolves
 export function runSlotDataTests(
-  r: Contract,
+  r: Contract | DeployedContract,
   pointer = false,
   skipZero = false
 ) {

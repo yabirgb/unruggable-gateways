@@ -66,10 +66,10 @@ export function testOP(
       fork: providerURL(config.chain1),
       infoLog: !!opts.log,
     });
-    afterAll(() => foundry.shutdown());
+    afterAll(foundry.shutdown);
     const gateway = new Gateway(rollup);
     const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
-    afterAll(() => ccip.http.close());
+    afterAll(ccip.shutdown);
     const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({
@@ -99,10 +99,10 @@ export function testOPFault(
         fork: providerURL(config.chain1),
         infoLog: !!opts.log,
       });
-      afterAll(() => foundry.shutdown());
+      afterAll(foundry.shutdown);
       const gateway = new Gateway(rollup);
       const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
-      afterAll(() => ccip.http.close());
+      afterAll(ccip.shutdown);
       const commit = await gateway.getLatestCommit();
       const gameFinder = await foundry.deploy({
         file: 'FixedOPFaultGameFinder',
@@ -140,10 +140,10 @@ export function testScroll(
       fork: providerURL(config.chain1),
       infoLog: !!opts.log,
     });
-    afterAll(() => foundry.shutdown());
+    afterAll(foundry.shutdown);
     const gateway = new Gateway(rollup);
     const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
-    afterAll(() => ccip.http.close());
+    afterAll(ccip.shutdown);
     const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({
       file: 'ScrollVerifierHooks',
@@ -168,11 +168,11 @@ export function testSelfEth(chain: Chain, opts: TestOptions) {
       fork: providerURL(chain),
       infoLog: !!opts.log,
     });
-    afterAll(() => foundry.shutdown());
+    afterAll(foundry.shutdown);
     const rollup = new EthSelfRollup(foundry.provider);
     const gateway = new Gateway(rollup);
     const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
-    afterAll(() => ccip.http.close());
+    afterAll(ccip.shutdown);
     const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({

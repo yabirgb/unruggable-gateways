@@ -8,7 +8,7 @@ import { toPaddedHex } from '../../src/utils.js';
 
 test('ClowesConcatSlice', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
 
   const SIZE = 73;
   const FIRST = 8;
@@ -56,7 +56,7 @@ test('ClowesConcatSlice', async () => {
 
 test('SLOT_FOLLOW == PUSH_SLOT CONCAT KECCAK SLOT', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const contract = await foundry.deploy({
     sol: `
       contract X {
@@ -89,7 +89,7 @@ test('SLOT_FOLLOW == PUSH_SLOT CONCAT KECCAK SLOT', async () => {
 
 test('SLOT_ADD == PUSH_SLOT PLUS SLOT', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const contract = await foundry.deploy({
     sol: `
       contract X { 
@@ -118,7 +118,7 @@ test('SLOT_ADD == PUSH_SLOT PLUS SLOT', async () => {
 
 test('PUSH_STACK(i) == PUSH_STACK_SIZE PUSH(1) SUBTRACT PUSH(i) SUBTRACT DUP', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   await compare(
     await EthProver.latest(foundry.provider),
     new GatewayRequest().push(123).pushStack(0).addOutput(),

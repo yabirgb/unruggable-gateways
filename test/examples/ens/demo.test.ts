@@ -11,12 +11,12 @@ describe('ens', async () => {
   const foundry = await Foundry.launch({
     infoLog: false,
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const rollup = new EthSelfRollup(foundry.provider);
   rollup.latestBlockTag = 'latest';
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
-  afterAll(() => ccip.http.close());
+  afterAll(ccip.shutdown);
 
   // setup verifier
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });

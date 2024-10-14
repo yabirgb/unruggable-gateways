@@ -9,7 +9,7 @@ const A = '0x1234567890AbcdEF1234567890aBcdef12345678';
 
 describe('v1', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const prover = await EthProver.latest(foundry.provider);
 
   async function same(v1: GatewayRequestV1, v2: GatewayRequest) {

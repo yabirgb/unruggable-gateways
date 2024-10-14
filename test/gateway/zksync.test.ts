@@ -15,10 +15,10 @@ describe(testName(config), async () => {
     infoLog: false,
     infiniteCallGas: true, // Blake2s is ~12m gas per proof!
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, { protocol: 'raw', log: false });
-  afterAll(() => ccip.http.close());
+  afterAll(ccip.shutdown);
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
   const hooks = await foundry.deploy({

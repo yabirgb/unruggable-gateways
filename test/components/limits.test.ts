@@ -8,7 +8,7 @@ import { toPaddedHex } from '../../src/utils.js';
 
 describe('limits', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const MAX_BYTES = 257;
   const contract = await foundry.deploy({
     sol: `

@@ -49,5 +49,5 @@ async function resolve(name: string) {
   console.log({ address, avatar });
 }
 
-ccip.http.close();
+ccip.shutdown;
 await foundry.shutdown();

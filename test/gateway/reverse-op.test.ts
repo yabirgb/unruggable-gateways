@@ -15,13 +15,13 @@ describe.skipIf(!!process.env.IS_CV)(
       fork: providerURL(config.chain2),
       infoLog: false,
     });
-    afterAll(() => foundry.shutdown());
+    afterAll(foundry.shutdown);
     const rollup = new ReverseOPRollup(createProviderPair(config), config);
     // NOTE: prove against prefork block, since state diverged on our fork
     rollup.latestBlockTag = (await foundry.provider.getBlockNumber()) - 5;
     const gateway = new Gateway(rollup);
     const ccip = await serve(gateway, { protocol: 'raw', log: false });
-    afterAll(() => ccip.http.close());
+    afterAll(ccip.shutdown);
     const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({

@@ -14,13 +14,13 @@ describe(testName(config), async () => {
     fork: providerURL(config.chain1),
     infoLog: false,
   });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const gateway = new Gateway(rollup);
   const ccip = await serve(gateway, {
     protocol: 'raw',
     log: false,
   });
-  afterAll(() => ccip.http.close());
+  afterAll(ccip.shutdown);
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const hooks = await foundry.deploy({
     file: 'LineaVerifierHooks',

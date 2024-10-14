@@ -21,7 +21,7 @@ function toPaddedArray(v: Parameters<typeof toPaddedHex>[0][]) {
 
 describe('ops', async () => {
   const foundry = await Foundry.launch({ infoLog: false });
-  afterAll(() => foundry.shutdown());
+  afterAll(foundry.shutdown);
   const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
   const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
