@@ -114,7 +114,7 @@ async function createGateway(name: string) {
         ...OPFaultRollup.testnetConfig,
         minAgeSec: 6 * 3600,
       });
-    case 'base-testnet':
+    case 'base-sepolia':
       return createOPFaultGateway(OPFaultRollup.baseTestnetConfig);
     case 'reverse-op': {
       const config = ReverseOPRollup.mainnetConfig;
@@ -126,8 +126,16 @@ async function createGateway(name: string) {
       const config = NitroRollup.arb1MainnetConfig;
       return new Gateway(new NitroRollup(createProviderPair(config), config));
     }
+    case 'arb1-sepolia': {
+      const config = NitroRollup.arb1TestnetConfig;
+      return new Gateway(new NitroRollup(createProviderPair(config), config));
+    }
     case 'linea': {
       const config = LineaRollup.mainnetConfig;
+      return new Gateway(new LineaRollup(createProviderPair(config), config));
+    }
+    case 'linea-sepolia': {
+      const config = LineaRollup.testnetConfig;
       return new Gateway(new LineaRollup(createProviderPair(config), config));
     }
     case 'lineaV1': {
@@ -146,7 +154,7 @@ async function createGateway(name: string) {
       const config = ScrollRollup.mainnetConfig;
       return new Gateway(new ScrollRollup(createProviderPair(config), config));
     }
-    case 'scroll-testnet': {
+    case 'scroll-sepolia': {
       const config = ScrollRollup.testnetConfig;
       return new Gateway(new ScrollRollup(createProviderPair(config), config));
     }
