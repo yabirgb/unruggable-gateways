@@ -43,7 +43,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     DiamondProxy: '0x32400084c286cf3e17e7b677ea9583e60a000324',
   };
 
-  static readonly testnetConfig: RollupDeployment<ZKSyncConfig> = {
+  static readonly sepoliaConfig: RollupDeployment<ZKSyncConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.ZKSYNC_SEPOLIA,
     DiamondProxy: '0x9a6de0f62Aa270A8bCB1e2610078650D539B1Ef9',
