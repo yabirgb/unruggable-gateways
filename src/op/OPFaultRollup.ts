@@ -38,7 +38,7 @@ export class OPFaultRollup extends AbstractOPRollup {
     GameFinder: GAME_FINDER_MAINNET,
   };
 
-  static readonly testnetConfig: RollupDeployment<OPFaultConfig> = {
+  static readonly sepoliaConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.OP_SEPOLIA,
     OptimismPortal: '0x16Fc5058F25648194471939df75CF27A2fdC48BC',
@@ -46,7 +46,7 @@ export class OPFaultRollup extends AbstractOPRollup {
   };
 
   // https://docs.base.org/docs/base-contracts/#ethereum-testnet-sepolia
-  static readonly baseTestnetConfig: RollupDeployment<OPFaultConfig> = {
+  static readonly baseSepoliaConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.BASE_SEPOLIA,
     OptimismPortal: '0x49f53e41452C74589E85cA1677426Ba426459e85',
@@ -72,6 +72,10 @@ export class OPFaultRollup extends AbstractOPRollup {
     );
     this.minAgeSec = config.minAgeSec ?? 0;
     this.gameTypeBitMask = maskFromGameTypes(config.gameTypes);
+  }
+
+  override get unfinalized() {
+    return !!this.minAgeSec;
   }
 
   async fetchRespectedGameType(): Promise<bigint> {

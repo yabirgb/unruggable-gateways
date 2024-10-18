@@ -41,7 +41,7 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
     // https://github.com/Consensys/linea-ens/blob/main/packages/linea-ens-resolver/deployments/mainnet/SparseMerkleProof.json
     SparseMerkleProof: '0xBf8C454Af2f08fDD90bB7B029b0C2c07c2a7b4A3',
   };
-  static readonly testnetConfig: RollupDeployment<LineaConfig> = {
+  static readonly sepoliaConfig: RollupDeployment<LineaConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.LINEA_SEPOLIA,
     L1MessageService: '0xB218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5',

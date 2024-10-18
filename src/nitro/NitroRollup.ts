@@ -43,7 +43,7 @@ export class NitroRollup
     chain2: CHAINS.ARB1,
     L2Rollup: '0x5eF0D09d1E6204141B4d37530808eD19f60FBa35',
   };
-  static readonly arb1TestnetConfig: RollupDeployment<NitroConfig> = {
+  static readonly arb1SepoliaConfig: RollupDeployment<NitroConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.ARB_SEPOLIA,
     L2Rollup: '0xd80810638dbDF9081b72C1B33c65375e807281C8',
@@ -60,6 +60,10 @@ export class NitroRollup
     super(providers);
     this.L2Rollup = new Contract(config.L2Rollup, ROLLUP_ABI, this.provider1);
     this.minAgeBlocks = config.minAgeBlocks ?? 0;
+  }
+
+  override get unfinalized() {
+    return !!this.minAgeBlocks;
   }
 
   async fetchLatestNode(minAgeBlocks = 0) {

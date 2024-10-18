@@ -1,6 +1,6 @@
 import type { Serve } from 'bun';
 import type { Chain } from '../src/types.js';
-import type { Rollup, RollupDeployment } from '../src/rollup.js';
+import type { RollupDeployment, RollupCommitType } from '../src/rollup.js';
 import { createProviderPair, createProvider } from '../test/providers.js';
 import { CHAINS, chainName } from '../src/chains.js';
 import { Gateway } from '../src/gateway.js';
@@ -12,6 +12,7 @@ import { ScrollRollup } from '../src/scroll/ScrollRollup.js';
 import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
 import { LineaRollup } from '../src/linea/LineaRollup.js';
 import { LineaGatewayV1 } from '../src/linea/LineaGatewayV1.js';
+import { UnfinalizedLineaRollup } from '../src/linea/UnfinalizedLineaRollup.js';
 import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
@@ -39,19 +40,41 @@ const gateway = await createGateway(args[0]);
 const port = parseInt(args[1]) || 8000;
 
 if (prefetch) {
+  // periodically pull the latest commit so it's always fresh
   setInterval(() => gateway.getLatestCommit(), gateway.latestCache.cacheMs);
 }
 
-const config = {
+// how to configure gateway
+if (gateway instanceof Gateway) {
+  // gateway.commitDepth = 100;
+  // gateway.allowHistorical = true;
+  if (gateway.rollup.unfinalized) {
+    gateway.commitDepth = 10;
+  }
+}
+
+// how to configure rollup
+gateway.rollup.configure = (c: RollupCommitType<typeof gateway.rollup>) => {
+  c.prover.printDebug = true;
+  // c.prover.fast = false;
+  // c.prover.maxStackSize = 5;
+  // c.prover.maxUniqueProofs = 1;
+  // c.prover.maxSuppliedBytes = 256;
+  // c.prover.maxEvalDepth = 0;
+};
+
+const config: Record<string, any> = {
   gateway: gateway.constructor.name,
   rollup: gateway.rollup.constructor.name,
   chain1: chainName(gateway.rollup.provider1._network.chainId),
   chain2: chainName(gateway.rollup.provider2._network.chainId),
   since: new Date(),
-  ...paramsFromRollup(gateway.rollup), // experimental
+  unfinalized: gateway.rollup.unfinalized,
+  ...jsonFrom(gateway),
+  ...jsonFrom({ ...gateway.rollup, getLogsStepSize: undefined }),
 };
 
-console.log(new Date(), `${config.rollup} on ${port}`);
+console.log('Listening on', port, config);
 const headers = { 'access-control-allow-origin': '*' }; // TODO: cli-option to disable cors?
 export default {
   port,
@@ -64,12 +87,40 @@ export default {
       }
       case 'GET': {
         const commit = await gateway.getLatestCommit();
+        const commits = [commit];
+        if (gateway instanceof Gateway) {
+          for (const p of await Promise.allSettled(
+            Array.from(gateway.commitCacheMap.cachedKeys(), (i) =>
+              gateway.commitCacheMap.cachedValue(i)
+            )
+          )) {
+            if (p.status === 'fulfilled' && p.value && p.value !== commit) {
+              commits.push(p.value);
+            }
+          }
+        }
         return Response.json({
           ...config,
-          // TODO: add more stats
-          commit: Number(commit.index),
-          proofs: commit.prover.proofLRU.size,
-          cached: commit.prover.cache.cachedSize,
+          prover: jsonFrom({
+            ...commit.prover,
+            block: undefined,
+            batchIndex: undefined,
+            cache: {
+              fetches: commit.prover.cache.maxCached,
+              proofs: commit.prover.proofLRU.max,
+            },
+          }),
+          commits: commits.map((c) => ({
+            ...jsonFrom(c),
+            fetches: c.prover.cache.cachedSize,
+            proofs: c.prover.proofLRU.size,
+            // cache: Object.fromEntries(
+            //   Array.from(c.prover.proofMap(), ([k, v]) => [
+            //     k,
+            //     v.map(bigintToJSON),
+            //   ])
+            // ),
+          })),
         });
       }
       case 'POST': {
@@ -105,17 +156,15 @@ async function createGateway(name: string) {
     case 'unfinalized-op':
       return createOPFaultGateway({
         ...OPFaultRollup.mainnetConfig,
-        minAgeSec: 6 * 3600,
+        minAgeSec: 1,
       });
     case 'op-sepolia':
-      return createOPFaultGateway(OPFaultRollup.testnetConfig);
+      return createOPFaultGateway(OPFaultRollup.sepoliaConfig);
     case 'unfinalized-op-sepolia':
       return createOPFaultGateway({
-        ...OPFaultRollup.testnetConfig,
-        minAgeSec: 6 * 3600,
+        ...OPFaultRollup.sepoliaConfig,
+        minAgeSec: 1,
       });
-    case 'base-sepolia':
-      return createOPFaultGateway(OPFaultRollup.baseTestnetConfig);
     case 'reverse-op': {
       const config = ReverseOPRollup.mainnetConfig;
       return new Gateway(
@@ -126,22 +175,52 @@ async function createGateway(name: string) {
       const config = NitroRollup.arb1MainnetConfig;
       return new Gateway(new NitroRollup(createProviderPair(config), config));
     }
+    case 'unfinalized-arb1': {
+      const config = NitroRollup.arb1MainnetConfig;
+      return new Gateway(
+        new NitroRollup(createProviderPair(config), {
+          ...config,
+          minAgeBlocks: 1,
+        })
+      );
+    }
     case 'arb1-sepolia': {
-      const config = NitroRollup.arb1TestnetConfig;
+      const config = NitroRollup.arb1SepoliaConfig;
       return new Gateway(new NitroRollup(createProviderPair(config), config));
+    }
+    case 'unfinalized-arb1-sepolia': {
+      const config = NitroRollup.arb1SepoliaConfig;
+      return new Gateway(
+        new NitroRollup(createProviderPair(config), {
+          ...config,
+          minAgeBlocks: 1,
+        })
+      );
     }
     case 'linea': {
       const config = LineaRollup.mainnetConfig;
       return new Gateway(new LineaRollup(createProviderPair(config), config));
     }
-    case 'linea-sepolia': {
-      const config = LineaRollup.testnetConfig;
-      return new Gateway(new LineaRollup(createProviderPair(config), config));
+    case 'unfinalized-linea': {
+      const config = LineaRollup.mainnetConfig;
+      return new Gateway(
+        new UnfinalizedLineaRollup(createProviderPair(config), config, 0)
+      );
     }
     case 'lineaV1': {
       const config = LineaRollup.mainnetConfig;
       return new LineaGatewayV1(
         new LineaRollup(createProviderPair(config), config)
+      );
+    }
+    case 'linea-sepolia': {
+      const config = LineaRollup.sepoliaConfig;
+      return new Gateway(new LineaRollup(createProviderPair(config), config));
+    }
+    case 'unfinalized-linea-sepolia': {
+      const config = LineaRollup.sepoliaConfig;
+      return new Gateway(
+        new UnfinalizedLineaRollup(createProviderPair(config), config, 0)
       );
     }
     case 'polygon': {
@@ -155,7 +234,7 @@ async function createGateway(name: string) {
       return new Gateway(new ScrollRollup(createProviderPair(config), config));
     }
     case 'scroll-sepolia': {
-      const config = ScrollRollup.testnetConfig;
+      const config = ScrollRollup.sepoliaConfig;
       return new Gateway(new ScrollRollup(createProviderPair(config), config));
     }
     case 'taiko': {
@@ -170,6 +249,13 @@ async function createGateway(name: string) {
     }
     case 'base':
       return createOPGateway(OPRollup.baseMainnetConfig);
+    case 'base-sepolia':
+      return createOPFaultGateway(OPFaultRollup.baseSepoliaConfig);
+    case 'unfinalized-base-sepolia':
+      return createOPFaultGateway({
+        ...OPFaultRollup.baseSepoliaConfig,
+        minAgeSec: 1,
+      });
     case 'blast':
       return createOPGateway(OPRollup.blastMainnnetConfig);
     case 'celo-alfajores':
@@ -213,20 +299,15 @@ function createOPFaultGateway(config: RollupDeployment<OPFaultConfig>) {
   return new Gateway(new OPFaultRollup(createProviderPair(config), config));
 }
 
-function paramsFromRollup(rollup: Rollup) {
+function jsonFrom(x: object) {
   const info: Record<string, any> = {};
-  for (const [k, v] of Object.entries(rollup)) {
-    switch (k) {
-      case 'getLogsStepSize': // ignore
-        continue;
-    }
+  for (const [k, v] of Object.entries(x)) {
     if (v instanceof Contract) {
       info[k] = v.target;
     } else {
       switch (typeof v) {
         case 'bigint': {
-          const i = Number(v);
-          info[k] = Number.isInteger(i) ? i : toUnpaddedHex(v);
+          info[k] = bigintToJSON(v);
           break;
         }
         case 'string':
@@ -238,4 +319,9 @@ function paramsFromRollup(rollup: Rollup) {
     }
   }
   return info;
+}
+
+function bigintToJSON(x: bigint) {
+  const i = Number(x);
+  return Number.isSafeInteger(i) ? i : toUnpaddedHex(x);
 }

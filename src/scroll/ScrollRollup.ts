@@ -52,7 +52,7 @@ export class ScrollRollup
     apiURL: 'https://mainnet-api-re.scroll.io/api/', // https://scrollscan.com/batches
   };
   // https://sepolia.etherscan.io/address/0x64cb3A0Dcf43Ae0EE35C1C15edDF5F46D48Fa570
-  static readonly testnetConfig: RollupDeployment<ScrollConfig> = {
+  static readonly sepoliaConfig: RollupDeployment<ScrollConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.SCROLL_SEPOLIA,
     ScrollChain: '0x2D567EcE699Eabe5afCd141eDB7A4f2D0D6ce8a0',

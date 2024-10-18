@@ -14,6 +14,7 @@ import { Interface } from 'ethers/abi';
 import { keccak256 } from 'ethers/crypto';
 import { solidityPackedKeccak256 } from 'ethers/hash';
 import { dataSlice, concat, getBytes, toUtf8Bytes } from 'ethers/utils';
+import { asciiize } from '@resolverworks/ezccip';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
 import { fetchBlock, toUnpaddedHex, toPaddedHex } from './utils.js';
 import { CachedMap, LRU } from './cached.js';
@@ -507,6 +508,7 @@ export abstract class AbstractProver {
   maxEvalDepth = 5; // max = unlimited
   // use getCode() / getStorage() if no proof is cached yet
   fast = true;
+  printDebug = true;
 
   constructor(readonly provider: Provider) {}
 
@@ -867,14 +869,24 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.DEBUG: {
-          console.log(`DEBUG(${reader.readSmallStr()})`, {
-            target: vm.target,
-            slot: vm.slot,
-            exitCode: vm.exitCode,
-            stack: await Promise.all(vm.stack.map(unwrap)),
-            outputs: await vm.resolveOutputs(),
-            needs: vm.needs,
-          });
+          const label = reader.readSmallStr();
+          if (this.printDebug) {
+            // TODO: this could ask the prover for more information
+            // eg. BlockProver => block w/ stateRoot
+            // this could also include vm.storageRoot
+            const [stack, outputs] = await Promise.all([
+              vm.resolveStack(),
+              vm.resolveOutputs(),
+            ]);
+            console.log(`DEBUG(${asciiize(label)})`, {
+              target: vm.target,
+              slot: vm.slot,
+              exitCode: vm.exitCode,
+              stack,
+              outputs,
+              needs: vm.needs,
+            });
+          }
           continue;
         }
         default: {
@@ -1016,6 +1028,15 @@ export abstract class BlockProver extends AbstractProver {
     });
     this.checkProofCount(refs.length);
     for (const bucket of buckets.values()) {
+      // NOTE: technically, we only need to prove the account
+      // if the state was accessed or storage was read
+      // because we can set an invalid storageRoot
+      // but this is rare and makes machine complicated
+      // as it requires 3 states: proven true, proven false, unknown
+      // so far, only ZKSync has this functionality due to gas:
+      // see: ZKSyncHookVerifierHooks.sol:verifyAccountState()
+      // see: ZKSyncProver.ts:prove()
+      //if (bucket.need.required || bucket.map.size) {
       promises.push(this._proveNeed(bucket.need, bucket.ref, bucket.map));
     }
     await Promise.all(promises);

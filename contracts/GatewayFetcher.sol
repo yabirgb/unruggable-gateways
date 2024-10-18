@@ -74,7 +74,8 @@ library GatewayFetcher {
         string memory label
     ) internal pure returns (GatewayRequest memory) {
         bytes memory v = bytes(label);
-        return r.addByte(GatewayOP.DEBUG).push(v.length).addBytes(v);
+        if (v.length >= 256) revert RequestOverflow();
+        return r.addByte(GatewayOP.DEBUG).addByte(uint8(v.length)).addBytes(v);
     }
 
     function push(

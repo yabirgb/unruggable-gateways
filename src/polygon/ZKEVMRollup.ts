@@ -35,7 +35,7 @@ export class ZKEVMRollup extends AbstractRollup<ZKEVMCommit> {
     RollupManager: '0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2',
   };
   // https://github.com/0xPolygonHermez/cdk-erigon/tree/zkevm#networks
-  static readonly testnetConfig: RollupDeployment<ZKEVMConfig> = {
+  static readonly sepoliaConfig: RollupDeployment<ZKEVMConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.ZKEVM_CARDONA,
     RollupManager: '0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff',
@@ -52,6 +52,7 @@ export class ZKEVMRollup extends AbstractRollup<ZKEVMCommit> {
     return new this(providers, RollupManager, rollupID);
   }
 
+  // TODO: refactor to make this public
   private constructor(
     providers: ProviderPair,
     readonly RollupManager: Contract,

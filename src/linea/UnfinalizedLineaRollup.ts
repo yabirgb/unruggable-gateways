@@ -32,6 +32,10 @@ export class UnfinalizedLineaRollup extends AbstractRollup<UnfinalizedLineaCommi
     );
   }
 
+  override get unfinalized() {
+    return true;
+  }
+
   override async fetchLatestCommitIndex(): Promise<bigint> {
     const l1BlockInfo = await fetchBlock(this.provider1, this.latestBlockTag);
     const l1BlockNumber = parseInt(l1BlockInfo.number) - this.minAgeBlocks;

@@ -94,10 +94,7 @@ contract OPFaultVerifier is AbstractVerifier {
             (, , IDisputeGame gameProxy1) = _portal
                 .disputeGameFactory()
                 .gameAtIndex(gameIndex1);
-            _checkWindow(
-                Timestamp.unwrap(gameProxy1.resolvedAt()),
-                Timestamp.unwrap(gameProxy.resolvedAt())
-            );
+            _checkWindow(_getGameTime(gameProxy1), _getGameTime(gameProxy));
         }
         require(
             Claim.unwrap(gameProxy.rootClaim()) ==
@@ -115,5 +112,10 @@ contract OPFaultVerifier is AbstractVerifier {
                     _hooks
                 )
             );
+    }
+
+    function _getGameTime(IDisputeGame g) internal view returns (uint256) {
+        return
+            Timestamp.unwrap(_minAgeSec == 0 ? g.resolvedAt() : g.createdAt());
     }
 }
