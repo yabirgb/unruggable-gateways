@@ -320,7 +320,7 @@ library GatewayVM {
     function evalCommand(
         Machine memory vm,
         bytes[] memory outputs
-    ) internal view returns (uint8 exitCode) {
+    ) internal view returns (uint8 /*exitCode*/) {
         while (vm.pos < vm.buf.length) {
             //uint256 g = gasleft();
             uint8 op = vm.readByte();
@@ -340,8 +340,8 @@ library GatewayVM {
                 uint256 i = vm.popAsUint256(); // rhs evaluates BEFORE lhs
                 outputs[i] = vm.popAsBytes();
             } else if (op == GatewayOP.ASSERT) {
-                uint8 code = vm.readByte();
-                if (vm.isStackZeros(vm.pop())) return code;
+                uint8 exitCode = vm.readByte();
+                if (vm.isStackZeros(vm.pop())) return exitCode;
             } else if (op == GatewayOP.READ_SLOT) {
                 vm.pushBytes(vm.proveSlots(1));
             } else if (op == GatewayOP.READ_SLOTS) {
@@ -479,7 +479,7 @@ library GatewayVM {
                     (uint256 pos, bytes memory buf) = (vm.pos, vm.buf); // save program
                     vm.buf = program;
                     vm.pos = 0;
-                    exitCode = vm.evalCommand(outputs);
+                    uint8 exitCode = vm.evalCommand(outputs);
                     if (exitCode != 0) return exitCode;
                     (vm.pos, vm.buf) = (pos, buf); // restore program
                 }
