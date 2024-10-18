@@ -29,8 +29,10 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   // "keep fast cache around longer" => prover.cache.cacheMs = Infinity
   // "limit targets" => prover.maxUniqueTargets = 1
   configure: (<T extends C>(commit: T) => void) | undefined;
+  // block tag used for "latest" information
   latestBlockTag: BigNumberish = 'finalized';
-  getLogsStepSize = 1000;
+  // block interval for event scanning
+  getLogsStepSize = 1000; // max might be 10k?
   readonly provider1: Provider;
   readonly provider2: Provider;
   constructor(providers: ProviderPair) {
@@ -44,6 +46,10 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   protected abstract _fetchCommit(index: bigint): Promise<C>;
   abstract encodeWitness(commit: C, proofSeq: ProofSequence): HexString;
   abstract windowFromSec(sec: number): number;
+
+  get unfinalized() {
+    return false; // all rollups are finalized by default
+  }
 
   // abstract wrappers
   async fetchParentCommitIndex(commit: C) {
@@ -85,6 +91,7 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
     return v;
   }
   get defaultWindow() {
+    // TODO: this should probably be shorter, 4-6 hrs?
     return this.windowFromSec(86400);
   }
 }

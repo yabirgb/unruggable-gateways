@@ -62,6 +62,10 @@ export class NitroRollup
     this.minAgeBlocks = config.minAgeBlocks ?? 0;
   }
 
+  override get unfinalized() {
+    return !!this.minAgeBlocks;
+  }
+
   async fetchLatestNode(minAgeBlocks = 0) {
     if (minAgeBlocks) {
       const blockInfo = await fetchBlock(this.provider1, this.latestBlockTag);

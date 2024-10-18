@@ -507,6 +507,7 @@ export abstract class AbstractProver {
   maxEvalDepth = 5; // max = unlimited
   // use getCode() / getStorage() if no proof is cached yet
   fast = true;
+  printDebug = true;
 
   constructor(readonly provider: Provider) {}
 
@@ -867,14 +868,24 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.DEBUG: {
-          console.log(`DEBUG(${reader.readSmallStr()})`, {
-            target: vm.target,
-            slot: vm.slot,
-            exitCode: vm.exitCode,
-            stack: await Promise.all(vm.stack.map(unwrap)),
-            outputs: await vm.resolveOutputs(),
-            needs: vm.needs,
-          });
+          const label = reader.readSmallStr();
+          if (this.printDebug) {
+            // TODO: this could ask the prover for more information
+            // eg. BlockProver => block w/ stateRoot
+            // this could also include vm.storageRoot
+            const [stack, outputs] = await Promise.all([
+              vm.resolveStack(),
+              vm.resolveOutputs(),
+            ]);
+            console.log(`DEBUG(${label})`, {
+              target: vm.target,
+              slot: vm.slot,
+              exitCode: vm.exitCode,
+              stack,
+              outputs,
+              needs: vm.needs,
+            });
+          }
           continue;
         }
         default: {

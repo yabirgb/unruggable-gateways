@@ -117,7 +117,9 @@ export class Gateway<R extends Rollup> extends EZCCIP {
         250 // 20240926: maybe this should be cached for a bit (was 0)
       );
     }
-    throw new Error(`too old: ${index}`); //  vs (${commit.index}-${latest.index})
+    throw new Error(
+      `too old: ${index} vs ${latest.index}[depth=${this.commitDepth}]`
+    );
   }
   private cachedParentCommitIndex(
     commit: RollupCommitType<R>

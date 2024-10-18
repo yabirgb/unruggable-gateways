@@ -74,6 +74,10 @@ export class OPFaultRollup extends AbstractOPRollup {
     this.gameTypeBitMask = maskFromGameTypes(config.gameTypes);
   }
 
+  override get unfinalized() {
+    return !!this.minAgeSec;
+  }
+
   async fetchRespectedGameType(): Promise<bigint> {
     return this.OptimismPortal.respectedGameType({
       blockTag: this.latestBlockTag,

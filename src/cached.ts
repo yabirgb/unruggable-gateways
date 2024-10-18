@@ -152,7 +152,7 @@ export class CachedMap<K, V> {
     }
     return; // ree
   }
-  cachedKeys(): IterableIterator<K> {
+  cachedKeys(): MapIterator<K> {
     return this.cached.keys();
   }
   peek(key: K): Promise<V> | undefined {

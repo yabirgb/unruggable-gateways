@@ -52,6 +52,7 @@ export class ZKEVMRollup extends AbstractRollup<ZKEVMCommit> {
     return new this(providers, RollupManager, rollupID);
   }
 
+  // TODO: refactor to make this public
   private constructor(
     providers: ProviderPair,
     readonly RollupManager: Contract,
