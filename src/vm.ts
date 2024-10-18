@@ -14,6 +14,7 @@ import { Interface } from 'ethers/abi';
 import { keccak256 } from 'ethers/crypto';
 import { solidityPackedKeccak256 } from 'ethers/hash';
 import { dataSlice, concat, getBytes, toUtf8Bytes } from 'ethers/utils';
+import { asciiize } from '@resolverworks/ezccip';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
 import { fetchBlock, toUnpaddedHex, toPaddedHex } from './utils.js';
 import { CachedMap, LRU } from './cached.js';
@@ -877,7 +878,7 @@ export abstract class AbstractProver {
               vm.resolveStack(),
               vm.resolveOutputs(),
             ]);
-            console.log(`DEBUG(${label})`, {
+            console.log(`DEBUG(${asciiize(label)})`, {
               target: vm.target,
               slot: vm.slot,
               exitCode: vm.exitCode,
