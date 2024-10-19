@@ -27,7 +27,6 @@ import {
   type StateRooted,
   type LatestProverFactory,
 } from '../src/vm.js';
-import { LRU } from '../src/cached.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
 // [raffy] https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws62duoryc6.ccipr.eth
