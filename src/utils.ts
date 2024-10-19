@@ -116,3 +116,18 @@ export async function fetchBlock(provider: Provider, block: BigNumberish) {
   if (!json) throw new Error(`no block: ${block}`);
   return json;
 }
+
+export async function fetchBlockNumber(
+  provider: Provider,
+  relBlockTag: BigNumberish = 0
+): Promise<bigint> {
+  if (relBlockTag == 0) {
+    return BigInt(await provider.send('eth_blockNumber', []));
+  } else if (typeof relBlockTag === 'string') {
+    const info = await fetchBlock(provider, relBlockTag);
+    return BigInt(info.number);
+  } else {
+    const i = await fetchBlockNumber(provider, 0);
+    return i + BigInt(relBlockTag);
+  }
+}

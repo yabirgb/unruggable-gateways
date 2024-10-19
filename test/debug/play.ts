@@ -1,9 +1,17 @@
-import { GatewayRequestV1, GatewayRequest, EthProver, CHAINS,  NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup } from '../../src/index.js';
+import { GatewayRequestV1, GatewayRequest, EthProver, CHAINS,  NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup, fetchBlockNumber } from '../../src/index.js';
 import { createProvider, createProviderPair } from '../providers.js';
 
 // this is just a worksheet
 
 //console.log(createProvider(1n)._getConnection())
+
+if (1) {
+	const provider = createProvider(CHAINS.OP_SEPOLIA);
+	console.log(await fetchBlockNumber(provider, 'finalized'));
+	console.log(await fetchBlockNumber(provider, -5));
+	console.log(await fetchBlockNumber(provider, 'latest'));
+	throw 1;
+}
 
 if (0) {
 	const prover = await EthProver.latest(createProvider(CHAINS.MAINNET));

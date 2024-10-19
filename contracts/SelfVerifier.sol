@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {AbstractVerifier, IVerifierHooks} from './AbstractVerifier.sol';
-import {GatewayRequest, GatewayVM, ProofSequence, IVerifierHooks} from './GatewayVM.sol';
+import {GatewayRequest, GatewayVM, ProofSequence} from './GatewayVM.sol';
 import {RLPReader, RLPReaderExt} from './RLPReaderExt.sol';
 
 contract SelfVerifier is AbstractVerifier {

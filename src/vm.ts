@@ -3,6 +3,7 @@ import type {
   BytesLike,
   HexAddress,
   HexString,
+  HexString32,
   ProofRef,
   ProofSequence,
   ProofSequenceV1,
@@ -16,7 +17,12 @@ import { solidityPackedKeccak256 } from 'ethers/hash';
 import { dataSlice, concat, getBytes, toUtf8Bytes } from 'ethers/utils';
 import { asciiize } from '@resolverworks/ezccip';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
-import { fetchBlock, toUnpaddedHex, toPaddedHex } from './utils.js';
+import {
+  fetchBlock,
+  fetchBlockNumber,
+  toUnpaddedHex,
+  toPaddedHex,
+} from './utils.js';
 import { CachedMap, LRU } from './cached.js';
 import { GATEWAY_OP as OP } from './ops.js';
 import { ProgramReader } from './reader.js';
@@ -476,6 +482,14 @@ const GATEWAY_EXT_ABI = new Interface([
 // storage proofs stored under 0x{HexAddress}{HexSlot w/NoZeroPad} via makeStorageKey()
 export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}${slot.toString(16)}`;
+}
+
+export interface LatestProverFactory<P extends AbstractProver> {
+  latest(provider: Provider, relative: BigNumberish): Promise<P>;
+}
+
+export interface StateRooted {
+  fetchStateRoot(): Promise<HexString32>;
 }
 
 // TODO: totalAssembledBytes
@@ -950,14 +964,17 @@ export abstract class AbstractProver {
   }
 }
 
-export abstract class BlockProver extends AbstractProver {
+export abstract class BlockProver
+  extends AbstractProver
+  implements StateRooted
+{
   // absolutely disgusting typescript
   static async latest<T extends InstanceType<typeof BlockProver>>(
     this: new (...a: ConstructorParameters<typeof BlockProver>) => T,
     provider: Provider,
-    offset = 0
+    relBlockTag: BigNumberish = 0
   ) {
-    return new this(provider, (await provider.getBlockNumber()) - offset);
+    return new this(provider, await fetchBlockNumber(provider, relBlockTag));
   }
   readonly block: HexString;
   constructor(provider: Provider, block: BigNumberish) {

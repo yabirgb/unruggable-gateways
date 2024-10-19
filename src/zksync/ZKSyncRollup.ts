@@ -6,11 +6,7 @@ import type {
   ProofSequence,
 } from '../types.js';
 import { ZKSyncProver } from './ZKSyncProver.js';
-import {
-  DIAMOND_ABI,
-  type ABIZKSyncCommitBatchInfo,
-  type RPCZKSyncL1BatchDetails,
-} from './types.js';
+import { DIAMOND_ABI, type ABIZKSyncCommitBatchInfo } from './types.js';
 import { ZeroHash } from 'ethers/constants';
 import { Contract, EventLog } from 'ethers/contract';
 import { CHAINS } from '../chains.js';
@@ -71,13 +67,8 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     return commit.index - 1n;
   }
   protected override async _fetchCommit(index: bigint): Promise<ZKSyncCommit> {
-    const batchIndex = Number(index);
-    const details: RPCZKSyncL1BatchDetails | null = await this.provider2.send(
-      'zks_getL1BatchDetails',
-      [batchIndex] // rpc requires Number
-    );
-    if (!details) throw new Error(`no batch details`);
-    if (!details.rootHash) throw new Error('no rootHash');
+    const prover = new ZKSyncProver(this.provider2, Number(index));
+    const details = await prover.fetchBatchDetails();
     if (!details.commitTxHash) throw new Error('no commitTxHash');
     // 20240810: this check randomly fails even though the block is finalized
     // if (details.status !== 'verified') {
@@ -121,7 +112,6 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
         log.args.commitment,
       ]
     );
-    const prover = new ZKSyncProver(this.provider2, batchIndex);
     return {
       index,
       prover,

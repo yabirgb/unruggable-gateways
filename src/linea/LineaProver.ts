@@ -1,4 +1,4 @@
-import type { HexString, ProofRef } from '../types.js';
+import type { HexString, HexString32, ProofRef } from '../types.js';
 import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
 import { ZeroHash } from 'ethers/constants';
 import { sendImmediate, withResolvers, toPaddedHex } from '../utils.js';
@@ -14,6 +14,11 @@ export class LineaProver extends BlockProver {
   static readonly isInclusionProof = isInclusionProof;
   static readonly isContract = isContract;
   static readonly encodeProof = encodeProof;
+  stateRoot?: HexString32;
+  override async fetchStateRoot() {
+    if (!this.stateRoot) throw new Error(`unknown stateRoot`);
+    return this.stateRoot;
+  }
   override async getStorage(
     target: HexString,
     slot: bigint,

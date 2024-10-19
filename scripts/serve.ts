@@ -18,6 +18,16 @@ import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
 import { Contract } from 'ethers/contract';
 import { toUnpaddedHex } from '../src/utils.js';
+import { DebugRollup } from '../src/eth/DebugRollup.js';
+import { EthProver } from '../src/eth/EthProver.js';
+//import { LineaProver } from '../src/linea/LineaProver.js';
+import { ZKSyncProver } from '../src/zksync/ZKSyncProver.js';
+import {
+  AbstractProver,
+  type StateRooted,
+  type LatestProverFactory,
+} from '../src/vm.js';
+import { LRU } from '../src/cached.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
 // [raffy] https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws62duoryc6.ccipr.eth
@@ -150,6 +160,16 @@ export default {
 } satisfies Serve;
 
 async function createGateway(name: string) {
+  const match = name.match(/^debug:(.+)$/i);
+  if (match) {
+    const slug = match[1].toUpperCase().replaceAll('-', '_');
+    if (slug in CHAINS) {
+      const chain = CHAINS[slug as keyof typeof CHAINS];
+      return new Gateway(
+        new DebugRollup(createProvider(chain), getProverFactory(chain))
+      );
+    }
+  }
   switch (name) {
     case 'op':
       return createOPFaultGateway(OPFaultRollup.mainnetConfig);
@@ -287,6 +307,22 @@ async function createGateway(name: string) {
   }
 }
 
+function getProverFactory(
+  chain: Chain
+): LatestProverFactory<AbstractProver & StateRooted> {
+  switch (chain) {
+    case CHAINS.ZKSYNC:
+    case CHAINS.ZKSYNC_SEPOLIA:
+      return ZKSyncProver;
+    // NOTE: linea should use eth_getProof instead of linea_getProof
+    // case CHAINS.LINEA:
+    // case CHAINS.LINEA_SEPOLIA:
+    //   return LineaProver;
+    default:
+      return EthProver;
+  }
+}
+
 function createSelfGateway(chain: Chain) {
   return new Gateway(new EthSelfRollup(createProvider(chain)));
 }
@@ -302,7 +338,9 @@ function createOPFaultGateway(config: RollupDeployment<OPFaultConfig>) {
 function jsonFrom(x: object) {
   const info: Record<string, any> = {};
   for (const [k, v] of Object.entries(x)) {
-    if (v instanceof Contract) {
+    if (v instanceof LRU) {
+      info[k] = { max: v.max, size: v.size };
+    } else if (v instanceof Contract) {
       info[k] = v.target;
     } else {
       switch (typeof v) {
