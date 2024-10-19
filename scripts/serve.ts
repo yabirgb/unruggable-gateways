@@ -80,8 +80,8 @@ const config: Record<string, any> = {
   chain2: chainName(gateway.rollup.provider2._network.chainId),
   since: new Date(),
   unfinalized: gateway.rollup.unfinalized,
-  ...jsonFrom(gateway),
-  ...jsonFrom({ ...gateway.rollup, getLogsStepSize: undefined }),
+  ...toJSON(gateway),
+  ...toJSON({ ...gateway.rollup, getLogsStepSize: undefined }),
 };
 
 console.log('Listening on', port, config);
@@ -111,7 +111,7 @@ export default {
         }
         return Response.json({
           ...config,
-          prover: jsonFrom({
+          prover: toJSON({
             ...commit.prover,
             block: undefined,
             batchIndex: undefined,
@@ -121,7 +121,7 @@ export default {
             },
           }),
           commits: commits.map((c) => ({
-            ...jsonFrom(c),
+            ...toJSON(c),
             fetches: c.prover.cache.cachedSize,
             proofs: c.prover.proofLRU.size,
             // cache: Object.fromEntries(
@@ -335,12 +335,10 @@ function createOPFaultGateway(config: RollupDeployment<OPFaultConfig>) {
   return new Gateway(new OPFaultRollup(createProviderPair(config), config));
 }
 
-function jsonFrom(x: object) {
+function toJSON(x: object) {
   const info: Record<string, any> = {};
   for (const [k, v] of Object.entries(x)) {
-    if (v instanceof LRU) {
-      info[k] = { max: v.max, size: v.size };
-    } else if (v instanceof Contract) {
+    if (v instanceof Contract) {
       info[k] = v.target;
     } else {
       switch (typeof v) {
