@@ -8,7 +8,7 @@ import { type OPConfig, OPRollup } from '../src/op/OPRollup.js';
 import { type OPFaultConfig, OPFaultRollup } from '../src/op/OPFaultRollup.js';
 import { ReverseOPRollup } from '../src/op/ReverseOPRollup.js';
 import { NitroRollup } from '../src/nitro/NitroRollup.js';
-import { DoubleNitroRollup } from '../src/index.js';
+import { DoubleNitroRollup } from '../src/nitro/DoubleNitroRollup.js';
 import { ScrollRollup } from '../src/scroll/ScrollRollup.js';
 import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
 import { LineaRollup } from '../src/linea/LineaRollup.js';
