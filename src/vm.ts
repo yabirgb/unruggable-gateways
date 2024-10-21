@@ -474,6 +474,7 @@ function checkSize(size: bigint | number, limit: number) {
 }
 
 const GATEWAY_EXT_ABI = new Interface([
+  // IReadBytesAt.sol
   'function readBytesAt(uint256 slot) view returns (bytes)',
 ]);
 
@@ -486,10 +487,6 @@ export function makeStorageKey(target: HexAddress, slot: bigint) {
 
 export interface LatestProverFactory<P extends AbstractProver> {
   latest(provider: Provider, relative: BigNumberish): Promise<P>;
-}
-
-export interface StateRooted {
-  fetchStateRoot(): Promise<HexString32>;
 }
 
 // TODO: totalAssembledBytes
@@ -563,6 +560,8 @@ export abstract class AbstractProver {
       storageProofs: Array.from(order.subarray(1), (i) => proofs[i]),
     };
   }
+  // non-essential
+  abstract fetchStateRoot(): Promise<HexString32>;
 
   // machine interface
   async evalDecoded(v: BytesLike) {
@@ -964,10 +963,7 @@ export abstract class AbstractProver {
   }
 }
 
-export abstract class BlockProver
-  extends AbstractProver
-  implements StateRooted
-{
+export abstract class BlockProver extends AbstractProver {
   // absolutely disgusting typescript
   static async latest<T extends InstanceType<typeof BlockProver>>(
     this: new (...a: ConstructorParameters<typeof BlockProver>) => T,
@@ -984,7 +980,7 @@ export abstract class BlockProver
   fetchBlock() {
     return fetchBlock(this.provider, this.block);
   }
-  async fetchStateRoot() {
+  override async fetchStateRoot() {
     return (await this.fetchBlock()).stateRoot;
   }
   protected abstract _proveNeed(

@@ -4,24 +4,19 @@ import type {
   ProofSequence,
   Provider,
 } from '../types.js';
-import {
-  AbstractProver,
-  type StateRooted,
-  type LatestProverFactory,
-} from '../vm.js';
+import { AbstractProver, type LatestProverFactory } from '../vm.js';
 import { AbstractRollup, type RollupCommit } from '../rollup.js';
 import { ABI_CODER } from '../utils.js';
 import { CachedValue } from '../cached.js';
 import { VOID_PROVIDER } from '../void-provider.js';
 
-export type DebugCommit<P extends AbstractProver & StateRooted> =
-  RollupCommit<P> & {
-    readonly stateRoot: HexString32;
-  };
+export type DebugCommit<P extends AbstractProver> = RollupCommit<P> & {
+  readonly stateRoot: HexString32;
+};
 
-export class DebugRollup<
-  P extends AbstractProver & StateRooted,
-> extends AbstractRollup<DebugCommit<P>> {
+export class DebugRollup<P extends AbstractProver> extends AbstractRollup<
+  DebugCommit<P>
+> {
   readonly latest;
   constructor(
     provider2: Provider,

@@ -17,7 +17,6 @@ import {
   AbstractProver,
   isTargetNeed,
   makeStorageKey,
-  type StateRooted,
   type Need,
 } from '../vm.js';
 import { ZeroAddress } from 'ethers/constants';
@@ -30,7 +29,7 @@ export const ZKSYNC_ACCOUNT_CODEHASH =
   '0x0000000000000000000000000000000000008002';
 
 // zksync proofs are relative to a *batch* not a *block*
-export class ZKSyncProver extends AbstractProver implements StateRooted {
+export class ZKSyncProver extends AbstractProver {
   static readonly encodeProof = encodeProof;
   static async latestBatchIndex(
     provider: Provider,
@@ -63,7 +62,7 @@ export class ZKSyncProver extends AbstractProver implements StateRooted {
     if (!json.rootHash) throw new Error(`unprovable batch: ${this.batchIndex}`);
     return json;
   }
-  async fetchStateRoot() {
+  override async fetchStateRoot() {
     return (await this.fetchBatchDetails()).rootHash!;
   }
   override async isContract(target: HexAddress): Promise<boolean> {

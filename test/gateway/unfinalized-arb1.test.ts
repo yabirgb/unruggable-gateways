@@ -26,12 +26,12 @@ describe.skipIf(!!process.env.IS_CI)(
     const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
     const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
     const verifier = await foundry.deploy({
-      file: 'UnfinalizedNitroVerifier',
+      file: 'NitroVerifier',
       args: [
         [ccip.endpoint],
         rollup.defaultWindow,
         hooks,
-        rollup.L2Rollup,
+        rollup.Rollup,
         rollup.minAgeBlocks,
       ],
       libs: { GatewayVM },

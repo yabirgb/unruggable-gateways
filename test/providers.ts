@@ -245,6 +245,25 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         rpc: 'https://alfajores-forno.celo-testnet.org',
         //infura: 'celo-alfajores', // 20241002: eth_getProof doesn't work
       },
+      {
+        // https://docs.worldcoin.org/world-chain/quick-start/info
+        chain: CHAINS.WORLD,
+        rpc: 'https://worldchain-mainnet.g.alchemy.com/public',
+        alchemy: 'worldchain-mainnet',
+      },
+      {
+        chain: CHAINS.WORLD_SEPOLIA,
+        rpc: 'https://worldchain-sepolia.g.alchemy.com/public',
+        alchemy: 'worldchain-sepolia',
+      },
+      // https://docs.apechain.com/metamask
+      // https://apechain.hub.caldera.xyz/
+      {
+        chain: CHAINS.APE,
+        rpc: 'https://rpc.apechain.com/http',
+        // wss://rpc.apechain.com/ws
+        // https://apechain.calderachain.xyz/http
+      },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])
 );

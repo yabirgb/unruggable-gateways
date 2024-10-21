@@ -8,6 +8,7 @@ import { type OPConfig, OPRollup } from '../src/op/OPRollup.js';
 import { type OPFaultConfig, OPFaultRollup } from '../src/op/OPFaultRollup.js';
 import { ReverseOPRollup } from '../src/op/ReverseOPRollup.js';
 import { NitroRollup } from '../src/nitro/NitroRollup.js';
+import { DoubleNitroRollup } from '../src/index.js';
 import { ScrollRollup } from '../src/scroll/ScrollRollup.js';
 import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
 import { LineaRollup } from '../src/linea/LineaRollup.js';
@@ -22,11 +23,7 @@ import { DebugRollup } from '../src/eth/DebugRollup.js';
 import { EthProver } from '../src/eth/EthProver.js';
 //import { LineaProver } from '../src/linea/LineaProver.js';
 import { ZKSyncProver } from '../src/zksync/ZKSyncProver.js';
-import {
-  AbstractProver,
-  type StateRooted,
-  type LatestProverFactory,
-} from '../src/vm.js';
+import { AbstractProver, type LatestProverFactory } from '../src/vm.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
 // [raffy] https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws62duoryc6.ccipr.eth
@@ -62,7 +59,7 @@ if (gateway instanceof Gateway) {
   }
 }
 
-// how to configure rollup
+// how to configure prover
 gateway.rollup.configure = (c: RollupCommitType<typeof gateway.rollup>) => {
   c.prover.printDebug = true;
   // c.prover.fast = false;
@@ -275,6 +272,17 @@ async function createGateway(name: string) {
         ...OPFaultRollup.baseSepoliaConfig,
         minAgeSec: 1,
       });
+    case 'unfinalized-ape': {
+      const config12 = { ...NitroRollup.arb1MainnetConfig, minAgeBlocks: 1 };
+      const config23 = { ...NitroRollup.apeMainnetConfig, minAgeBlocks: 1 };
+      return new Gateway(
+        new DoubleNitroRollup(
+          new NitroRollup(createProviderPair(config12), config12),
+          createProvider(config23.chain2),
+          config23
+        )
+      );
+    }
     case 'blast':
       return createOPGateway(OPRollup.blastMainnnetConfig);
     case 'celo-alfajores':
@@ -306,9 +314,7 @@ async function createGateway(name: string) {
   }
 }
 
-function getProverFactory(
-  chain: Chain
-): LatestProverFactory<AbstractProver & StateRooted> {
+function getProverFactory(chain: Chain): LatestProverFactory<AbstractProver> {
   switch (chain) {
     case CHAINS.ZKSYNC:
     case CHAINS.ZKSYNC_SEPOLIA:

@@ -42,6 +42,9 @@ export const CHAINS = {
   BSC: 56n,
   OP_BNB: 204n,
   CELO_ALFAJORES: 44787n,
+  WORLD: 480n,
+  WORLD_SEPOLIA: 4801n,
+  APE: 33139n,
 } as const satisfies Record<string, Chain>;
 
 // const NAMES = new Map<Chain, string>(
