@@ -21,8 +21,8 @@ describe('hashed', async () => {
   async function deployContract(fast: boolean) {
     return foundry.deploy({
       sol: `
-        import {IReadBytesAt} from '@src/IReadBytesAt.sol';
-        contract ${fast ? 'Fast is IReadBytesAt' : 'Slow'} {
+        import {ReadBytesAt} from '@src/ReadBytesAt.sol';
+        contract ${fast ? 'Fast is ReadBytesAt' : 'Slow'} {
           struct Prefixed {
             bytes32 hash;
             bytes value;
@@ -40,12 +40,6 @@ describe('hashed', async () => {
           function _update(Prefixed storage p, bytes memory v) internal {
             p.value = v;
             p.hash = keccak256(v);
-          }
-          // gateway extension (optional)
-          function ${fast ? 'readBytesAt' : '_disabled'}(uint256 slot) external view returns (bytes memory) {
-            bytes storage v;
-            assembly { v.slot := slot }
-            return v;
           }
         }
       `,

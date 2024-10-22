@@ -47,7 +47,7 @@
     "contracts/IGatewayProtocol.sol",
     "contracts/IGatewayVerifier.sol",
     "contracts/IVerifierHooks.sol",
-    "contracts/IReadBytesAt.sol"
+    "contracts/ReadBytesAt.sol"
   ],
   "devDependencies": {
     "@adraffy/blocksmith": "^0.0.40",
