@@ -50,7 +50,7 @@
     "contracts/ReadBytesAt.sol"
   ],
   "devDependencies": {
-    "@adraffy/blocksmith": "^0.0.40",
+    "@adraffy/blocksmith": "^0.0.43",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
@@ -60,7 +60,7 @@
     "prettier": "^3.3.3"
   },
   "dependencies": {
-    "@resolverworks/ezccip": "^0.0.20",
+    "@resolverworks/ezccip": "^0.0.22",
     "ethers": "^6.13.4"
   },
   "peerDependencies": {

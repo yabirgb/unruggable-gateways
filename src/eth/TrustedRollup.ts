@@ -30,7 +30,6 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
     readonly signingKey: SigningKey
   ) {
     super({ provider1: VOID_PROVIDER, provider2 });
-    this.latestBlockTag = 'latest';
     this.latest = new CachedValue<TrustedCommit<P>>(async () => {
       const prover = await factory.latest(this.provider2, this.latestBlockTag);
       const stateRoot = await prover.fetchStateRoot();

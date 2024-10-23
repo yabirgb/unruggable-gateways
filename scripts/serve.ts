@@ -36,12 +36,16 @@ import { AbstractProver, type LatestProverFactory } from '../src/vm.js';
 // 6. https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4b2f4xwy33dmfwgq33toq5dqmbqgaxq.ccipr.eth
 
 let prefetch = !!process.env.PREFETCH;
+let latestBlockTag = process.env.LATEST_BLOCK_TAG || 'finalized';
 let signingKey =
   process.env.SIGNING_KEY ||
   '0xbd1e630bd00f12f0810083ea3bd2be936ead3b2fa84d1bd6690c77da043e9e02'; // 0xd00d from ezccip demo
 const args = process.argv.slice(2).filter((x) => {
   if (x === '--prefetch') {
     prefetch = true;
+    return;
+  } else if (x === '--latest') {
+    latestBlockTag = 'latest';
     return;
   } else if (/^0x[0-9a-f]{64}$/i.test(x)) {
     signingKey = x;
@@ -58,6 +62,7 @@ if (prefetch) {
 }
 
 // how to configure gateway
+gateway.rollup.latestBlockTag = latestBlockTag;
 if (gateway instanceof Gateway) {
   // gateway.commitDepth = 100;
   // gateway.allowHistorical = true;
