@@ -40,7 +40,7 @@ export class ZKSyncProver extends AbstractProver {
     // we could simulate "finalized" using some fixed offset
     if (typeof relative === 'string') relative = 0;
     const batchIndex = Number(await provider.send('zks_L1BatchNumber', []));
-    return batchIndex + (typeof relative === 'string' ? 0 : Number(relative));
+    return batchIndex + Number(relative); //(typeof relative === 'string' ? 0 : Number(relative));
   }
   static async latest(provider: Provider, relative: BigNumberish = 0) {
     return new this(provider, await this.latestBatchIndex(provider, relative));
@@ -63,7 +63,7 @@ export class ZKSyncProver extends AbstractProver {
     return json;
   }
   override async fetchStateRoot() {
-    return (await this.fetchBatchDetails()).rootHash!;
+    return (await this.fetchBatchDetails()).rootHash;
   }
   override async isContract(target: HexAddress): Promise<boolean> {
     const storageProof: ZKSyncStorageProof | undefined =

@@ -18,8 +18,9 @@ import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
 import { Contract } from 'ethers/contract';
+import { SigningKey } from 'ethers/crypto';
 import { toUnpaddedHex } from '../src/utils.js';
-import { DebugRollup } from '../src/eth/DebugRollup.js';
+import { TrustedRollup } from '../src/eth/TrustedRollup.js';
 import { EthProver } from '../src/eth/EthProver.js';
 //import { LineaProver } from '../src/linea/LineaProver.js';
 import { ZKSyncProver } from '../src/zksync/ZKSyncProver.js';
@@ -34,16 +35,22 @@ import { AbstractProver, type LatestProverFactory } from '../src/vm.js';
 // 5. click (Resolve)
 // 6. https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4b2f4xwy33dmfwgq33toq5dqmbqgaxq.ccipr.eth
 
-let prefetch = false;
+let prefetch = !!process.env.PREFETCH;
+let signingKey =
+  process.env.SIGNING_KEY ||
+  '0xbd1e630bd00f12f0810083ea3bd2be936ead3b2fa84d1bd6690c77da043e9e02'; // 0xd00d from ezccip demo
 const args = process.argv.slice(2).filter((x) => {
   if (x === '--prefetch') {
     prefetch = true;
-    return false;
+    return;
+  } else if (/^0x[0-9a-f]{64}$/i.test(x)) {
+    signingKey = x;
+    return;
   }
   return true;
 });
 const gateway = await createGateway(args[0]);
-const port = parseInt(args[1]) || 8000;
+const port = parseInt(args[1] || process.env.PORT || '') || 8000;
 
 if (prefetch) {
   // periodically pull the latest commit so it's always fresh
@@ -76,9 +83,14 @@ const config: Record<string, any> = {
   chain2: chainName(gateway.rollup.provider2._network.chainId),
   since: new Date(),
   unfinalized: gateway.rollup.unfinalized,
+  prefetch,
   ...toJSON(gateway),
   ...toJSON({ ...gateway.rollup, getLogsStepSize: undefined }),
 };
+
+if (gateway.rollup instanceof TrustedRollup) {
+  config.signer = gateway.rollup.signerAddress;
+}
 
 console.log('Listening on', port, config);
 const headers = { 'access-control-allow-origin': '*' }; // TODO: cli-option to disable cors?
@@ -156,13 +168,17 @@ export default {
 } satisfies Serve;
 
 async function createGateway(name: string) {
-  const match = name.match(/^debug:(.+)$/i);
+  const match = name.match(/^trusted:(.+)$/i);
   if (match) {
     const slug = match[1].toUpperCase().replaceAll('-', '_');
     if (slug in CHAINS) {
       const chain = CHAINS[slug as keyof typeof CHAINS];
       return new Gateway(
-        new DebugRollup(createProvider(chain), getProverFactory(chain))
+        new TrustedRollup(
+          createProvider(chain),
+          getProverFactory(chain),
+          new SigningKey(signingKey)
+        )
       );
     }
   }

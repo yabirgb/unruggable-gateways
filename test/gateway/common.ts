@@ -1,8 +1,12 @@
 import type { Chain, ChainPair, HexAddress } from '../../src/types.js';
 import type { RollupDeployment } from '../../src/rollup.js';
 import { Gateway } from '../../src/gateway.js';
-import { createProviderPair, providerURL } from '../providers.js';
-import { chainName } from '../../src/chains.js';
+import {
+  createProvider,
+  createProviderPair,
+  providerURL,
+} from '../providers.js';
+import { chainName, CHAINS } from '../../src/chains.js';
 import { serve } from '@resolverworks/ezccip/serve';
 import { DeployedContract, Foundry } from '@adraffy/blocksmith';
 import { runSlotDataTests } from './tests.js';
@@ -16,6 +20,9 @@ import {
   ScrollRollup,
 } from '../../src/scroll/ScrollRollup.js';
 import { EthSelfRollup } from '../../src/eth/EthSelfRollup.js';
+import { TrustedRollup } from '../../src/eth/TrustedRollup.js';
+import { EthProver } from '../../src/eth/EthProver.js';
+import { randomBytes, SigningKey } from 'ethers/crypto';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
@@ -184,4 +191,34 @@ export function testSelfEth(chain: Chain, opts: TestOptions) {
     });
     await setupTests(verifier, opts);
   });
+}
+
+export function testTrustedEth(chain2: Chain, opts: TestOptions) {
+  describe.skipIf(!!process.env.IS_CI)(
+    testName({ chain1: CHAINS.VOID, chain2 }),
+    async () => {
+      const foundry = await Foundry.launch({
+        fork: providerURL(chain2),
+        infoLog: !!opts.log,
+      });
+      const rollup = new TrustedRollup(
+        createProvider(chain2),
+        EthProver,
+        new SigningKey(randomBytes(32))
+      );
+      afterAll(foundry.shutdown);
+      const gateway = new Gateway(rollup);
+      const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
+      afterAll(ccip.shutdown);
+      const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+      const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
+      const verifier = await foundry.deploy({
+        file: 'TrustedVerifier',
+        args: [[ccip.endpoint], rollup.defaultWindow, hooks],
+        libs: { GatewayVM },
+      });
+      await foundry.confirm(verifier.setSigner(rollup.signerAddress, true));
+      await setupTests(verifier, opts);
+    }
+  );
 }
