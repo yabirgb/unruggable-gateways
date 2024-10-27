@@ -2,7 +2,6 @@ import { createServer } from 'node:http';
 import { FetchRequest, JsonRpcProvider, JsonRpcPayload } from 'ethers';
 import { test, afterAll, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
-import { sendRetry, sendImmediate } from '../../src/utils.js';
 
 describe('providers', async () => {
   const maxAttempts = 10;
@@ -47,23 +46,5 @@ describe('providers', async () => {
 
   test('retry exceeded', async () => {
     expect(createProvider(maxAttempts, 429).send('X', [])).rejects.toThrow();
-  });
-
-  test('sendRetry max', async () => {
-    expect(
-      sendRetry(createProvider(maxAttempts, 201), 'X', [], maxAttempts)
-    ).resolves.toBeDefined();
-  });
-
-  test('sendRetry exceeded', async () => {
-    expect(
-      sendRetry(createProvider(maxAttempts + 1, 201), 'X', [], maxAttempts)
-    ).rejects.toThrow();
-  });
-
-  test('sendImmediate', async () => {
-    const a = await createProvider().send('X', []);
-    const b = await sendImmediate(createProvider(), 'X', []);
-    expect(a).toEqual(b);
   });
 });

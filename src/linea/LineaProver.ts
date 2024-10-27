@@ -1,7 +1,7 @@
 import type { HexString, HexString32, ProofRef } from '../types.js';
 import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
 import { ZeroHash } from 'ethers/constants';
-import { sendImmediate, withResolvers, toPaddedHex } from '../utils.js';
+import { withResolvers, toPaddedHex } from '../utils.js';
 import {
   type LineaProof,
   type RPCLineaGetProof,
@@ -148,13 +148,14 @@ export class LineaProver extends BlockProver {
     };
   }
   async fetchProofs(target: HexString, slots: bigint[] = []) {
-    const ps = [];
+    const ps: Promise<RPCLineaGetProof>[] = [];
     for (let i = 0; ; ) {
       ps.push(
         // 20240825: most cloud providers seem to reject batched getProof
         // since we aren't in control of provider construction (ie. batchMaxSize)
         // sendImmediate is a temporary hack to avoid this issue
-        sendImmediate<RPCLineaGetProof>(this.provider, 'linea_getProof', [
+        // 20241027: switch to RetryProvider
+        this.provider.send('linea_getProof', [
           target,
           slots
             .slice(i, (i += this.proofBatchSize))

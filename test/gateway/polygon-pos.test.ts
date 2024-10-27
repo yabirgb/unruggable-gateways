@@ -11,9 +11,6 @@ const config = PolygonPoSRollup.mainnetConfig;
 // 20240923: disabled until polygon has non-erigon rpcs
 describe.skipIf(!!process.env.IS_CI)(testName(config), async () => {
   const rollup = new PolygonPoSRollup(createProviderPair(config), config);
-  rollup.configure = (c) => {
-    c.prover.proofRetryCount = 5; // hack for failing eth_getProof
-  };
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),
     infoLog: false,
@@ -31,7 +28,7 @@ describe.skipIf(!!process.env.IS_CI)(testName(config), async () => {
       rollup.defaultWindow,
       hooks,
       rollup.RootChain,
-      rollup.poster,
+      rollup.poster.address,
     ],
     libs: { GatewayVM },
   });

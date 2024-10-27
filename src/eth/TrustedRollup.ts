@@ -8,7 +8,7 @@ import { AbstractProver, type LatestProverFactory } from '../vm.js';
 import { AbstractRollup, type RollupCommit } from '../rollup.js';
 import { ABI_CODER } from '../utils.js';
 import { CachedValue } from '../cached.js';
-import { VOID_PROVIDER } from '../void-provider.js';
+import { VOID_PROVIDER } from '../VoidProvider.js';
 import { ZeroAddress } from 'ethers/constants';
 import { SigningKey } from 'ethers/crypto';
 import { computeAddress } from 'ethers/transaction';

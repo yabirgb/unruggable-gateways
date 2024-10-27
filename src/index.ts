@@ -5,7 +5,7 @@ export * from './cached.js';
 export * from './utils.js';
 export * from './rlp.js';
 export * from './chains.js';
-export * from './void-provider.js';
+export * from './VoidProvider.js';
 
 //export * from './ops.js'; use GatewayRequest.Opcodes instead
 export * from './reader.js';

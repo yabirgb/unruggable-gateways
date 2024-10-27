@@ -4,8 +4,10 @@ import { encodeRlp, type RlpStructuredDataish } from 'ethers/utils';
 
 // https://ethereum.github.io/execution-specs/src/ethereum/rlp.py.html
 
-export function encodeRlpUint(x?: BigNumberish): HexString | undefined {
-  if (x === undefined) return x;
+export function encodeRlpUint(
+  x: BigNumberish | undefined | null
+): HexString | undefined {
+  if (x === undefined || x === null) return;
   const s = BigInt(x).toString(16);
   return s === '0' ? '0x' : s.length & 1 ? `0x0${s}` : `0x${s}`;
   // same as: return hexlify(toBeArray(x));
@@ -36,10 +38,12 @@ export function encodeRlpBlock(block: RPCEthGetBlock): HexString {
     block.extraData,
     block.mixHash,
     block.nonce,
+    // optional
     encodeRlpUint(block.baseFeePerGas),
     block.withdrawalsRoot,
     encodeRlpUint(block.blobGasUsed),
     encodeRlpUint(block.excessBlobGas),
     block.parentBeaconBlockRoot,
+    block.requestsRoot,
   ]);
 }

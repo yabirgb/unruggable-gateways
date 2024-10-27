@@ -8,12 +8,11 @@ import {
 } from './types.js';
 import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
 import { ZeroHash } from 'ethers/constants';
-import { sendRetry, withResolvers, toPaddedHex } from '../utils.js';
+import { withResolvers, toPaddedHex } from '../utils.js';
 
 export class EthProver extends BlockProver {
   static readonly encodeProof = encodeProof;
   static readonly isContract = isContract;
-  proofRetryCount = 0;
   override async isContract(target: HexAddress) {
     target = target.toLowerCase();
     if (this.fast) {
@@ -135,21 +134,16 @@ export class EthProver extends BlockProver {
     target: HexAddress,
     slots: bigint[] = []
   ): Promise<RPCEthGetProof> {
-    const ps = [];
+    const ps: Promise<RPCEthGetProof>[] = [];
     for (let i = 0; ; ) {
       ps.push(
-        sendRetry<RPCEthGetProof>(
-          this.provider,
-          'eth_getProof',
-          [
-            target,
-            slots
-              .slice(i, (i += this.proofBatchSize))
-              .map((slot) => toPaddedHex(slot)),
-            this.block,
-          ],
-          this.proofRetryCount
-        )
+        this.provider.send('eth_getProof', [
+          target,
+          slots
+            .slice(i, (i += this.proofBatchSize))
+            .map((slot) => toPaddedHex(slot)),
+          this.block,
+        ])
       );
       if (i >= slots.length) break;
     }

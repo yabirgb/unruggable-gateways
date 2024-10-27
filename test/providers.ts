@@ -1,7 +1,7 @@
 import type { Chain, ChainPair, Provider, ProviderPair } from '../src/types.js';
 import { CHAINS } from '../src/chains.js';
 import { FetchRequest } from 'ethers/utils';
-import { JsonRpcProvider } from 'ethers/providers';
+import { GatewayProvider } from '../src/GatewayProvider.js';
 
 export type RPCInfo = {
   readonly chain: Chain;
@@ -311,19 +311,14 @@ export function providerType(chain: Chain): string {
   return decideProvider(chain).type;
 }
 
-// export function chainPairName(pair: ChainPair): string {
-//   const a = decideProvider(pair.chain1);
-//   const b = decideProvider(pair.chain2);
-//   return `${a.info.name}<${a.info.chain}>${a.type}>>${b.info.name}<${b.info.chain}>${b.type}`;
-// }
-
 export function createProvider(chain: Chain): Provider {
   const fr = new FetchRequest(providerURL(chain));
-  fr.timeout = 15000; // 5 minutes is too long
-  //fr.setThrottleParams({ maxAttempts: 20 }); // default is 12
-  return new JsonRpcProvider(fr, chain, {
-    staticNetwork: true,
-  });
+  fr.timeout = 5000; // 5 minutes is too long
+  // fr.preflightFunc = async (req) => {
+  //   console.log(req.url);
+  //   return req;
+  // };
+  return new GatewayProvider(fr, chain);
 }
 
 export function createProviderPair(

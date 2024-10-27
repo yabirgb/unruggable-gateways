@@ -507,7 +507,7 @@ export abstract class AbstractProver {
   // maximum number of targets (accountProofs)
   maxUniqueTargets = 32; // max = maxUniqueProofs
   // maximum number of proofs per _getProof
-  proofBatchSize = 64; // max = unlimited
+  proofBatchSize = 16; // max = unlimited
   // maximum bytes from single readHashedBytes(), readFetchedBytes()
   // when readBytesAt() is not available
   maxSuppliedBytes = 13125 << 5; // max = unlimited, ~420KB @ 30m gas
