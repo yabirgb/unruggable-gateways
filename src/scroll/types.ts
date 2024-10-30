@@ -16,6 +16,23 @@ export const ROLLUP_ABI = new Interface([
     bytes32 stateRoot,
     bytes32 withdrawRoot
   )`,
+  `event CommitBatch(
+    uint256 indexed batchIndex,
+    bytes32 indexed batchHash
+  )`,
+  `function commitBatchWithBlobProof(
+    uint8 version,
+    bytes parentBatchHeader,
+    bytes[] chunks,
+    bytes skippedL1MessageBitmap,
+    bytes blobDataProof
+  )`,
+  `function commitBatch(
+     uint8 version,
+     bytes calldata parentBatchHeader,
+     bytes[] memory chunks,
+     bytes calldata skippedL1MessageBitmap
+   )`,
 ]);
 
 // export const POSEIDON_ABI = new Interface([
