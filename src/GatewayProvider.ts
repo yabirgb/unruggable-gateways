@@ -51,10 +51,13 @@ export class GatewayProvider extends JsonRpcProvider {
     let backoff = 250;
     for (let attempt = 0; ; attempt++) {
       try {
-        // ethers bug: this type is wrong
+        // ethers bug: return type is wrong
+        // expected: (JsonRpcResult | JsonRpcErrror)[]
         const results: any[] = await super._send(payload);
         if (!results.some((x) => x.error?.code === 429)) {
-          // what the fuck is this
+          // handle alchemy weirdness
+          // note: this is only supposed to happen over WebSocket
+          // note: there is no header "retry-after"
           // https://docs.alchemy.com/reference/throughput
           return results;
         }

@@ -19,14 +19,6 @@ contract TrustedVerifier is IGatewayVerifier {
 
     mapping(address fetcher => Config) _configs;
 
-    function gatewayURLs() external view returns (string[] memory) {
-        return _configs[msg.sender].urls;
-    }
-
-    function getLatestContext() external view returns (bytes memory) {
-        return abi.encode(block.timestamp, msg.sender);
-    }
-
     modifier _canModifyFetcher(address op, address fetcher) {
         if (fetcher == op) {
             require(fetcher.code.length != 0, 'Trusted: not code');
@@ -80,6 +72,14 @@ contract TrustedVerifier is IGatewayVerifier {
         address signer
     ) external view returns (bool) {
         return _configs[sender].signers[signer];
+    }
+
+    function gatewayURLs() external view returns (string[] memory) {
+        return _configs[msg.sender].urls;
+    }
+
+    function getLatestContext() external view returns (bytes memory) {
+        return abi.encode(block.timestamp, msg.sender);
     }
 
     struct GatewayProof {

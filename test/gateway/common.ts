@@ -208,6 +208,7 @@ export function testTrustedEth(chain2: Chain, opts: TestOptions) {
         EthProver,
         new SigningKey(randomBytes(32))
       );
+      rollup.latestBlockTag = 'latest';
       afterAll(foundry.shutdown);
       const gateway = new Gateway(rollup);
       const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });

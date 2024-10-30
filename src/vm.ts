@@ -474,7 +474,7 @@ function checkSize(size: bigint | number, limit: number) {
 }
 
 const GATEWAY_EXT_ABI = new Interface([
-  // IReadBytesAt.sol
+  // ReadBytesAt.sol
   'function readBytesAt(uint256 slot) view returns (bytes)',
 ]);
 
@@ -560,7 +560,10 @@ export abstract class AbstractProver {
       storageProofs: Array.from(order.subarray(1), (i) => proofs[i]),
     };
   }
-  // non-essential
+  // NOTE: if a prover cannot provide this value, throw
+  // eg. LineaProver stateRoot is part of the rollup machinery
+  // a block-derived LineaProver doesn't have a stateRoot
+  // whereas LineaRollup => getCommit() => prover does (from L1)
   abstract fetchStateRoot(): Promise<HexString32>;
 
   // machine interface

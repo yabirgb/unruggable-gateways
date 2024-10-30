@@ -154,7 +154,7 @@ export class LineaProver extends BlockProver {
         // 20240825: most cloud providers seem to reject batched getProof
         // since we aren't in control of provider construction (ie. batchMaxSize)
         // sendImmediate is a temporary hack to avoid this issue
-        // 20241027: switch to RetryProvider
+        // 20241027: use GatewayProvider
         this.provider.send('linea_getProof', [
           target,
           slots

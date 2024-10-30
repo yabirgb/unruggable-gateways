@@ -343,6 +343,9 @@ function getProverFactory(chain: Chain): LatestProverFactory<AbstractProver> {
     case CHAINS.ZKSYNC_SEPOLIA:
       return ZKSyncProver;
     // NOTE: linea should use eth_getProof instead of linea_getProof
+    // NOTE: this probably needs "--latest" cli option too
+    // rollup => SMT w/Mimc root using linea_getProof
+    // chain => PMT w/Keccak root using eth_getProof
     // case CHAINS.LINEA:
     // case CHAINS.LINEA_SEPOLIA:
     //   return LineaProver;

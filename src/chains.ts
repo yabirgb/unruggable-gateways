@@ -47,10 +47,6 @@ export const CHAINS = {
   APE: 33139n,
 } as const satisfies Record<string, Chain>;
 
-// const NAMES = new Map<Chain, string>(
-//   Object.entries(CHAINS).map(([a, b]) => [b, a])
-// );
-
 export function chainName(chain: Chain): string {
   for (const [name, c] of Object.entries(CHAINS)) {
     if (c === chain) return name;
