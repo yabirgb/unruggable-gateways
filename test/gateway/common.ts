@@ -48,7 +48,8 @@ type TestOptions = {
 
 export async function setupTests(
   verifier: DeployedContract,
-  opts: TestOptions
+  opts: TestOptions,
+  configure?: (fetcher: DeployedContract) => Promise<void>
 ) {
   const foundry = Foundry.of(verifier);
   const reader = await foundry.deploy({
@@ -58,6 +59,7 @@ export async function setupTests(
   if (opts.slotDataPointer) {
     await foundry.confirm(reader.setPointer(opts.slotDataPointer));
   }
+  await configure?.(reader);
   runSlotDataTests(reader, !!opts.slotDataPointer, !!opts.skipZero);
 }
 
@@ -214,11 +216,21 @@ export function testTrustedEth(chain2: Chain, opts: TestOptions) {
       const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
       const verifier = await foundry.deploy({
         file: 'TrustedVerifier',
-        args: [[ccip.endpoint], rollup.defaultWindow, hooks],
         libs: { GatewayVM },
       });
-      await foundry.confirm(verifier.setSigner(rollup.signerAddress, true));
-      await setupTests(verifier, opts);
+      await setupTests(verifier, opts, async (fetcher) => {
+        await foundry.confirm(
+          verifier.setConfig(
+            fetcher,
+            [ccip.endpoint],
+            rollup.defaultWindow,
+            hooks
+          )
+        );
+        await foundry.confirm(
+          verifier.setSigner(fetcher, rollup.signerAddress, true)
+        );
+      });
     }
   );
 }

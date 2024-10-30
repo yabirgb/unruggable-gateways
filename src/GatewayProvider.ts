@@ -8,6 +8,7 @@ import {
 import { FetchRequest } from 'ethers/utils';
 
 function shouldNeverBatch(payload: JsonRpcPayload) {
+  // see: LineaProver.ts:fetchProofs()
   return payload.method === 'linea_getProof';
 }
 
@@ -38,10 +39,9 @@ export class GatewayProvider extends JsonRpcProvider {
       });
       if (batch.length) {
         ps.push(this._sendWithRetry(batch).then(resolve, reject));
-        return Promise.all(ps).then(() => Promise.all(ret));
-      } else {
-        return Promise.all(ret);
+        await Promise.all(ps);
       }
+      return Promise.all(ret);
     }
     return this._sendWithRetry(payload);
   }
@@ -72,7 +72,6 @@ export class GatewayProvider extends JsonRpcProvider {
           throw err;
         }
       }
-      //console.log('retry');
       this.emit('debug', { action: 'retry', attempt });
       await new Promise((ful) => setTimeout(ful, backoff));
       backoff *= 2;

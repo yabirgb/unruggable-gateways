@@ -3,15 +3,16 @@ pragma solidity ^0.8.0;
 
 import {GatewayFetchTarget, IGatewayVerifier} from '../../contracts/GatewayFetchTarget.sol';
 import {GatewayFetcher, GatewayRequest} from '../../contracts/GatewayFetcher.sol';
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
-contract SlotDataReader is GatewayFetchTarget {
+contract SlotDataReader is GatewayFetchTarget, Ownable {
     using GatewayFetcher for GatewayRequest;
 
     IGatewayVerifier public _verifier;
     address public _target;
     address public _pointer;
 
-    constructor(IGatewayVerifier verifier, address target) {
+    constructor(IGatewayVerifier verifier, address target) Ownable(msg.sender) {
         _verifier = verifier;
         _target = target;
     }

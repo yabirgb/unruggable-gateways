@@ -73,7 +73,7 @@ export class UnfinalizedLineaRollup extends AbstractRollup<UnfinalizedLineaCommi
       index
     );
     if (!event) throw new Error(`no DataSubmittedV2`);
-    const tx = await this.provider1.getTransaction(event.transactionHash);
+    const tx = await event.getTransaction();
     if (!tx || !tx.blockNumber || !tx.blobVersionedHashes) {
       throw new Error(`no submit tx: ${event.transactionHash}`);
     }
