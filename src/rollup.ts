@@ -56,7 +56,7 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
     try {
       if (!commit.index) throw undefined;
       const index = await this._fetchParentCommitIndex(commit);
-      if (index >= commit.index) throw new Error('bug');
+      if (index >= commit.index) throw new Error(`${index} >= ${commit.index}`);
       if (index < 0) throw undefined;
       return index;
     } catch (cause) {
@@ -66,6 +66,7 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
   async fetchCommit(index: bigint) {
     try {
       const commit = await this._fetchCommit(index);
+      if (commit.index != index) throw new Error(`${index} != ${commit.index}`);
       this.configure?.(commit);
       return commit;
     } catch (cause) {

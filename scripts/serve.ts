@@ -8,6 +8,7 @@ import { type OPConfig, OPRollup } from '../src/op/OPRollup.js';
 import { type OPFaultConfig, OPFaultRollup } from '../src/op/OPFaultRollup.js';
 import { ReverseOPRollup } from '../src/op/ReverseOPRollup.js';
 import { NitroRollup } from '../src/nitro/NitroRollup.js';
+import { DoubleNitroRollup } from '../src/nitro/DoubleNitroRollup.js';
 import { ScrollRollup } from '../src/scroll/ScrollRollup.js';
 import { TaikoRollup } from '../src/taiko/TaikoRollup.js';
 import { LineaRollup } from '../src/linea/LineaRollup.js';
@@ -17,7 +18,13 @@ import { ZKSyncRollup } from '../src/zksync/ZKSyncRollup.js';
 import { PolygonPoSRollup } from '../src/polygon/PolygonPoSRollup.js';
 import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
 import { Contract } from 'ethers/contract';
+import { SigningKey } from 'ethers/crypto';
 import { toUnpaddedHex } from '../src/utils.js';
+import { TrustedRollup } from '../src/eth/TrustedRollup.js';
+import { EthProver } from '../src/eth/EthProver.js';
+//import { LineaProver } from '../src/linea/LineaProver.js';
+import { ZKSyncProver } from '../src/zksync/ZKSyncProver.js';
+import { AbstractProver, type LatestProverFactory } from '../src/vm.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
 // [raffy] https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws62duoryc6.ccipr.eth
@@ -28,16 +35,26 @@ import { toUnpaddedHex } from '../src/utils.js';
 // 5. click (Resolve)
 // 6. https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4b2f4xwy33dmfwgq33toq5dqmbqgaxq.ccipr.eth
 
-let prefetch = false;
+let prefetch = !!process.env.PREFETCH;
+let latestBlockTag = process.env.LATEST_BLOCK_TAG;
+let signingKey =
+  process.env.SIGNING_KEY ||
+  '0xbd1e630bd00f12f0810083ea3bd2be936ead3b2fa84d1bd6690c77da043e9e02'; // 0xd00d from ezccip demo
 const args = process.argv.slice(2).filter((x) => {
   if (x === '--prefetch') {
     prefetch = true;
-    return false;
+    return;
+  } else if (x === '--latest') {
+    latestBlockTag = 'latest';
+    return;
+  } else if (/^0x[0-9a-f]{64}$/i.test(x)) {
+    signingKey = x;
+    return;
   }
   return true;
 });
 const gateway = await createGateway(args[0]);
-const port = parseInt(args[1]) || 8000;
+const port = parseInt(args[1] || process.env.PORT || '') || 8000;
 
 if (prefetch) {
   // periodically pull the latest commit so it's always fresh
@@ -52,8 +69,11 @@ if (gateway instanceof Gateway) {
     gateway.commitDepth = 10;
   }
 }
+if (latestBlockTag) {
+  gateway.rollup.latestBlockTag = latestBlockTag;
+}
 
-// how to configure rollup
+// how to configure prover
 gateway.rollup.configure = (c: RollupCommitType<typeof gateway.rollup>) => {
   c.prover.printDebug = true;
   // c.prover.fast = false;
@@ -70,9 +90,14 @@ const config: Record<string, any> = {
   chain2: chainName(gateway.rollup.provider2._network.chainId),
   since: new Date(),
   unfinalized: gateway.rollup.unfinalized,
-  ...jsonFrom(gateway),
-  ...jsonFrom({ ...gateway.rollup, getLogsStepSize: undefined }),
+  prefetch,
+  ...toJSON(gateway),
+  ...toJSON({ ...gateway.rollup, getLogsStepSize: undefined }),
 };
+
+if (gateway.rollup instanceof TrustedRollup) {
+  config.signer = gateway.rollup.signerAddress;
+}
 
 console.log('Listening on', port, config);
 const headers = { 'access-control-allow-origin': '*' }; // TODO: cli-option to disable cors?
@@ -101,7 +126,7 @@ export default {
         }
         return Response.json({
           ...config,
-          prover: jsonFrom({
+          prover: toJSON({
             ...commit.prover,
             block: undefined,
             batchIndex: undefined,
@@ -111,7 +136,7 @@ export default {
             },
           }),
           commits: commits.map((c) => ({
-            ...jsonFrom(c),
+            ...toJSON(c),
             fetches: c.prover.cache.cachedSize,
             proofs: c.prover.proofLRU.size,
             // cache: Object.fromEntries(
@@ -150,6 +175,20 @@ export default {
 } satisfies Serve;
 
 async function createGateway(name: string) {
+  const match = name.match(/^trusted:(.+)$/i);
+  if (match) {
+    const slug = match[1].toUpperCase().replaceAll('-', '_');
+    if (slug in CHAINS) {
+      const chain = CHAINS[slug as keyof typeof CHAINS];
+      return new Gateway(
+        new TrustedRollup(
+          createProvider(chain),
+          getProverFactory(chain),
+          new SigningKey(signingKey)
+        )
+      );
+    }
+  }
   switch (name) {
     case 'op':
       return createOPFaultGateway(OPFaultRollup.mainnetConfig);
@@ -256,6 +295,17 @@ async function createGateway(name: string) {
         ...OPFaultRollup.baseSepoliaConfig,
         minAgeSec: 1,
       });
+    case 'unfinalized-ape': {
+      const config12 = { ...NitroRollup.arb1MainnetConfig, minAgeBlocks: 1 };
+      const config23 = { ...NitroRollup.apeMainnetConfig, minAgeBlocks: 1 };
+      return new Gateway(
+        new DoubleNitroRollup(
+          new NitroRollup(createProviderPair(config12), config12),
+          createProvider(config23.chain2),
+          config23
+        )
+      );
+    }
     case 'blast':
       return createOPGateway(OPRollup.blastMainnnetConfig);
     case 'celo-alfajores':
@@ -287,6 +337,23 @@ async function createGateway(name: string) {
   }
 }
 
+function getProverFactory(chain: Chain): LatestProverFactory<AbstractProver> {
+  switch (chain) {
+    case CHAINS.ZKSYNC:
+    case CHAINS.ZKSYNC_SEPOLIA:
+      return ZKSyncProver;
+    // NOTE: linea should use eth_getProof instead of linea_getProof
+    // NOTE: this probably needs "--latest" cli option too
+    // rollup => SMT w/Mimc root using linea_getProof
+    // chain => PMT w/Keccak root using eth_getProof
+    // case CHAINS.LINEA:
+    // case CHAINS.LINEA_SEPOLIA:
+    //   return LineaProver;
+    default:
+      return EthProver;
+  }
+}
+
 function createSelfGateway(chain: Chain) {
   return new Gateway(new EthSelfRollup(createProvider(chain)));
 }
@@ -299,7 +366,7 @@ function createOPFaultGateway(config: RollupDeployment<OPFaultConfig>) {
   return new Gateway(new OPFaultRollup(createProviderPair(config), config));
 }
 
-function jsonFrom(x: object) {
+function toJSON(x: object) {
   const info: Record<string, any> = {};
   for (const [k, v] of Object.entries(x)) {
     if (v instanceof Contract) {

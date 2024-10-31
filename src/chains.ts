@@ -4,6 +4,7 @@ import type { Chain } from './types.js';
 // https://www.superchain.eco/chains
 
 export const CHAINS = {
+  VOID: -1n,
   MAINNET: 1n,
   SEPOLIA: 11155111n,
   HOLESKY: 17000n,
@@ -41,14 +42,14 @@ export const CHAINS = {
   BSC: 56n,
   OP_BNB: 204n,
   CELO_ALFAJORES: 44787n,
+  WORLD: 480n,
+  WORLD_SEPOLIA: 4801n,
+  APE: 33139n,
 } as const satisfies Record<string, Chain>;
 
-const NAMES = new Map<Chain, string>(
-  Object.entries(CHAINS).map(([a, b]) => [b, a])
-);
-
 export function chainName(chain: Chain): string {
-  const name = NAMES.get(chain);
-  if (!name) throw new TypeError(`unknown chain: ${chain}`);
-  return name;
+  for (const [name, c] of Object.entries(CHAINS)) {
+    if (c === chain) return name;
+  }
+  throw new TypeError(`unknown chain: ${chain}`);
 }

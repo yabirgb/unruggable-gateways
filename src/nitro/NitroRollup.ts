@@ -10,6 +10,7 @@ import type {
   ProviderPair,
   ProofSequence,
   ProofSequenceV1,
+  HexString32,
 } from '../types.js';
 import type { RPCEthGetBlock } from '../eth/types.js';
 import { type ABINodeTuple, ROLLUP_ABI } from './types.js';
@@ -23,7 +24,7 @@ import { encodeRlpBlock } from '../rlp.js';
 // https://docs.arbitrum.io/how-arbitrum-works/inside-arbitrum-nitro#the-rollup-chain
 
 export type NitroConfig = {
-  L2Rollup: HexAddress;
+  Rollup: HexAddress;
   minAgeBlocks?: number;
 };
 
@@ -41,24 +42,31 @@ export class NitroRollup
   static readonly arb1MainnetConfig: RollupDeployment<NitroConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.ARB1,
-    L2Rollup: '0x5eF0D09d1E6204141B4d37530808eD19f60FBa35',
+    Rollup: '0x5eF0D09d1E6204141B4d37530808eD19f60FBa35',
   };
   static readonly arb1SepoliaConfig: RollupDeployment<NitroConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.ARB_SEPOLIA,
-    L2Rollup: '0xd80810638dbDF9081b72C1B33c65375e807281C8',
+    Rollup: '0xd80810638dbDF9081b72C1B33c65375e807281C8',
   };
   static readonly arbNovaMainnetConfig: RollupDeployment<NitroConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.ARB_NOVA,
-    L2Rollup: '0xFb209827c58283535b744575e11953DCC4bEAD88',
+    Rollup: '0xFb209827c58283535b744575e11953DCC4bEAD88',
   };
 
-  readonly L2Rollup;
+  // https://docs.apechain.com/contracts/Mainnet/contract-information
+  static readonly apeMainnetConfig: RollupDeployment<NitroConfig> = {
+    chain1: CHAINS.ARB1,
+    chain2: CHAINS.APE,
+    Rollup: '0x374de579AE15aD59eD0519aeAf1A23F348Df259c',
+  };
+
+  readonly Rollup: Contract;
   readonly minAgeBlocks;
   constructor(providers: ProviderPair, config: NitroConfig) {
     super(providers);
-    this.L2Rollup = new Contract(config.L2Rollup, ROLLUP_ABI, this.provider1);
+    this.Rollup = new Contract(config.Rollup, ROLLUP_ABI, this.provider1);
     this.minAgeBlocks = config.minAgeBlocks ?? 0;
   }
 
@@ -66,18 +74,41 @@ export class NitroRollup
     return !!this.minAgeBlocks;
   }
 
-  async fetchLatestNode(minAgeBlocks = 0) {
+  async fetchLatestNode(minAgeBlocks = 0): Promise<bigint> {
     if (minAgeBlocks) {
       const blockInfo = await fetchBlock(this.provider1, this.latestBlockTag);
       const blockTag = BigInt(blockInfo.number) - BigInt(minAgeBlocks);
-      return this.L2Rollup.latestNodeCreated({
+      return this.Rollup.latestNodeCreated({
         blockTag,
       });
     } else {
-      return this.L2Rollup.latestConfirmed({
+      return this.Rollup.latestConfirmed({
         blockTag: this.latestBlockTag,
       });
     }
+  }
+  async fetchNodeData(index: bigint) {
+    const [{ createdAtBlock, prevNum }, [event]] = await Promise.all([
+      this.Rollup.getNode(index) as Promise<ABINodeTuple>,
+      this.Rollup.queryFilter(
+        this.unfinalized
+          ? this.Rollup.filters.NodeCreated(index)
+          : this.Rollup.filters.NodeConfirmed(index)
+      ),
+    ]);
+    if (!createdAtBlock) throw new Error('unknown node');
+    if (!(event instanceof EventLog)) throw new Error('no node event');
+    let blockHash: HexString32;
+    let sendRoot: HexString32;
+    if (this.unfinalized) {
+      // ethers bug: named abi parsing doesn't propagate through event tuples
+      // [4][1][0][0] == event.args.afterState.globalState.bytes32Vals[0];
+      [blockHash, sendRoot] = event.args[4][1][0][0];
+    } else {
+      blockHash = event.args[1];
+      sendRoot = event.args[2];
+    }
+    return { prevNum, blockHash, sendRoot };
   }
 
   override fetchLatestCommitIndex(): Promise<bigint> {
@@ -86,21 +117,10 @@ export class NitroRollup
   protected override async _fetchParentCommitIndex(
     commit: NitroCommit
   ): Promise<bigint> {
-    return this.minAgeBlocks ? commit.index - 1n : commit.prevNum;
+    return this.unfinalized ? commit.index - 1n : commit.prevNum;
   }
   protected override async _fetchCommit(index: bigint): Promise<NitroCommit> {
-    const { createdAtBlock, prevNum }: ABINodeTuple =
-      await this.L2Rollup.getNode(index);
-    if (!createdAtBlock) throw new Error('unknown node');
-    const [event] = await this.L2Rollup.queryFilter(
-      this.L2Rollup.filters.NodeCreated(index),
-      createdAtBlock,
-      createdAtBlock
-    );
-    if (!(event instanceof EventLog)) throw new Error('no NodeCreated event');
-    // ethers bug: named abi parsing doesn't propagate through event tuples
-    // [4][1][0][0] == event.args.afterState.globalState.bytes32Vals[0];
-    const [blockHash, sendRoot] = event.args[4][1][0][0];
+    const { prevNum, blockHash, sendRoot } = await this.fetchNodeData(index);
     const block: RPCEthGetBlock | null = await this.provider2.send(
       'eth_getBlockByHash',
       [blockHash, false]

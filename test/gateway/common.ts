@@ -1,8 +1,12 @@
 import type { Chain, ChainPair, HexAddress } from '../../src/types.js';
 import type { RollupDeployment } from '../../src/rollup.js';
 import { Gateway } from '../../src/gateway.js';
-import { createProviderPair, providerURL } from '../providers.js';
-import { chainName } from '../../src/chains.js';
+import {
+  createProvider,
+  createProviderPair,
+  providerURL,
+} from '../providers.js';
+import { chainName, CHAINS } from '../../src/chains.js';
 import { serve } from '@resolverworks/ezccip/serve';
 import { DeployedContract, Foundry } from '@adraffy/blocksmith';
 import { runSlotDataTests } from './tests.js';
@@ -16,17 +20,22 @@ import {
   ScrollRollup,
 } from '../../src/scroll/ScrollRollup.js';
 import { EthSelfRollup } from '../../src/eth/EthSelfRollup.js';
+import { TrustedRollup } from '../../src/eth/TrustedRollup.js';
+import { EthProver } from '../../src/eth/EthProver.js';
+import { randomBytes, SigningKey } from 'ethers/crypto';
 import { afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 
 export function testName(
-  { chain1, chain2 }: ChainPair,
+  { chain1, chain2, chain3 }: ChainPair & { chain3?: Chain },
   { reverse = false, unfinalized = false } = {}
 ) {
-  const arrow = unfinalized ? '=!=>' : '=>';
-  const names = [chain1, chain2].map(chainName);
+  const arrow = unfinalized ? ' =!=> ' : ' => ';
+  const chains = [chain1, chain2];
+  if (chain3 !== undefined) chains.push(chain3);
+  const names = chains.map(chainName);
   if (reverse) names.reverse();
-  return `${names[0]} ${arrow} ${names[1]}`;
+  return names.join(arrow);
 }
 
 type TestOptions = {
@@ -39,7 +48,8 @@ type TestOptions = {
 
 export async function setupTests(
   verifier: DeployedContract,
-  opts: TestOptions
+  opts: TestOptions,
+  configure?: (fetcher: DeployedContract) => Promise<void>
 ) {
   const foundry = Foundry.of(verifier);
   const reader = await foundry.deploy({
@@ -49,6 +59,7 @@ export async function setupTests(
   if (opts.slotDataPointer) {
     await foundry.confirm(reader.setPointer(opts.slotDataPointer));
   }
+  await configure?.(reader);
   runSlotDataTests(reader, !!opts.slotDataPointer, !!opts.skipZero);
 }
 
@@ -182,4 +193,45 @@ export function testSelfEth(chain: Chain, opts: TestOptions) {
     });
     await setupTests(verifier, opts);
   });
+}
+
+export function testTrustedEth(chain2: Chain, opts: TestOptions) {
+  describe.skipIf(!!process.env.IS_CI)(
+    testName({ chain1: CHAINS.VOID, chain2 }),
+    async () => {
+      const foundry = await Foundry.launch({
+        fork: providerURL(chain2),
+        infoLog: !!opts.log,
+      });
+      const rollup = new TrustedRollup(
+        createProvider(chain2),
+        EthProver,
+        new SigningKey(randomBytes(32))
+      );
+      rollup.latestBlockTag = 'latest';
+      afterAll(foundry.shutdown);
+      const gateway = new Gateway(rollup);
+      const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
+      afterAll(ccip.shutdown);
+      const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+      const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
+      const verifier = await foundry.deploy({
+        file: 'TrustedVerifier',
+        libs: { GatewayVM },
+      });
+      await setupTests(verifier, opts, async (fetcher) => {
+        await foundry.confirm(
+          verifier.setConfig(
+            fetcher,
+            [ccip.endpoint],
+            rollup.defaultWindow,
+            hooks
+          )
+        );
+        await foundry.confirm(
+          verifier.setSigner(fetcher, rollup.signerAddress, true)
+        );
+      });
+    }
+  );
 }

@@ -2,12 +2,15 @@ import type {
   Provider,
   HexAddress,
   HexString,
+  HexString32,
+  BigNumberish,
   ProofRef,
   ProofSequence,
 } from '../types.js';
 import {
   type RPCZKSyncGetProof,
   type ZKSyncStorageProof,
+  RPCZKSyncL1BatchDetails,
   encodeProof,
 } from './types.js';
 import {
@@ -28,17 +31,39 @@ export const ZKSYNC_ACCOUNT_CODEHASH =
 // zksync proofs are relative to a *batch* not a *block*
 export class ZKSyncProver extends AbstractProver {
   static readonly encodeProof = encodeProof;
-  static async latest(provider: Provider) {
-    return new this(
-      provider,
-      Number(await provider.send('zks_L1BatchNumber', []))
-    );
+  static async latestBatchIndex(
+    provider: Provider,
+    relative: BigNumberish = 0
+  ) {
+    // https://docs.zksync.io/build/api-reference/zks-rpc#zks_l1batchnumber
+    // NOTE: BlockTags are not supported
+    // we could simulate "finalized" using some fixed offset
+    if (typeof relative === 'string') relative = 0;
+    const batchIndex = Number(await provider.send('zks_L1BatchNumber', []));
+    return batchIndex + Number(relative); //(typeof relative === 'string' ? 0 : Number(relative));
+  }
+  static async latest(provider: Provider, relative: BigNumberish = 0) {
+    return new this(provider, await this.latestBatchIndex(provider, relative));
   }
   constructor(
     provider: Provider,
     readonly batchIndex: number
   ) {
     super(provider);
+  }
+  async fetchBatchDetails(): Promise<
+    Omit<RPCZKSyncL1BatchDetails, 'rootHash'> & { rootHash: HexString32 }
+  > {
+    // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getl1batchdetails
+    const json = await this.provider.send('zks_getL1BatchDetails', [
+      this.batchIndex,
+    ]);
+    if (!json) throw new Error(`no batch: ${this.batchIndex}`);
+    if (!json.rootHash) throw new Error(`unprovable batch: ${this.batchIndex}`);
+    return json;
+  }
+  override async fetchStateRoot() {
+    return (await this.fetchBatchDetails()).rootHash;
   }
   override async isContract(target: HexAddress): Promise<boolean> {
     const storageProof: ZKSyncStorageProof | undefined =

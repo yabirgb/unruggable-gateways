@@ -22,7 +22,13 @@ describe(testName(config), async () => {
   const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
   const verifier = await foundry.deploy({
     file: 'NitroVerifier',
-    args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.L2Rollup],
+    args: [
+      [ccip.endpoint],
+      rollup.defaultWindow,
+      hooks,
+      rollup.Rollup,
+      rollup.minAgeBlocks,
+    ],
     libs: { GatewayVM },
   });
   await setupTests(verifier, {

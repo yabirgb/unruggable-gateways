@@ -8,7 +8,7 @@ const rollup = new NitroRollup(createProviderPair(config), {
 });
 
 console.log({
-  L2Rollup: rollup.L2Rollup.target,
+  L2Rollup: rollup.Rollup.target,
   defaultWindow: rollup.defaultWindow,
 });
 

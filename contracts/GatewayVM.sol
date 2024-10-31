@@ -57,8 +57,8 @@ library GatewayVM {
             ret := 1 // assume zero
             for {
 
-            } lt(p, e) { // while (p < e)
-
+            } lt(p, e) {
+                // while (p < e)
             } {
                 x := mload(p) // remember last
                 p := add(p, 32) // step by word
@@ -486,10 +486,9 @@ library GatewayVM {
             } else if (op == GatewayOP.EVAL_LOOP) {
                 uint8 flags = vm.readByte();
                 uint256 count = vm.popAsUint256();
-                Machine memory vm2;
+                Machine memory vm2 = createMachine();
                 vm2.buf = vm.popAsBytes();
                 vm2.proofs = vm.proofs;
-                vm2.stack = new uint256[](MAX_STACK);
                 if (count > vm.stackSize) count = vm.stackSize;
                 while (count > 0) {
                     --count;

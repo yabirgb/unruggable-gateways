@@ -88,6 +88,13 @@ export class OPRollup extends AbstractOPRollup {
     L2OutputOracle: '0x4a2635e9e4f6e45817b1D402ac4904c1d1752438',
   };
 
+  // https://docs.worldcoin.org/world-chain/developers/world-chain-contracts
+  static readonly worldMainnetConfig: RollupDeployment<OPConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.WORLD,
+    L2OutputOracle: '0x19A6d1E9034596196295CF148509796978343c5D',
+  };
+
   readonly L2OutputOracle;
   constructor(providers: ProviderPair, config: OPConfig) {
     super(providers);

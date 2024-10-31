@@ -54,10 +54,6 @@ export class CachedValue<T> {
 
 type CacheRow<T> = [exp: number, promise: Promise<T>];
 
-export interface CacheMap<K, V> {
-  cache(key: K, fn: (key: K) => Promise<V>): Promise<V>;
-}
-
 export class CachedMap<K, V> {
   private readonly cached: Map<K, CacheRow<V>> = new Map();
   private readonly pending: Map<K, Promise<V>> = new Map();

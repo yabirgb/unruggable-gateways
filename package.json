@@ -1,6 +1,6 @@
 {
   "name": "@unruggable/gateways",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Trustless Ethereum Multichain CCIP-Read Gateway",
   "publishConfig": {
     "access": "public"
@@ -46,10 +46,11 @@
     "contracts/GatewayRequest.sol",
     "contracts/IGatewayProtocol.sol",
     "contracts/IGatewayVerifier.sol",
-    "contracts/IVerifierHooks.sol"
+    "contracts/IVerifierHooks.sol",
+    "contracts/ReadBytesAt.sol"
   ],
   "devDependencies": {
-    "@adraffy/blocksmith": "^0.0.40",
+    "@adraffy/blocksmith": "^0.1.46",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
@@ -59,7 +60,7 @@
     "prettier": "^3.3.3"
   },
   "dependencies": {
-    "@resolverworks/ezccip": "^0.0.20",
+    "@resolverworks/ezccip": "^0.0.22",
     "ethers": "^6.13.4"
   },
   "peerDependencies": {

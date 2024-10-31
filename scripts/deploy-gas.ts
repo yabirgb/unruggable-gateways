@@ -36,20 +36,25 @@ await foundry.deploy({
   args: [[], 0, A, A],
   libs: { GatewayVM },
 });
+await foundry.deploy({
+  file: 'TrustedVerifier',
+  libs: { GatewayVM },
+});
 
 await foundry.shutdown();
 
 console.log(new Date());
 console.log(report);
 
-// 2024-10-08T03:37:34.275Z
+// 2024-10-29T20:39:17.608Z
 // {
-//   GatewayVM: 1879334n,
-//   EthVerifierHooks: 1295526n,
-//   ScrollVerifierHooks: 555817n,
-//   ZKSyncVerifierHooks: 325104n,
-//   LineaVerifierHooks: 819501n,
-//   OPVerifier: 1118912n,
-//   OPFaultVerifier: 1216535n,
-//   ReverseOPVerifier: 1473514n,
+//  GatewayVM: 1875116n,
+//  EthVerifierHooks: 1280832n,
+//  ScrollVerifierHooks: 550613n,
+//  ZKSyncVerifierHooks: 323789n,
+//  LineaVerifierHooks: 817863n,
+//  OPVerifier: 1131805n,
+//  OPFaultVerifier: 1247548n,
+//  ReverseOPVerifier: 1486827n,
+//  TrustedVerifier: 1232904n,
 // }

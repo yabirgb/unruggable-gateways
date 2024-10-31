@@ -33,6 +33,11 @@ export const ROLLUP_ABI = new Interface([
     bytes32 wasmModuleRoot,
     uint256 inboxMaxCount
   )`,
+  `event NodeConfirmed(
+     uint64 indexed nodeNum,
+     bytes32 blockHash,
+     bytes32 sendRoot
+  )`,
 ]);
 
 export type ABINodeTuple = {

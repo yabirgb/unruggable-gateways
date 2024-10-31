@@ -89,6 +89,7 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
       await this.L1MessageService.stateRootHashes(index);
     if (stateRoot === ZeroHash) throw new Error('not finalized');
     const prover = new LineaProver(this.provider2, toUnpaddedHex(index));
+    prover.stateRoot = stateRoot;
     return { index, stateRoot, prover };
   }
   override encodeWitness(

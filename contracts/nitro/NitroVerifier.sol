@@ -9,18 +9,34 @@ import {IRollupCore, Node} from './IRollupCore.sol';
 
 contract NitroVerifier is AbstractVerifier {
     IRollupCore immutable _rollup;
+    uint256 immutable _minBlocks;
 
     constructor(
         string[] memory urls,
         uint256 window,
         IVerifierHooks hooks,
-        IRollupCore rollup
+        IRollupCore rollup,
+        uint256 minBlocks
     ) AbstractVerifier(urls, window, hooks) {
         _rollup = rollup;
+        _minBlocks = minBlocks;
     }
 
     function getLatestContext() external view returns (bytes memory) {
-        return abi.encode(_rollup.latestConfirmed());
+        if (_minBlocks == 0) {
+            return abi.encode(_rollup.latestConfirmed());
+        }
+        uint64 i = _rollup.latestNodeCreated();
+        uint256 b = block.number - _minBlocks;
+        while (true) {
+            Node memory node = _rollup.getNode(i);
+            if (node.createdAtBlock <= b) {
+                return abi.encode(i);
+            }
+            if (i == 0) break;
+            --i;
+        }
+        revert('Nitro: no node');
     }
 
     struct GatewayProof {
@@ -35,31 +51,49 @@ contract NitroVerifier is AbstractVerifier {
         bytes memory context,
         GatewayRequest memory req,
         bytes memory proof
-    ) external view returns (bytes[] memory, uint8 exitCode) {
-        uint64 nodeNum1 = abi.decode(context, (uint64));
+    ) external view virtual returns (bytes[] memory, uint8 exitCode) {
         GatewayProof memory p = abi.decode(proof, (GatewayProof));
-        Node memory node = _rollup.getNode(p.nodeNum);
-        if (p.nodeNum != nodeNum1) {
-			// it wasn't what we requested
-            Node memory node1 = _rollup.getNode(nodeNum1);
-			// check if node is between latest and our window
-            _checkWindow(node1.createdAtBlock, node.createdAtBlock);
-			// check if node is member of confirmed chain
-            while (node1.prevNum > p.nodeNum) {
-                node1 = _rollup.getNode(node1.prevNum);
-            }
-            require(node1.prevNum == p.nodeNum, 'Nitro: not confirmed');
-        }
-        bytes32 confirmData = keccak256(
-            abi.encodePacked(keccak256(p.rlpEncodedBlock), p.sendRoot)
+        Node memory node = _verifyNode(context, p.nodeNum);
+        bytes32 stateRoot = _verifyStateRoot(
+            node.confirmData,
+            p.rlpEncodedBlock,
+            p.sendRoot
         );
-        require(confirmData == node.confirmData, 'Nitro: confirmData');
-        RLPReader.RLPItem[] memory v = RLPReader.readList(p.rlpEncodedBlock);
-        bytes32 stateRoot = RLPReaderExt.strictBytes32FromRLP(v[3]); // see: rlp.ts: encodeRlpBlock()
         return
             GatewayVM.evalRequest(
                 req,
                 ProofSequence(0, stateRoot, p.proofs, p.order, _hooks)
             );
+    }
+
+    function _verifyNode(
+        bytes memory context,
+        uint64 nodeNum
+    ) internal view returns (Node memory node) {
+        uint64 nodeNum1 = abi.decode(context, (uint64));
+        node = _rollup.getNode(nodeNum);
+        if (nodeNum != nodeNum1) {
+            Node memory node1 = _rollup.getNode(nodeNum1);
+            _checkWindow(node1.createdAtBlock, node.createdAtBlock);
+            if (_minBlocks == 0) {
+                while (node1.prevNum > nodeNum) {
+                    node1 = _rollup.getNode(node1.prevNum);
+                }
+                require(node1.prevNum == nodeNum, 'Nitro: not finalized');
+            }
+        }
+    }
+
+    function _verifyStateRoot(
+        bytes32 confirmData,
+        bytes memory rlpEncodedBlock,
+        bytes32 sendRoot
+    ) internal pure returns (bytes32) {
+        bytes32 computed = keccak256(
+            abi.encodePacked(keccak256(rlpEncodedBlock), sendRoot)
+        );
+        require(computed == confirmData, 'Nitro: confirmData');
+        RLPReader.RLPItem[] memory v = RLPReader.readList(rlpEncodedBlock);
+        return RLPReaderExt.strictBytes32FromRLP(v[3]);
     }
 }

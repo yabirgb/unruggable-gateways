@@ -3,6 +3,7 @@ import type {
   BytesLike,
   HexAddress,
   HexString,
+  HexString32,
   ProofRef,
   ProofSequence,
   ProofSequenceV1,
@@ -16,7 +17,12 @@ import { solidityPackedKeccak256 } from 'ethers/hash';
 import { dataSlice, concat, getBytes, toUtf8Bytes } from 'ethers/utils';
 import { asciiize } from '@resolverworks/ezccip';
 import { unwrap, Wrapped, type Unwrappable } from './wrap.js';
-import { fetchBlock, toUnpaddedHex, toPaddedHex } from './utils.js';
+import {
+  fetchBlock,
+  fetchBlockNumber,
+  toUnpaddedHex,
+  toPaddedHex,
+} from './utils.js';
 import { CachedMap, LRU } from './cached.js';
 import { GATEWAY_OP as OP } from './ops.js';
 import { ProgramReader } from './reader.js';
@@ -468,6 +474,7 @@ function checkSize(size: bigint | number, limit: number) {
 }
 
 const GATEWAY_EXT_ABI = new Interface([
+  // ReadBytesAt.sol
   'function readBytesAt(uint256 slot) view returns (bytes)',
 ]);
 
@@ -476,6 +483,10 @@ const GATEWAY_EXT_ABI = new Interface([
 // storage proofs stored under 0x{HexAddress}{HexSlot w/NoZeroPad} via makeStorageKey()
 export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}${slot.toString(16)}`;
+}
+
+export interface LatestProverFactory<P extends AbstractProver> {
+  latest(provider: Provider, relative: BigNumberish): Promise<P>;
 }
 
 // TODO: totalAssembledBytes
@@ -496,7 +507,7 @@ export abstract class AbstractProver {
   // maximum number of targets (accountProofs)
   maxUniqueTargets = 32; // max = maxUniqueProofs
   // maximum number of proofs per _getProof
-  proofBatchSize = 64; // max = unlimited
+  proofBatchSize = 16; // max = unlimited
   // maximum bytes from single readHashedBytes(), readFetchedBytes()
   // when readBytesAt() is not available
   maxSuppliedBytes = 13125 << 5; // max = unlimited, ~420KB @ 30m gas
@@ -549,6 +560,11 @@ export abstract class AbstractProver {
       storageProofs: Array.from(order.subarray(1), (i) => proofs[i]),
     };
   }
+  // NOTE: if a prover cannot provide this value, throw
+  // eg. LineaProver stateRoot is part of the rollup machinery
+  // a block-derived LineaProver doesn't have a stateRoot
+  // whereas LineaRollup => getCommit() => prover does (from L1)
+  abstract fetchStateRoot(): Promise<HexString32>;
 
   // machine interface
   async evalDecoded(v: BytesLike) {
@@ -955,9 +971,9 @@ export abstract class BlockProver extends AbstractProver {
   static async latest<T extends InstanceType<typeof BlockProver>>(
     this: new (...a: ConstructorParameters<typeof BlockProver>) => T,
     provider: Provider,
-    offset = 0
+    relBlockTag: BigNumberish = 0
   ) {
-    return new this(provider, (await provider.getBlockNumber()) - offset);
+    return new this(provider, await fetchBlockNumber(provider, relBlockTag));
   }
   readonly block: HexString;
   constructor(provider: Provider, block: BigNumberish) {
@@ -967,7 +983,7 @@ export abstract class BlockProver extends AbstractProver {
   fetchBlock() {
     return fetchBlock(this.provider, this.block);
   }
-  async fetchStateRoot() {
+  override async fetchStateRoot() {
     return (await this.fetchBlock()).stateRoot;
   }
   protected abstract _proveNeed(

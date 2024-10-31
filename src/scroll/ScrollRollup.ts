@@ -7,13 +7,12 @@ import {
 import type {
   HexAddress,
   HexString,
-  HexString32,
   ProviderPair,
   ProofSequence,
   ProofSequenceV1,
 } from '../types.js';
 import { Contract } from 'ethers/contract';
-import { concat } from 'ethers/utils';
+import { concat, dataSlice } from 'ethers/utils';
 import { CHAINS } from '../chains.js';
 import { EthProver } from '../eth/EthProver.js';
 import { ROLLUP_ABI } from './types.js';
@@ -26,11 +25,10 @@ import { ABI_CODER, toPaddedHex } from '../utils.js';
 export type ScrollConfig = {
   ScrollChain: HexAddress;
   poseidon: HexAddress;
-  apiURL: string;
 };
 
 export type ScrollCommit = RollupCommit<EthProver> & {
-  readonly finalTxHash: HexString32;
+  readonly l1BlockNumber: number;
 };
 
 // 20240815: commits are approximately every minute
@@ -44,28 +42,28 @@ export class ScrollRollup
 {
   // https://docs.scroll.io/en/developers/scroll-contracts/
   // https://etherscan.io/address/0xC4362457a91B2E55934bDCb7DaaF6b1aB3dDf203
+  // https://mainnet-api-re.scroll.io/api/
+  // https://scrollscan.com/batches
   static readonly mainnetConfig: RollupDeployment<ScrollConfig> = {
     chain1: CHAINS.MAINNET,
     chain2: CHAINS.SCROLL,
     ScrollChain: '0xa13BAF47339d63B743e7Da8741db5456DAc1E556',
     poseidon: '0x3508174Fa966e75f70B15348209E33BC711AE63e',
-    apiURL: 'https://mainnet-api-re.scroll.io/api/', // https://scrollscan.com/batches
   };
   // https://sepolia.etherscan.io/address/0x64cb3A0Dcf43Ae0EE35C1C15edDF5F46D48Fa570
+  // https://sepolia-api-re.scroll.io/api/
+  // https://sepolia.scrollscan.com/batches
   static readonly sepoliaConfig: RollupDeployment<ScrollConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.SCROLL_SEPOLIA,
     ScrollChain: '0x2D567EcE699Eabe5afCd141eDB7A4f2D0D6ce8a0',
     poseidon: '0xFeE7242E8587d7E22Ea5E9cFC585d0eDB6D57faA',
-    apiURL: 'https://sepolia-api-re.scroll.io/api/', // https://sepolia.scrollscan.com/batches
   };
 
-  readonly apiURL: string;
   readonly ScrollChain: Contract;
   readonly poseidon: HexAddress;
   constructor(providers: ProviderPair, config: ScrollConfig) {
     super(providers);
-    this.apiURL = config.apiURL;
     this.ScrollChain = new Contract(
       config.ScrollChain,
       ROLLUP_ABI,
@@ -74,74 +72,35 @@ export class ScrollRollup
     this.poseidon = config.poseidon;
   }
 
-  async fetchAPILatestBatchIndex() {
-    // we require the offchain indexer to map commit index to block
-    // so we can use the same indexer to get the latest commit
-    const res = await fetch(new URL('./last_batch_indexes', this.apiURL));
-    if (!res.ok) throw new Error(`${res.url}: HTTP(${res.status})`);
-    const json = await res.json();
-    return BigInt(json.finalized_index);
-  }
-  async fetchAPIBatchIndexInfo(batchIndex: bigint) {
-    const url = new URL('./batch', this.apiURL);
-    url.searchParams.set('index', batchIndex.toString());
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${res.url}: HTTP(${res.status})`);
-    const json = await res.json();
-    const status: string = json.batch.rollup_status;
-    const finalTxHash: HexString32 = json.batch.finalize_tx_hash;
-    const l2BlockNumber = BigInt(json.batch.end_block_number);
-    return { status, l2BlockNumber, finalTxHash };
-  }
-  async findFinalizedBatchIndexBefore(l1BlockNumber: bigint) {
-    // for (let i = l1BlockNumber; i > 0; i -= this.getLogsStepSize) {
-    //   const logs = await this.rollup.queryFilter(
-    //     this.rollup.filters.FinalizeBatch(),
-    //     i < this.getLogsStepSize ? 0n : i - this.getLogsStepSize,
-    //     i - 1n
-    //   );
-    //   if (logs.length) {
-    //     return BigInt(logs[logs.length - 1].topics[1]); // batchIndex
-    //   }
-    // }
-    // throw new Error(`unable to find earlier batch: ${l1BlockNumber}`);
-    // 20240830: this is more efficient
-    return this.ScrollChain.lastFinalizedBatchIndex({
-      blockTag: l1BlockNumber - 1n,
-    });
-  }
   override async fetchLatestCommitIndex(): Promise<bigint> {
-    // TODO: determine how to this w/o relying on indexer
-    const [rpc, api]: bigint[] = await Promise.all([
-      this.ScrollChain.lastFinalizedBatchIndex({
-        blockTag: this.latestBlockTag,
-      }),
-      this.fetchAPILatestBatchIndex(),
-    ]);
-    return rpc > api ? api : rpc; // min(rpc, api)
+    return this.ScrollChain.lastFinalizedBatchIndex({
+      blockTag: this.latestBlockTag,
+    });
   }
   protected override async _fetchParentCommitIndex(
     commit: ScrollCommit
   ): Promise<bigint> {
-    // 20240826: this kinda sucks but it's the most efficient so far
-    // alternative: helper contract, eg. loop finalizedStateRoots()
-    // alternative: multicall, finalizedStateRoots looking for nonzero
-    // [0, index] is finalized
-    // https://github.com/scroll-tech/scroll/blob/738c85759d0248c005469972a49fc983b031ff1c/contracts/src/L1/rollup/ScrollChain.sol#L228
-    // but not every state root is recorded
-    // Differences[{310900, 310887, 310873, 310855}] => {13, 14, 18}
-    const receipt = await this.provider1.getTransactionReceipt(
-      commit.finalTxHash
-    );
-    if (!receipt) throw new Error(`no commit tx: ${commit.finalTxHash}`);
-    return this.findFinalizedBatchIndexBefore(BigInt(receipt.blockNumber));
+    return this.ScrollChain.lastFinalizedBatchIndex({
+      blockTag: commit.l1BlockNumber - 1,
+    });
   }
   protected override async _fetchCommit(index: bigint): Promise<ScrollCommit> {
-    const { status, l2BlockNumber, finalTxHash } =
-      await this.fetchAPIBatchIndexInfo(index);
-    if (status !== 'finalized') throw new Error(`not finalized: ${status}`);
-    const prover = new EthProver(this.provider2, l2BlockNumber);
-    return { index, prover, finalTxHash };
+    // 20241029: removed offchain indexer dependency
+    const [[commitEvent], [finalEvent]] = await Promise.all([
+      this.ScrollChain.queryFilter(this.ScrollChain.filters.CommitBatch(index)),
+      this.ScrollChain.queryFilter(
+        this.ScrollChain.filters.FinalizeBatch(index)
+      ),
+    ]);
+    if (!commitEvent) throw new Error(`unknown batch`);
+    if (!finalEvent) throw new Error('not finalized');
+    const tx = await commitEvent.getTransaction();
+    const desc = this.ScrollChain.interface.parseTransaction(tx);
+    if (!desc) throw new Error(`unknown transaction`);
+    const { chunks } = desc.args;
+    if (!Array.isArray(chunks)) throw new Error('no chunks');
+    const prover = new EthProver(this.provider2, lastBlockFromChunks(chunks));
+    return { index, prover, l1BlockNumber: finalEvent.blockNumber };
   }
   override encodeWitness(
     commit: ScrollCommit,
@@ -174,4 +133,18 @@ export class ScrollRollup
     const freq = 3600; // every hour?
     return span * Math.ceil(sec / freq); // units of batchIndex
   }
+}
+
+function lastBlockFromChunks(chunks: HexString[]): bigint {
+  // this supports V0 and V1
+  // https://docs.scroll.io/en/technology/chain/rollup/#chunk-codec
+  // https://github.com/scroll-tech/scroll-contracts/blob/main/src/libraries/codec/ChunkCodecV0.sol
+  // https://github.com/scroll-tech/scroll-contracts/blob/main/src/libraries/codec/ChunkCodecV1.sol
+  // this likely doesn't happen due to ErrorBatchIsEmpty()
+  if (!chunks.length) throw new Error('no chunks');
+  const chunk = chunks[chunks.length - 1];
+  const SIZE = 60;
+  const count = parseInt(chunk.slice(0, 4)); // uint8 => numBlocks
+  const pos = 1 + SIZE * (count - 1);
+  return BigInt(dataSlice(chunk, pos, pos + 8)); // uint64 => block[numBlocks - 1].blockIndex
 }
