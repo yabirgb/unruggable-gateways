@@ -3,12 +3,12 @@ import type {
   HexString32,
   ProofSequence,
   Provider,
-} from '../types.js';
-import { AbstractProver, type LatestProverFactory } from '../vm.js';
-import { AbstractRollup, type RollupCommit } from '../rollup.js';
-import { ABI_CODER } from '../utils.js';
-import { CachedValue } from '../cached.js';
-import { VOID_PROVIDER } from '../VoidProvider.js';
+} from './types.js';
+import type { AbstractProver, LatestProverFactory } from './vm.js';
+import { AbstractRollup, type RollupCommit } from './rollup.js';
+import { ABI_CODER } from './utils.js';
+import { CachedValue } from './cached.js';
+import { VOID_PROVIDER } from './VoidProvider.js';
 import { ZeroAddress } from 'ethers/constants';
 import { SigningKey } from 'ethers/crypto';
 import { computeAddress } from 'ethers/transaction';
@@ -30,7 +30,7 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
     readonly signingKey: SigningKey
   ) {
     super({ provider1: VOID_PROVIDER, provider2 });
-    this.latest = new CachedValue<TrustedCommit<P>>(async () => {
+    this.latest = new CachedValue(async () => {
       const prover = await factory.latest(this.provider2, this.latestBlockTag);
       const stateRoot = await prover.fetchStateRoot();
       const signedAt = Math.ceil(Date.now() / 1000);
@@ -57,8 +57,9 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
     return -1n;
   }
   protected override async _fetchCommit(
-    _index: bigint
+    index: bigint
   ): Promise<TrustedCommit<P>> {
+    if (index) throw new Error('unsupported commit');
     return this.latest.get();
   }
   override encodeWitness(

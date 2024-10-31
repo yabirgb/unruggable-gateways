@@ -37,7 +37,6 @@ export class OPFaultRollup extends AbstractOPRollup {
     OptimismPortal: '0xbEb5Fc579115071764c7423A4f12eDde41f106Ed',
     GameFinder: GAME_FINDER_MAINNET,
   };
-
   static readonly sepoliaConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.OP_SEPOLIA,
@@ -45,6 +44,13 @@ export class OPFaultRollup extends AbstractOPRollup {
     GameFinder: GAME_FINDER_SEPOLIA,
   };
 
+  // https://docs.base.org/docs/base-contracts#l1-contract-addresses
+  static readonly baseMainnetConfig: RollupDeployment<OPFaultConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.BASE,
+    OptimismPortal: '0x49048044D57e1C92A77f79988d21Fa8fAF74E97e',
+    GameFinder: GAME_FINDER_MAINNET,
+  };
   // https://docs.base.org/docs/base-contracts/#ethereum-testnet-sepolia
   static readonly baseSepoliaConfig: RollupDeployment<OPFaultConfig> = {
     chain1: CHAINS.SEPOLIA,

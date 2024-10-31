@@ -13,7 +13,8 @@ import { withResolvers, toPaddedHex } from '../utils.js';
 export class EthProver extends BlockProver {
   static readonly encodeProof = encodeProof;
   static readonly isContract = isContract;
-  override async isContract(target: HexAddress) {
+  static readonly latest = this._createLatest();
+  override async isContract(target: HexAddress): Promise<boolean> {
     target = target.toLowerCase();
     if (this.fast) {
       return this.cache.get(target, async () => {

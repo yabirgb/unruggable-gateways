@@ -485,10 +485,6 @@ export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}${slot.toString(16)}`;
 }
 
-export interface LatestProverFactory<P extends AbstractProver> {
-  latest(provider: Provider, relative: BigNumberish): Promise<P>;
-}
-
 // TODO: totalAssembledBytes
 export abstract class AbstractProver {
   // general proof cache
@@ -966,14 +962,17 @@ export abstract class AbstractProver {
   }
 }
 
+export interface LatestProverFactory<P extends AbstractProver> {
+  latest(provider: Provider, relative?: BigNumberish): Promise<P>;
+}
+
 export abstract class BlockProver extends AbstractProver {
-  // absolutely disgusting typescript
-  static async latest<T extends InstanceType<typeof BlockProver>>(
-    this: new (...a: ConstructorParameters<typeof BlockProver>) => T,
-    provider: Provider,
-    relBlockTag: BigNumberish = 0
+  protected static _createLatest<P extends BlockProver>(
+    this: new (...a: ConstructorParameters<typeof BlockProver>) => P
   ) {
-    return new this(provider, await fetchBlockNumber(provider, relBlockTag));
+    return async (provider: Provider, relative: BigNumberish = 0) => {
+      return new this(provider, await fetchBlockNumber(provider, relative));
+    };
   }
   readonly block: HexString;
   constructor(provider: Provider, block: BigNumberish) {

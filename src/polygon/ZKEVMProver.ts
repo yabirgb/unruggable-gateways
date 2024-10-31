@@ -13,6 +13,7 @@ import {
 export class ZKEVMProver extends BlockProver {
   static readonly isContract = isContract;
   static readonly encodeProof = encodeProof;
+  static readonly latest = this._createLatest();
   override async isContract(target: HexAddress): Promise<boolean> {
     target = target.toLowerCase();
     if (this.fast) {

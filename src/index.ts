@@ -6,6 +6,7 @@ export * from './utils.js';
 export * from './rlp.js';
 export * from './chains.js';
 export * from './VoidProvider.js';
+export * from './GatewayProvider.js';
 
 //export * from './ops.js'; use GatewayRequest.Opcodes instead
 export * from './reader.js';
@@ -34,7 +35,7 @@ export * from './taiko/TaikoRollup.js';
 export * from './scroll/ScrollRollup.js';
 export * from './zksync/ZKSyncRollup.js';
 export * from './eth/EthSelfRollup.js';
-export * from './eth/TrustedRollup.js';
+export * from './TrustedRollup.js';
 
 export * from './gateway.js';
 export * from './linea/LineaGatewayV1.js';

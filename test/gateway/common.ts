@@ -20,7 +20,7 @@ import {
   ScrollRollup,
 } from '../../src/scroll/ScrollRollup.js';
 import { EthSelfRollup } from '../../src/eth/EthSelfRollup.js';
-import { TrustedRollup } from '../../src/eth/TrustedRollup.js';
+import { TrustedRollup } from '../../src/TrustedRollup.js';
 import { EthProver } from '../../src/eth/EthProver.js';
 import { randomBytes, SigningKey } from 'ethers/crypto';
 import { afterAll } from 'bun:test';
