@@ -14,10 +14,21 @@ export class LineaProver extends BlockProver {
   static readonly isInclusionProof = isInclusionProof;
   static readonly isContract = isContract;
   static readonly encodeProof = encodeProof;
+  static readonly latest = this._createLatest();
   stateRoot?: HexString32;
   override async fetchStateRoot() {
     if (!this.stateRoot) throw new Error(`unknown stateRoot`);
     return this.stateRoot;
+  }
+  override async isContract(target: HexString): Promise<boolean> {
+    if (this.fast) {
+      return this.cache.get(target, async () => {
+        const code = await this.provider.getCode(target, this.block);
+        return code.length > 2;
+      });
+    }
+    const { accountProof } = await this.getProofs(target);
+    return isContract(accountProof);
   }
   override async getStorage(
     target: HexString,
@@ -51,16 +62,6 @@ export class LineaProver extends BlockProver {
       isInclusionProof(proof.storageProofs[0])
       ? proof.storageProofs[0].proof.value
       : ZeroHash;
-  }
-  override async isContract(target: HexString) {
-    if (this.fast) {
-      return this.cache.get(target, async () => {
-        const code = await this.provider.getCode(target, this.block);
-        return code.length > 2;
-      });
-    }
-    const { accountProof } = await this.getProofs(target);
-    return isContract(accountProof);
   }
   protected override async _proveNeed(
     need: TargetNeed,

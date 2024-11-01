@@ -20,11 +20,10 @@ import { EthSelfRollup } from '../src/eth/EthSelfRollup.js';
 import { Contract } from 'ethers/contract';
 import { SigningKey } from 'ethers/crypto';
 import { toUnpaddedHex } from '../src/utils.js';
-import { TrustedRollup } from '../src/eth/TrustedRollup.js';
+import { TrustedRollup } from '../src/TrustedRollup.js';
 import { EthProver } from '../src/eth/EthProver.js';
 //import { LineaProver } from '../src/linea/LineaProver.js';
 import { ZKSyncProver } from '../src/zksync/ZKSyncProver.js';
-import { AbstractProver, type LatestProverFactory } from '../src/vm.js';
 
 // NOTE: you can use CCIPRewriter to test an existing setup against a local gateway!
 // [raffy] https://adraffy.github.io/ens-normalize.js/test/resolver.html#raffy.linea.eth.nb2hi4dthixs62dpnvss4ylooruxg5dvobuwiltdn5ws62duoryc6.ccipr.eth
@@ -180,13 +179,22 @@ async function createGateway(name: string) {
     const slug = match[1].toUpperCase().replaceAll('-', '_');
     if (slug in CHAINS) {
       const chain = CHAINS[slug as keyof typeof CHAINS];
-      return new Gateway(
-        new TrustedRollup(
-          createProvider(chain),
-          getProverFactory(chain),
-          new SigningKey(signingKey)
-        )
-      );
+      const provider = createProvider(chain);
+      const key = new SigningKey(signingKey);
+      switch (chain) {
+        case CHAINS.ZKSYNC:
+        case CHAINS.ZKSYNC_SEPOLIA:
+          return new Gateway(new TrustedRollup(provider, ZKSyncProver, key));
+        // NOTE: linea should use eth_getProof instead of linea_getProof
+        // NOTE: this probably needs "--latest" cli option too
+        // rollup => SMT w/Mimc root using linea_getProof
+        // chain => PMT w/Keccak root using eth_getProof
+        // case CHAINS.LINEA:
+        // case CHAINS.LINEA_SEPOLIA:
+        //   return LineaProver;
+        default:
+          return new Gateway(new TrustedRollup(provider, EthProver, key));
+      }
     }
   }
   switch (name) {
@@ -287,7 +295,7 @@ async function createGateway(name: string) {
       return new Gateway(new ZKSyncRollup(createProviderPair(config), config));
     }
     case 'base':
-      return createOPGateway(OPRollup.baseMainnetConfig);
+      return createOPFaultGateway(OPFaultRollup.baseMainnetConfig);
     case 'base-sepolia':
       return createOPFaultGateway(OPFaultRollup.baseSepoliaConfig);
     case 'unfinalized-base-sepolia':
@@ -334,23 +342,6 @@ async function createGateway(name: string) {
       return createSelfGateway(CHAINS.HOLESKY);
     default:
       throw new Error(`unknown gateway: ${name}`);
-  }
-}
-
-function getProverFactory(chain: Chain): LatestProverFactory<AbstractProver> {
-  switch (chain) {
-    case CHAINS.ZKSYNC:
-    case CHAINS.ZKSYNC_SEPOLIA:
-      return ZKSyncProver;
-    // NOTE: linea should use eth_getProof instead of linea_getProof
-    // NOTE: this probably needs "--latest" cli option too
-    // rollup => SMT w/Mimc root using linea_getProof
-    // chain => PMT w/Keccak root using eth_getProof
-    // case CHAINS.LINEA:
-    // case CHAINS.LINEA_SEPOLIA:
-    //   return LineaProver;
-    default:
-      return EthProver;
   }
 }
 

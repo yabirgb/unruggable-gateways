@@ -1,6 +1,6 @@
 import { randomBytes, SigningKey } from 'ethers/crypto';
 import { CHAINS } from '../../src/chains.js';
-import { TrustedRollup } from '../../src/eth/TrustedRollup.js';
+import { TrustedRollup } from '../../src/TrustedRollup.js';
 import { EthProver } from '../../src/index.js';
 import { createProvider } from '../providers.js';
 

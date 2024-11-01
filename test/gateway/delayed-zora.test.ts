@@ -1,9 +1,9 @@
 import { OPRollup } from '../../src/op/OPRollup.js';
 import { testOP } from './common.js';
 
-testOP(OPRollup.baseMainnetConfig, {
-  // https://basescan.org/address/0x0C49361E151BC79899A9DD31B8B0CCdE4F6fd2f6
-  slotDataContract: '0x0C49361E151BC79899A9DD31B8B0CCdE4F6fd2f6',
+testOP(OPRollup.zoraMainnetConfig, {
+  // https://explorer.zora.energy/address/0x73404681064a8e16c22C1411A02D47e6395f6582
+  slotDataContract: '0x73404681064a8e16c22C1411A02D47e6395f6582',
   // delay by 1 hour
   // NOTE: to delay longer, Gateway.commitDepth needs to be bigger
   minAgeSec: 3600,

@@ -1,6 +1,6 @@
 import type { HexString, ProofSequence, Provider } from '../types.js';
 import { AbstractRollup, type RollupCommit } from '../rollup.js';
-import { ABI_CODER, fetchBlock, MAINNET_BLOCK_SEC } from '../utils.js';
+import { fetchBlockNumber, ABI_CODER, MAINNET_BLOCK_SEC } from '../utils.js';
 import { EthProver } from './EthProver.js';
 import { encodeRlpBlock } from '../rlp.js';
 
@@ -23,8 +23,9 @@ export class EthSelfRollup extends AbstractRollup<EthSelfCommit> {
     return index - (index % this.commitStep);
   }
   override async fetchLatestCommitIndex(): Promise<bigint> {
-    const blockInfo = await fetchBlock(this.provider1, this.latestBlockTag);
-    return this.align(BigInt(blockInfo.number));
+    return this.align(
+      await fetchBlockNumber(this.provider1, this.latestBlockTag)
+    );
   }
   protected override async _fetchParentCommitIndex(
     commit: EthSelfCommit

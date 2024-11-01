@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 
-const code = readFileSync(new URL('../serve.ts', import.meta.url), {encoding: 'utf8'});
+const code = readFileSync(new URL('../../scripts/serve.ts', import.meta.url), {encoding: 'utf8'});
 
 const { index } = code.match(/function createGateway\(/)!;
 const names: string[] = [];

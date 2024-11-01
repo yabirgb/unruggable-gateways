@@ -1,9 +1,20 @@
-import { GatewayRequestV1, GatewayRequest, EthProver, CHAINS,  NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup, fetchBlockNumber } from '../../src/index.js';
+import { randomBytes, SigningKey, ZeroHash } from 'ethers';
+import { GatewayRequestV1, GatewayRequest, EthProver, CHAINS,  NitroRollup, OPRollup, TaikoRollup, ZKSyncRollup, fetchBlockNumber, TrustedRollup, ZKEVMProver, ZKSyncProver, LineaProver, OPFaultRollup } from '../../src/index.js';
 import { createProvider, createProviderPair } from '../providers.js';
 
 // this is just a worksheet
 
 //console.log(createProvider(1n)._getConnection())
+
+if (1) {
+	const provider = createProvider(CHAINS.MAINNET);
+	const key = new SigningKey(randomBytes(32));
+	const rollup1 = new TrustedRollup(provider, EthProver, key);
+	const rollup2 = new TrustedRollup(provider, ZKSyncProver, key);
+	const rollup3 = new TrustedRollup(provider, LineaProver, key);
+	const rollup4 = new TrustedRollup(provider, ZKEVMProver, key);
+	throw 1;
+}
 
 if (1) {
 	const provider = createProvider(CHAINS.OP_SEPOLIA);
@@ -31,8 +42,8 @@ if (0) {
 
 
 if (0) {
-	const config = OPRollup.baseMainnetConfig;
-	const rollup = new OPRollup(createProviderPair(config), config);
+	const config = OPFaultRollup.baseMainnetConfig;
+	const rollup = new OPFaultRollup(createProviderPair(config), config);
 	//const commit = await rollup.fetchLatestCommit();
 	const commit = await rollup.fetchCommit(0n);
 	console.log(commit);

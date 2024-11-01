@@ -10,12 +10,12 @@ export type OPConfig = {
 };
 
 export class OPRollup extends AbstractOPRollup {
-  // https://docs.base.org/docs/base-contracts#base-mainnet
-  static readonly baseMainnetConfig: RollupDeployment<OPConfig> = {
-    chain1: CHAINS.MAINNET,
-    chain2: CHAINS.BASE,
-    L2OutputOracle: '0x56315b90c40730925ec5485cf004d835058518A0',
-  };
+  // 20241030: base changed to fault proofs
+  // static readonly baseMainnetConfig: RollupDeployment<OPConfig> = {
+  //   chain1: CHAINS.MAINNET,
+  //   chain2: CHAINS.BASE,
+  //   L2OutputOracle: '0x56315b90c40730925ec5485cf004d835058518A0',
+  // };
 
   // https://docs.blast.io/building/contracts#mainnet
   static readonly blastMainnnetConfig: RollupDeployment<OPConfig> = {
