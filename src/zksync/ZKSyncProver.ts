@@ -43,8 +43,7 @@ export class ZKSyncProver extends AbstractProver {
     return batchIndex + Number(relative); //(typeof relative === 'string' ? 0 : Number(relative));
   }
   static async latest(provider: Provider, relative: BigNumberish = 0) {
-    const batchIndex = await this.latestBatchIndex(provider, relative);
-    return new this(provider, batchIndex);
+    return new this(provider, await this.latestBatchIndex(provider, relative));
   }
   constructor(
     provider: Provider,

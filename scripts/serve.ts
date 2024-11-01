@@ -295,7 +295,6 @@ async function createGateway(name: string) {
       return new Gateway(new ZKSyncRollup(createProviderPair(config), config));
     }
     case 'base':
-      // return createOPGateway(OPRollup.baseMainnetConfig);
       return createOPFaultGateway(OPFaultRollup.baseMainnetConfig);
     case 'base-sepolia':
       return createOPFaultGateway(OPFaultRollup.baseSepoliaConfig);
