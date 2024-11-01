@@ -24,6 +24,7 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
   TrustedCommit<P>
 > {
   readonly latest: CachedValue<TrustedCommit<P>>;
+  private _signed = 0n;
   constructor(
     provider2: Provider,
     readonly factory: LatestProverFactory<P>,
@@ -39,7 +40,13 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
         ['0x1900', ZeroAddress, signedAt, stateRoot]
       );
       const signature = this.signingKey.sign(hash).serialized;
-      return { index: 0n, prover, stateRoot, signature, signedAt };
+      return {
+        index: this._signed++,
+        prover,
+        stateRoot,
+        signature,
+        signedAt,
+      };
     }, 60000);
   }
   get signerAddress() {
@@ -49,7 +56,7 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
     return true;
   }
   override async fetchLatestCommitIndex(): Promise<bigint> {
-    return 0n;
+    return (await this.latest.get()).index;
   }
   protected override async _fetchParentCommitIndex(
     _commit: RollupCommit<P>
@@ -57,9 +64,8 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
     return -1n;
   }
   protected override async _fetchCommit(
-    index: bigint
+    _index: bigint
   ): Promise<TrustedCommit<P>> {
-    if (index) throw new Error('unsupported commit');
     return this.latest.get();
   }
   override encodeWitness(
