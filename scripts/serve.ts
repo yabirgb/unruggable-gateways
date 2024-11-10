@@ -296,6 +296,11 @@ async function createGateway(name: string) {
     }
     case 'base':
       return createOPFaultGateway(OPFaultRollup.baseMainnetConfig);
+    case 'unfinalized-base':
+      return createOPFaultGateway({
+        ...OPFaultRollup.baseMainnetConfig,
+        minAgeSec: 1,
+      });
     case 'base-sepolia':
       return createOPFaultGateway(OPFaultRollup.baseSepoliaConfig);
     case 'unfinalized-base-sepolia':
