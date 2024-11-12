@@ -161,13 +161,13 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         chain: CHAINS.LINEA,
         rpc: 'https://rpc.linea.build',
         infura: 'linea-mainnet',
-        //alchemy: 'linea-mainnet', // 20240901: eth_getProof doesn't work
+        //alchemy: 'linea-mainnet', // 20240901: linea_getProof doesn't work
       },
       {
         chain: CHAINS.LINEA_SEPOLIA,
         rpc: 'https://rpc.sepolia.linea.build',
         infura: 'linea-sepolia',
-        alchemy: 'linea-sepolia',
+        //alchemy: 'linea-sepolia', // 20240901: linea_getProof doesn't work
       },
       {
         // https://docs.frax.com/fraxtal/network/network-information#fraxtal-mainnet
