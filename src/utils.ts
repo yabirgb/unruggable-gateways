@@ -46,17 +46,46 @@ export async function fetchBlock(
   return json;
 }
 
+function isBlockTag(x: BigNumberish) {
+  return typeof x === 'string' && !x.startsWith('0x');
+}
+
 export async function fetchBlockNumber(
   provider: Provider,
   relBlockTag: BigNumberish = 0
 ): Promise<bigint> {
-  if (relBlockTag == 0) {
+  if (relBlockTag == 0 || relBlockTag === 'latest') {
     return BigInt(await provider.send('eth_blockNumber', []));
-  } else if (typeof relBlockTag === 'string') {
+  } else if (isBlockTag(relBlockTag)) {
     const info = await fetchBlock(provider, relBlockTag);
     return BigInt(info.number);
   } else {
-    const i = await fetchBlockNumber(provider, 0);
-    return i + BigInt(relBlockTag);
+    const i = BigInt(relBlockTag);
+    if (i < 0) {
+      const latest = await fetchBlockNumber(provider, 0);
+      return latest + i;
+    } else {
+      return i;
+    }
   }
+}
+
+export async function fetchBlockTag(
+  provider: Provider,
+  relBlockTag: BigNumberish = 0
+): Promise<BigNumberish> {
+  if (isBlockTag(relBlockTag)) return relBlockTag;
+  const i = BigInt(relBlockTag);
+  if (!i) return 'latest';
+  return fetchBlockNumber(provider, i);
+}
+
+export function isRPCError(err: any, code: number) {
+  return (
+    err instanceof Error &&
+    'error' in err &&
+    err.error instanceof Object &&
+    'code' in err.error &&
+    err.error.code === code
+  );
 }

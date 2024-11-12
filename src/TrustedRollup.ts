@@ -24,7 +24,7 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
   TrustedCommit<P>
 > {
   readonly latest: CachedValue<TrustedCommit<P>>;
-  private _signed = 0n;
+  #signed = 0n;
   constructor(
     provider2: Provider,
     readonly factory: LatestProverFactory<P>,
@@ -41,7 +41,7 @@ export class TrustedRollup<P extends AbstractProver> extends AbstractRollup<
       );
       const signature = this.signingKey.sign(hash).serialized;
       return {
-        index: this._signed++,
+        index: this.#signed++,
         prover,
         stateRoot,
         signature,

@@ -13,6 +13,21 @@ function shouldNeverBatch(payload: JsonRpcPayload) {
 }
 
 export class GatewayProvider extends JsonRpcProvider {
+  // convenience
+  static async http(url: string) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        method: 'eth_chainId',
+        params: [],
+        id: 1,
+        jsonrpc: '2.0',
+      }),
+    });
+    const { result } = await res.json();
+    return new this(new FetchRequest(url), BigInt(result));
+  }
   constructor(
     fr: FetchRequest,
     readonly chain: Chain
@@ -52,7 +67,7 @@ export class GatewayProvider extends JsonRpcProvider {
     for (let attempt = 0; ; attempt++) {
       try {
         // ethers bug: return type is wrong
-        // expected: (JsonRpcResult | JsonRpcErrror)[]
+        // expected: (JsonRpcResult | JsonRpcError)[]
         const results: any[] = await super._send(payload);
         if (!results.some((x) => x.error?.code === 429)) {
           // handle alchemy weirdness

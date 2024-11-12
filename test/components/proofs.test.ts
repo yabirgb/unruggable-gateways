@@ -1,5 +1,7 @@
 import { EthProver } from '../../src/eth/EthProver.js';
 import { GatewayRequest } from '../../src/vm.js';
+import { toPaddedHex } from '../../src/utils.js';
+import { ZeroHash, ZeroAddress } from 'ethers/constants';
 import { Foundry } from '@adraffy/blocksmith';
 import { afterAll, test, expect } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
@@ -28,6 +30,40 @@ describe('proofs', async () => {
     }
   });
 
+  test(`getStorage: slow / dne`, async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    const value = await prover.getStorage(ZeroAddress, 0n, false);
+    expect(value).toEqual(ZeroHash);
+  });
+  test(`getStorage: fast / dne`, async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    const value = await prover.getStorage(ZeroAddress, 0n, true);
+    expect(value).toEqual(ZeroHash);
+  });
+
+  test(`getStorage: slow / eoa`, async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    const { address } = foundry.wallets.admin;
+    const value = await prover.getStorage(address, 0n, false);
+    expect(value).toEqual(ZeroHash);
+  });
+  test(`getStorage: fast / eoa`, async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    const { address } = foundry.wallets.admin;
+    const value = await prover.getStorage(address, 0n, true);
+    expect(value).toEqual(ZeroHash);
+  });
+
+  test(`getStorage: slow / contract`, async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    const value = await prover.getStorage(contract.target, 0n, false);
+    expect(value).toEqual(toPaddedHex(1));
+  });
+  test(`getStorage: fast / contract`, async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    const value = await prover.getStorage(contract.target, 0n, true);
+    expect(value).toEqual(toPaddedHex(1));
+  });
   test('reconstruction: empty', async () => {
     const prover = await EthProver.latest(foundry.provider);
     const p0 = await prover.fetchProofs(contract.target);

@@ -64,7 +64,9 @@ if (prefetch) {
 if (gateway instanceof Gateway) {
   // gateway.commitDepth = 100;
   // gateway.allowHistorical = true;
-  if (gateway.rollup.unfinalized) {
+  if (gateway.rollup instanceof TrustedRollup) {
+    gateway.commitDepth = 0; // no need to keep expired signatures
+  } else if (gateway.rollup.unfinalized) {
     gateway.commitDepth = 10;
   }
 }

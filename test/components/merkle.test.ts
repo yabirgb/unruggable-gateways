@@ -18,14 +18,14 @@ async function setup() {
       const prover = await EthProver.latest(foundry.provider);
       const stateRoot = await prover.fetchStateRoot();
       return {
-        async assertDoesNotExist(target: HexAddress) {
+        async assertAccount(target: HexAddress, exists: boolean) {
           const { accountProof } = await prover.getProofs(target);
           const accountState = verifyAccountState(
             target,
             accountProof,
             stateRoot
           );
-          expect(accountState, 'accountState').toBeUndefined();
+          expect(accountState !== undefined, 'accountState').toEqual(exists);
         },
         async assertValue(target: HexAddress, slot: BigNumberish) {
           slot = BigInt(slot);
@@ -53,13 +53,13 @@ describe('merkle', async () => {
   test(`nonexistent EOA does not exist`, async () => {
     const T = await setup();
     const P = await T.prover();
-    await P.assertDoesNotExist(toPaddedHex(0xdead, 20));
+    await P.assertAccount(toPaddedHex(0xdead, 20), false);
   });
 
   test('EOA with balance exists', async () => {
     const T = await setup();
     const P = await T.prover();
-    await P.assertValue(T.foundry.wallets.admin.address, 0);
+    await P.assertAccount(T.foundry.wallets.admin.address, true);
   });
 
   test('empty contract', async () => {

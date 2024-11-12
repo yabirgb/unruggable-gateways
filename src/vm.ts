@@ -524,6 +524,18 @@ export abstract class AbstractProver {
       throw new Error(`too many proofs: ${size} > ${this.maxUniqueProofs}`);
     }
   }
+  checkStorageProofs(isContract: boolean, slots: bigint[], proofs: any[]) {
+    if (isContract) {
+      // 20241112: devcon bug with linea-sepolia rpc
+      // apply rpc check to all provers
+      const n = proofs.reduce((a, x) => a + (x ? 1 : 0), 0);
+      if (n !== slots.length) {
+        throw new Error(`expected ${slots.length} storage proofs: got ${n}`);
+      }
+    } else {
+      proofs.length = 0; // nuke the proofs
+    }
+  }
   proofMap() {
     const map = new Map<string, bigint[]>();
     for (const key of this.proofLRU.keys()) {

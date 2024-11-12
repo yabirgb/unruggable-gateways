@@ -1,7 +1,7 @@
 import type { HexString, HexString32, ProofRef } from '../types.js';
 import { BlockProver, makeStorageKey, type TargetNeed } from '../vm.js';
-import { ZeroHash } from 'ethers/constants';
-import { withResolvers, toPaddedHex } from '../utils.js';
+import { ZeroAddress, ZeroHash } from 'ethers/constants';
+import { withResolvers, toPaddedHex, isRPCError } from '../utils.js';
 import {
   type LineaProof,
   type RPCLineaGetProof,
@@ -20,6 +20,16 @@ export class LineaProver extends BlockProver {
     if (!this.stateRoot) throw new Error(`unknown stateRoot`);
     return this.stateRoot;
   }
+  async isShomeiReady() {
+    // see: LineaRollup.fetchLatestCommitIndex()
+    try {
+      await this.getProofs(ZeroAddress);
+      return true;
+    } catch (err) {
+      if (isRPCError(err, -32600)) return false; // BLOCK_MISSING_IN_CHAIN
+      throw err;
+    }
+  }
   override async isContract(target: HexString): Promise<boolean> {
     if (this.fast) {
       return this.cache.get(target, async () => {
@@ -33,7 +43,7 @@ export class LineaProver extends BlockProver {
   override async getStorage(
     target: HexString,
     slot: bigint,
-    fast?: boolean
+    fast: boolean = this.fast
   ): Promise<HexString> {
     target = target.toLowerCase();
     // check to see if we know this target isn't a contract
@@ -52,7 +62,7 @@ export class LineaProver extends BlockProver {
         : ZeroHash;
     }
     // we didn't have the proof
-    if (fast || this.fast) {
+    if (fast) {
       return this.cache.get(storageKey, () => {
         return this.provider.getStorage(target, slot, this.block);
       });
@@ -135,17 +145,16 @@ export class LineaProver extends BlockProver {
         reject(err);
         throw err; // must throw because accountProof is undefined
       }
-    } else {
-      accountProof = await accountProof;
-    }
-    // nuke the proofs if we dont exist
-    if (!isContract(accountProof)) {
-      storageProofs.length = 0;
     }
     // reassemble
-    return {
+    const [a, v] = await Promise.all([
       accountProof,
-      storageProofs: (await Promise.all(storageProofs)) as LineaProof[],
+      Promise.all(storageProofs),
+    ]);
+    this.checkStorageProofs(isContract(a), slots, v);
+    return {
+      accountProof: a,
+      storageProofs: v as LineaProof[],
     };
   }
   async fetchProofs(target: HexString, slots: bigint[] = []) {

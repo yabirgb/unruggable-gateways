@@ -8,7 +8,7 @@ import {
 } from '../providers.js';
 import { chainName, CHAINS } from '../../src/chains.js';
 import { serve } from '@resolverworks/ezccip/serve';
-import { DeployedContract, Foundry } from '@adraffy/blocksmith';
+import { type DeployedContract, Foundry } from '@adraffy/blocksmith';
 import { runSlotDataTests } from './tests.js';
 import { type OPConfig, OPRollup } from '../../src/op/OPRollup.js';
 import {
@@ -19,6 +19,7 @@ import {
   type ScrollConfig,
   ScrollRollup,
 } from '../../src/scroll/ScrollRollup.js';
+import { type LineaConfig, LineaRollup } from '../../src/linea/LineaRollup.js';
 import { EthSelfRollup } from '../../src/eth/EthSelfRollup.js';
 import { TrustedRollup } from '../../src/TrustedRollup.js';
 import { EthProver } from '../../src/eth/EthProver.js';
@@ -234,4 +235,39 @@ export function testTrustedEth(chain2: Chain, opts: TestOptions) {
       });
     }
   );
+}
+
+export function testLinea(
+  config: RollupDeployment<LineaConfig>,
+  opts: TestOptions
+) {
+  describe.skipIf(shouldSkip(opts))(testName(config), async () => {
+    const rollup = new LineaRollup(createProviderPair(config), config);
+    const foundry = await Foundry.launch({
+      fork: providerURL(config.chain1),
+      infoLog: !!opts.log,
+    });
+    afterAll(foundry.shutdown);
+    const gateway = new Gateway(rollup);
+    const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
+    afterAll(ccip.shutdown);
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const hooks = await foundry.deploy({
+      file: 'LineaVerifierHooks',
+      libs: {
+        SparseMerkleProof: config.SparseMerkleProof,
+      },
+    });
+    const verifier = await foundry.deploy({
+      file: 'LineaVerifier',
+      args: [
+        [ccip.endpoint],
+        rollup.defaultWindow,
+        hooks,
+        config.L1MessageService,
+      ],
+      libs: { GatewayVM },
+    });
+    await setupTests(verifier, opts);
+  });
 }
