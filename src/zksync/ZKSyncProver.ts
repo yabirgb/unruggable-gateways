@@ -19,10 +19,9 @@ import {
   makeStorageKey,
   type Need,
 } from '../vm.js';
-import { ZeroAddress } from 'ethers/constants';
+import { ZeroAddress, ZeroHash } from 'ethers/constants';
 import { toPaddedHex, withResolvers } from '../utils.js';
 import { unwrap } from '../wrap.js';
-import { ZeroHash } from 'ethers';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
 // https://github.com/matter-labs/era-contracts/blob/fd4aebcfe8833b26e096e87e142a5e7e4744f3fa/system-contracts/bootloader/bootloader.yul#L458
