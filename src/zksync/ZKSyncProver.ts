@@ -20,7 +20,12 @@ import {
   type Need,
 } from '../vm.js';
 import { ZeroAddress, ZeroHash } from 'ethers/constants';
-import { toPaddedHex, withResolvers } from '../utils.js';
+import {
+  LATEST_BLOCK_TAG,
+  isBlockTag,
+  toPaddedHex,
+  withResolvers,
+} from '../utils.js';
 import { unwrap } from '../wrap.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
@@ -33,17 +38,29 @@ export class ZKSyncProver extends AbstractProver {
   static readonly encodeProof = encodeProof;
   static async latestBatchIndex(
     provider: Provider,
-    relative: BigNumberish = 0
+    relBlockTag: BigNumberish = LATEST_BLOCK_TAG
   ) {
     // https://docs.zksync.io/build/api-reference/zks-rpc#zks_l1batchnumber
     // NOTE: BlockTags are not supported
     // we could simulate "finalized" using some fixed offset
-    if (typeof relative === 'string') relative = 0; // currently: any block tag => "latest"
+    // currently: any block tag => "latest"
+    if (isBlockTag(relBlockTag)) {
+      relBlockTag = 0;
+    } else {
+      relBlockTag = Number(relBlockTag);
+      if (relBlockTag >= 0) return relBlockTag;
+    }
     const batchIndex = Number(await provider.send('zks_L1BatchNumber', []));
-    return batchIndex + Number(relative); //(typeof relative === 'string' ? 0 : Number(relative));
+    return batchIndex + relBlockTag;
   }
-  static async latest(provider: Provider, relative: BigNumberish = 0) {
-    return new this(provider, await this.latestBatchIndex(provider, relative));
+  static async latest(
+    provider: Provider,
+    relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+  ) {
+    return new this(
+      provider,
+      await this.latestBatchIndex(provider, relBlockTag)
+    );
   }
   constructor(
     provider: Provider,

@@ -22,6 +22,7 @@ import {
   fetchBlockNumber,
   toUnpaddedHex,
   toPaddedHex,
+  LATEST_BLOCK_TAG,
 } from './utils.js';
 import { CachedMap, LRU } from './cached.js';
 import { GATEWAY_OP as OP } from './ops.js';
@@ -982,8 +983,11 @@ export abstract class BlockProver extends AbstractProver {
   protected static _createLatest<P extends BlockProver>(
     this: new (...a: ConstructorParameters<typeof BlockProver>) => P
   ) {
-    return async (provider: Provider, relative: BigNumberish = 0) => {
-      return new this(provider, await fetchBlockNumber(provider, relative));
+    return async (
+      provider: Provider,
+      relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+    ) => {
+      return new this(provider, await fetchBlockNumber(provider, relBlockTag));
     };
   }
   readonly block: HexString;

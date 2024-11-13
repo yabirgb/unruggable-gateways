@@ -36,7 +36,7 @@ export function withResolvers<T = void>() {
   return { promise, resolve, reject };
 }
 
-function isBlockTag(x: BigNumberish): x is string {
+export function isBlockTag(x: BigNumberish): x is string {
   return typeof x === 'string' && !x.startsWith('0x');
 }
 
