@@ -13,6 +13,8 @@ export const EVM_BLOCKHASH_DEPTH = 256;
 
 export const MAINNET_BLOCK_SEC = 12;
 
+export const LATEST_BLOCK_TAG = 'latest';
+
 // hex-prefixed w/o zero-padding
 export function toUnpaddedHex(x: BigNumberish | boolean): HexString {
   return '0x' + BigInt(x).toString(16);
@@ -34,27 +36,34 @@ export function withResolvers<T = void>() {
   return { promise, resolve, reject };
 }
 
-export async function fetchBlock(
-  provider: Provider,
-  block: BigNumberish = 'latest'
-) {
-  const json: RPCEthGetBlock | null = await provider.send(
-    'eth_getBlockByNumber',
-    [typeof block === 'string' ? block : toUnpaddedHex(block), false]
-  );
-  if (!json) throw new Error(`no block: ${block}`);
-  return json;
-}
-
-function isBlockTag(x: BigNumberish) {
+function isBlockTag(x: BigNumberish): x is string {
   return typeof x === 'string' && !x.startsWith('0x');
 }
 
+export async function fetchBlock(
+  provider: Provider,
+  relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+): Promise<RPCEthGetBlock> {
+  if (!isBlockTag(relBlockTag)) {
+    let i = BigInt(relBlockTag);
+    if (i < 0) i = await fetchBlockNumber(provider, i);
+    relBlockTag = toUnpaddedHex(i);
+  }
+  const json = await provider.send('eth_getBlockByNumber', [
+    relBlockTag,
+    false,
+  ]);
+  if (!json) throw new Error(`no block: ${relBlockTag}`);
+  return json;
+}
+
+// avoid an rpc if possible
+// use negative (-100) for offset from "latest" (#-100)
 export async function fetchBlockNumber(
   provider: Provider,
-  relBlockTag: BigNumberish = 0
+  relBlockTag: BigNumberish = LATEST_BLOCK_TAG
 ): Promise<bigint> {
-  if (relBlockTag == 0 || relBlockTag === 'latest') {
+  if (relBlockTag === LATEST_BLOCK_TAG) {
     return BigInt(await provider.send('eth_blockNumber', []));
   } else if (isBlockTag(relBlockTag)) {
     const info = await fetchBlock(provider, relBlockTag);
@@ -62,7 +71,7 @@ export async function fetchBlockNumber(
   } else {
     const i = BigInt(relBlockTag);
     if (i < 0) {
-      const latest = await fetchBlockNumber(provider, 0);
+      const latest = await fetchBlockNumber(provider);
       return latest + i;
     } else {
       return i;
@@ -70,13 +79,15 @@ export async function fetchBlockNumber(
   }
 }
 
+// avoid an rpc if possible
+// convert negative (-100) => absolute (#-100)
 export async function fetchBlockTag(
   provider: Provider,
-  relBlockTag: BigNumberish = 0
-): Promise<BigNumberish> {
+  relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+): Promise<string | bigint> {
   if (isBlockTag(relBlockTag)) return relBlockTag;
   const i = BigInt(relBlockTag);
-  if (!i) return 'latest';
+  if (!i) return LATEST_BLOCK_TAG;
   return fetchBlockNumber(provider, i);
 }
 
