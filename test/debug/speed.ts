@@ -1,7 +1,7 @@
 import { OPRollup } from "../../src/op/OPRollup.js";
 import { createProviderPair } from "../providers.js";
 
-const config = OPRollup.baseMainnetConfig;
+const config = OPRollup.zoraMainnetConfig;
 const rollup = new OPRollup(createProviderPair(config), config);
 
 const commit = await logTime('fetchLatestCommit', rollup.fetchLatestCommit());

@@ -55,10 +55,11 @@ library GatewayVM {
             let e := add(p, mload(v)) // end of v
             let x
             ret := 1 // assume zero
+            // while (p < e)
             for {
 
             } lt(p, e) {
-                // while (p < e)
+
             } {
                 x := mload(p) // remember last
                 p := add(p, 32) // step by word
