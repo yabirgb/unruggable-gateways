@@ -46,7 +46,7 @@ export async function fetchBlock(
 ): Promise<RPCEthGetBlock> {
   if (!isBlockTag(relBlockTag)) {
     let i = BigInt(relBlockTag);
-    if (i < 0) i = await fetchBlockNumber(provider, i);
+    if (i < 0) i += await fetchBlockNumber(provider);
     relBlockTag = toUnpaddedHex(i);
   }
   const json = await provider.send('eth_getBlockByNumber', [
@@ -69,13 +69,9 @@ export async function fetchBlockNumber(
     const info = await fetchBlock(provider, relBlockTag);
     return BigInt(info.number);
   } else {
-    const i = BigInt(relBlockTag);
-    if (i < 0) {
-      const latest = await fetchBlockNumber(provider);
-      return latest + i;
-    } else {
-      return i;
-    }
+    let i = BigInt(relBlockTag);
+    if (i < 0) i += await fetchBlockNumber(provider);
+    return i;
   }
 }
 
@@ -85,10 +81,9 @@ export async function fetchBlockTag(
   provider: Provider,
   relBlockTag: BigNumberish = LATEST_BLOCK_TAG
 ): Promise<string | bigint> {
-  if (isBlockTag(relBlockTag)) return relBlockTag;
-  const i = BigInt(relBlockTag);
-  if (!i) return LATEST_BLOCK_TAG;
-  return fetchBlockNumber(provider, i);
+  return isBlockTag(relBlockTag)
+    ? relBlockTag
+    : fetchBlockNumber(provider, relBlockTag);
 }
 
 export function isRPCError(err: any, code: number) {

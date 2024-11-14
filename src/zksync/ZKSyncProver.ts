@@ -39,7 +39,7 @@ export class ZKSyncProver extends AbstractProver {
   static async latestBatchIndex(
     provider: Provider,
     relBlockTag: BigNumberish = LATEST_BLOCK_TAG
-  ) {
+  ): Promise<number> {
     // https://docs.zksync.io/build/api-reference/zks-rpc#zks_l1batchnumber
     // NOTE: BlockTags are not supported
     // we could simulate "finalized" using some fixed offset
