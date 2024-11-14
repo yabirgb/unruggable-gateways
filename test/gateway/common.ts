@@ -20,6 +20,10 @@ import {
   ScrollRollup,
 } from '../../src/scroll/ScrollRollup.js';
 import { type LineaConfig, LineaRollup } from '../../src/linea/LineaRollup.js';
+import {
+  type ZKSyncConfig,
+  ZKSyncRollup,
+} from '../../src/zksync/ZKSyncRollup.js';
 import { EthSelfRollup } from '../../src/eth/EthSelfRollup.js';
 import { TrustedRollup } from '../../src/TrustedRollup.js';
 import { EthProver } from '../../src/eth/EthProver.js';
@@ -266,6 +270,36 @@ export function testLinea(
         hooks,
         config.L1MessageService,
       ],
+      libs: { GatewayVM },
+    });
+    await setupTests(verifier, opts);
+  });
+}
+
+export function testZKSync(
+  config: RollupDeployment<ZKSyncConfig>,
+  opts: TestOptions
+) {
+  describe.skipIf(shouldSkip(opts))(testName(config), async () => {
+    const rollup = new ZKSyncRollup(createProviderPair(config), config);
+    const foundry = await Foundry.launch({
+      fork: providerURL(config.chain1),
+      infoLog: !!opts.log,
+      infiniteCallGas: true, // Blake2s is ~12m gas per proof!
+    });
+    afterAll(foundry.shutdown);
+    const gateway = new Gateway(rollup);
+    const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
+    afterAll(ccip.shutdown);
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const ZKSyncSMT = await foundry.deploy({ file: 'ZKSyncSMT' });
+    const hooks = await foundry.deploy({
+      file: 'ZKSyncVerifierHooks',
+      args: [ZKSyncSMT],
+    });
+    const verifier = await foundry.deploy({
+      file: 'ZKSyncVerifier',
+      args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.DiamondProxy],
       libs: { GatewayVM },
     });
     await setupTests(verifier, opts);

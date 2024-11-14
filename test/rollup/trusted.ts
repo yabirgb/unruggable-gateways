@@ -1,7 +1,7 @@
 import { randomBytes, SigningKey } from 'ethers/crypto';
 import { CHAINS } from '../../src/chains.js';
 import { TrustedRollup } from '../../src/TrustedRollup.js';
-import { EthProver } from '../../src/index.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import { createProvider } from '../providers.js';
 
 const rollup = new TrustedRollup(
@@ -16,7 +16,7 @@ console.log({
   cacheMs: rollup.latest.cacheMs,
 });
 
-// there is only 1 commit, always index 0
+// there is only 1 commit
 const { prover: _, ...commit } = await rollup.fetchCommit(0n);
 
 console.log(commit);

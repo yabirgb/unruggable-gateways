@@ -4,7 +4,7 @@ import { toPaddedHex } from '../../src/utils.js';
 import { test, expect, afterAll } from 'bun:test';
 import { describe } from '../bun-describe-fix.js';
 import { CHAINS } from '../../src/chains.js';
-import { EthProver } from '../../src/index.js';
+import { EthProver } from '../../src/eth/EthProver.js';
 import { Provider } from '../../src/types.js';
 
 describe.skipIf(!!process.env.IS_CI)('polygon eth_getProof retry', async () => {

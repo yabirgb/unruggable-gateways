@@ -264,6 +264,20 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         // wss://rpc.apechain.com/ws
         // https://apechain.calderachain.xyz/http
       },
+      // https://docs.zero.network/build-on-zero/network-information#zer%CE%B8-network
+      {
+        chain: CHAINS.ZERO,
+        rpc: 'https://rpc.zerion.io/v1/zero',
+      },
+      {
+        chain: CHAINS.ZERO_SEPOLIA,
+        rpc: 'https://rpc.zerion.io/v1/zero-sepolia',
+      },
+      // https://docs.inkonchain.com/quick-start/get-connected
+      {
+        chain: CHAINS.INK_SEPOLIA,
+        rpc: 'https://rpc-qnd-sepolia.inkonchain.com', // wss://rpc-qnd-sepolia.inkonchain.com
+      },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])
 );

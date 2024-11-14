@@ -59,6 +59,14 @@ export class OPFaultRollup extends AbstractOPRollup {
     GameFinder: GAME_FINDER_SEPOLIA,
   };
 
+  // https://docs.inkonchain.com/build/useful-info/ink-contracts#l1-testnet-contracts-sepolia
+  static readonly inkSepoliaConfig: RollupDeployment<OPFaultConfig> = {
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.INK_SEPOLIA,
+    OptimismPortal: '0x5c1d29C6c9C8b0800692acC95D700bcb4966A1d7',
+    GameFinder: GAME_FINDER_SEPOLIA,
+  };
+
   // 20240917: delayed constructor not needed
   readonly OptimismPortal: Contract;
   readonly GameFinder: Contract;

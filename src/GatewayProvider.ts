@@ -25,7 +25,8 @@ export class GatewayProvider extends JsonRpcProvider {
         jsonrpc: '2.0',
       }),
     });
-    const { result } = await res.json();
+    const { result, error } = await res.json();
+    if (!res.ok || error) throw new Error(error?.message ?? 'expected rpc');
     return new this(new FetchRequest(url), BigInt(result));
   }
   constructor(

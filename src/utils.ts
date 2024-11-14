@@ -11,6 +11,7 @@ export const NULL_CODE_HASH = keccakStr('');
 
 export const EVM_BLOCKHASH_DEPTH = 256;
 
+// TODO: make this a function of Chain
 export const MAINNET_BLOCK_SEC = 12;
 
 export const LATEST_BLOCK_TAG = 'latest';

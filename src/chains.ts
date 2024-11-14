@@ -45,6 +45,9 @@ export const CHAINS = {
   WORLD: 480n,
   WORLD_SEPOLIA: 4801n,
   APE: 33139n,
+  ZERO: 543210n,
+  ZERO_SEPOLIA: 4457845n,
+  INK_SEPOLIA: 763373n,
 } as const satisfies Record<string, Chain>;
 
 export function chainName(chain: Chain): string {
