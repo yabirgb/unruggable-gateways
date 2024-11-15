@@ -67,6 +67,14 @@ export class OPFaultRollup extends AbstractOPRollup {
     GameFinder: GAME_FINDER_SEPOLIA,
   };
 
+  // https://docs.unichain.org/docs/technical-information/contract-addresses#l1-contracts
+  static readonly unichainSepoliaConfig: RollupDeployment<OPFaultConfig> = {
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.UNICHAIN_SEPOLIA,
+    OptimismPortal: '0x0d83dab629f0e0F9d36c0Cbc89B69a489f0751bD',
+    GameFinder: GAME_FINDER_SEPOLIA,
+  };
+
   // 20240917: delayed constructor not needed
   readonly OptimismPortal: Contract;
   readonly GameFinder: Contract;

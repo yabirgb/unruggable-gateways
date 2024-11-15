@@ -20,6 +20,9 @@ import {
   ScrollRollup,
 } from '../../src/scroll/ScrollRollup.js';
 import { type LineaConfig, LineaRollup } from '../../src/linea/LineaRollup.js';
+import { type TaikoConfig, TaikoRollup } from '../../src/taiko/TaikoRollup.js';
+import { type NitroConfig, NitroRollup } from '../../src/nitro/NitroRollup.js';
+import { DoubleNitroRollup } from '../../src/nitro/DoubleNitroRollup.js';
 import {
   type ZKSyncConfig,
   ZKSyncRollup,
@@ -202,7 +205,7 @@ export function testSelfEth(chain: Chain, opts: TestOptions) {
 
 export function testTrustedEth(chain2: Chain, opts: TestOptions) {
   describe.skipIf(!!process.env.IS_CI)(
-    testName({ chain1: CHAINS.VOID, chain2 }),
+    testName({ chain1: CHAINS.VOID, chain2 }, { unfinalized: true }),
     async () => {
       const foundry = await Foundry.launch({
         fork: providerURL(chain2),
@@ -304,4 +307,74 @@ export function testZKSync(
     });
     await setupTests(verifier, opts);
   });
+}
+
+export function testTaiko(
+  config: RollupDeployment<TaikoConfig>,
+  opts: TestOptions
+) {
+  describe.skipIf(shouldSkip(opts))(testName(config), async () => {
+    const rollup = await TaikoRollup.create(createProviderPair(config), config);
+    const foundry = await Foundry.launch({
+      fork: providerURL(config.chain1),
+      infoLog: !!opts.log,
+    });
+    afterAll(foundry.shutdown);
+    const gateway = new Gateway(rollup);
+    const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
+    afterAll(ccip.shutdown);
+    const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+    const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
+    const verifier = await foundry.deploy({
+      file: 'TaikoVerifier',
+      args: [[ccip.endpoint], rollup.defaultWindow, hooks, rollup.TaikoL1],
+      libs: { GatewayVM },
+    });
+    await setupTests(verifier, opts);
+  });
+}
+
+export function testDoubleNitro(
+  config12: RollupDeployment<NitroConfig>,
+  config23: RollupDeployment<NitroConfig>,
+  opts: TestOptions
+) {
+  describe.skipIf(shouldSkip(opts))(
+    testName(
+      { ...config12, chain3: config23.chain2 },
+      { unfinalized: !!config12.minAgeBlocks || !!config23.minAgeBlocks }
+    ),
+    async () => {
+      const rollup = new DoubleNitroRollup(
+        new NitroRollup(createProviderPair(config12), config12),
+        createProvider(config23.chain2),
+        config23
+      );
+      const foundry = await Foundry.launch({
+        fork: providerURL(config12.chain1),
+        infoLog: !!opts.log,
+      });
+      afterAll(foundry.shutdown);
+      const gateway = new Gateway(rollup);
+      const ccip = await serve(gateway, { protocol: 'raw', log: !!opts.log });
+      afterAll(ccip.shutdown);
+      const GatewayVM = await foundry.deploy({ file: 'GatewayVM' });
+      const hooks = await foundry.deploy({ file: 'EthVerifierHooks' });
+      const verifier = await foundry.deploy({
+        file: 'DoubleNitroVerifier',
+        args: [
+          [ccip.endpoint],
+          rollup.defaultWindow,
+          hooks,
+          rollup.rollup12.Rollup,
+          rollup.rollup12.minAgeBlocks,
+          rollup.rollup23.Rollup,
+          //rollup.rollup23.minAgeBlocks,
+          rollup.nodeRequest.toTuple(),
+        ],
+        libs: { GatewayVM },
+      });
+      await setupTests(verifier, opts);
+    }
+  );
 }

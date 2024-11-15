@@ -278,6 +278,11 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         chain: CHAINS.INK_SEPOLIA,
         rpc: 'https://rpc-qnd-sepolia.inkonchain.com', // wss://rpc-qnd-sepolia.inkonchain.com
       },
+      // https://docs.unichain.org/docs/technical-information/network-information#unichain-sepolia-testnet
+      {
+        chain: CHAINS.UNICHAIN_SEPOLIA,
+        rpc: 'https://sepolia.unichain.org',
+      },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])
 );

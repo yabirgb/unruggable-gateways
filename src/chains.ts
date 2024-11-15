@@ -48,6 +48,7 @@ export const CHAINS = {
   ZERO: 543210n,
   ZERO_SEPOLIA: 4457845n,
   INK_SEPOLIA: 763373n,
+  UNICHAIN_SEPOLIA: 1301n,
 } as const satisfies Record<string, Chain>;
 
 export function chainName(chain: Chain): string {

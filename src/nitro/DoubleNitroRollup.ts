@@ -5,10 +5,6 @@ import { NitroCommit, NitroConfig, NitroRollup } from './NitroRollup.js';
 import { ABI_CODER } from '../utils.js';
 import { GatewayRequest } from '../vm.js';
 
-export type DoubleNitroConfig = {
-  L3Rollup: HexAddress;
-};
-
 export type DoubleNitroCommit = RollupCommit<EthProver> & {
   readonly commit12: NitroCommit;
   readonly commit23: NitroCommit;

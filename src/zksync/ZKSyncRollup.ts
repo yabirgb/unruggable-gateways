@@ -18,6 +18,7 @@ import {
 import { ABI_CODER } from '../utils.js';
 
 // https://docs.zksync.io/zk-stack/concepts/finality
+// https://docs.zksync.io/build/developer-reference/batches-and-l2-blocks
 // https://github.com/matter-labs/era-contracts/tree/main/
 // https://github.com/getclave/zksync-storage-proofs
 // https://uptime.com/statuspage/era
@@ -135,7 +136,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['tuple(bytes, bytes[], bytes)'],
+      ['(bytes, bytes[], bytes)'],
       [[commit.abiEncodedBatch, proofSeq.proofs, proofSeq.order]]
     );
   }
