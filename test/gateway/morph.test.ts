@@ -9,7 +9,7 @@ import { afterAll } from 'bun:test';
 
 // TODO: verify this works on 11/18
 const config = MorphRollup.mainnetConfig;
-describe.skipIf(!!process.env.SKIP_CI)(testName(config), async () => {
+describe.skipIf(!!process.env.IS_CI)(testName(config), async () => {
   const rollup = new MorphRollup(createProviderPair(config), config);
   const foundry = await Foundry.launch({
     fork: providerURL(config.chain1),

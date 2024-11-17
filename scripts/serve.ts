@@ -7,7 +7,7 @@ import { Gateway } from '../src/gateway.js';
 import { type OPConfig, OPRollup } from '../src/op/OPRollup.js';
 import { type OPFaultConfig, OPFaultRollup } from '../src/op/OPFaultRollup.js';
 import { ReverseOPRollup } from '../src/op/ReverseOPRollup.js';
-import { NitroConfig, NitroRollup } from '../src/nitro/NitroRollup.js';
+import { type NitroConfig, NitroRollup } from '../src/nitro/NitroRollup.js';
 import { DoubleNitroRollup } from '../src/nitro/DoubleNitroRollup.js';
 import { type ScrollConfig, ScrollRollup } from '../src/scroll/ScrollRollup.js';
 import { type TaikoConfig, TaikoRollup } from '../src/taiko/TaikoRollup.js';
