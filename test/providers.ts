@@ -12,6 +12,8 @@ export type RPCInfo = {
   readonly alchemyPremium?: boolean;
 };
 
+// TODO: this list is incomplete!
+// need to scrape all of the slugs and test rpc functionality and proof depth
 export const RPC_INFO = new Map<Chain, RPCInfo>(
   (
     [
@@ -58,7 +60,7 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         rpc: 'https://mainnet.base.org',
         ankr: 'base',
         infura: 'base-mainnet',
-        alchemy: 'base-mainnet',
+        //alchemy: 'base-mainnet', // 20241116: eth_getProof depth is less than 100
       },
       {
         // https://docs.base.org/docs/network-information#base-testnet-sepolia
@@ -66,7 +68,7 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         rpc: 'https://sepolia.base.org',
         ankr: 'base_sepolia',
         infura: 'base-sepolia',
-        alchemy: 'base-sepolia',
+        //alchemy: 'base-sepolia', // 20241116: eth_getProof depth is less than 100
       },
       {
         // https://docs.arbitrum.io/build-decentralized-apps/reference/node-providers#arbitrum-public-rpc-endpoints
@@ -282,6 +284,18 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
       {
         chain: CHAINS.UNICHAIN_SEPOLIA,
         rpc: 'https://sepolia.unichain.org',
+        alchemy: 'unichain-sepolia',
+      },
+      // https://docs.morphl2.io/docs/build-on-morph/developer-resources/contracts
+      {
+        chain: CHAINS.MORPH,
+        rpc: 'https://rpc-quicknode-holesky.morphl2.io',
+      },
+      // https://docs.soneium.org/docs/builders/overview
+      {
+        chain: CHAINS.SONEIUM_MINATO,
+        rpc: 'https://rpc.minato.soneium.org/',
+        alchemy: 'soneium-minato',
       },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])

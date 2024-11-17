@@ -96,7 +96,7 @@ export class ScrollRollup
     if (!finalEvent) throw new Error('not finalized');
     const tx = await commitEvent.getTransaction();
     const desc = this.ScrollChain.interface.parseTransaction(tx);
-    if (!desc) throw new Error(`unknown transaction`);
+    if (!desc) throw new Error(`unknown transaction: ${tx.hash}`);
     const { chunks } = desc.args;
     if (!Array.isArray(chunks)) throw new Error('no chunks');
     const prover = new EthProver(this.provider2, lastBlockFromChunks(chunks));
@@ -107,7 +107,7 @@ export class ScrollRollup
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['tuple(uint256, bytes[], bytes)'],
+      ['(uint256, bytes[], bytes)'],
       [[commit.index, proofSeq.proofs, proofSeq.order]]
     );
   }
@@ -121,7 +121,7 @@ export class ScrollRollup
       ])
     );
     return ABI_CODER.encode(
-      ['tuple(uint256)', 'tuple(bytes, bytes[])'],
+      ['(uint256)', '(bytes, bytes[])'],
       [[commit.index], ['0x', compressed]]
     );
   }

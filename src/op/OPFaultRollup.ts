@@ -75,6 +75,14 @@ export class OPFaultRollup extends AbstractOPRollup {
     GameFinder: GAME_FINDER_SEPOLIA,
   };
 
+  // https://docs.soneium.org/docs/builders/contracts#optimism-l1-stack-on-sepolia
+  static readonly soneiumMinatoConfig: RollupDeployment<OPFaultConfig> = {
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.SONEIUM_MINATO,
+    OptimismPortal: '0x65ea1489741A5D72fFdD8e6485B216bBdcC15Af3',
+    GameFinder: GAME_FINDER_SEPOLIA,
+  };
+
   // 20240917: delayed constructor not needed
   readonly OptimismPortal: Contract;
   readonly GameFinder: Contract;
@@ -113,7 +121,7 @@ export class OPFaultRollup extends AbstractOPRollup {
     // after a gameType switch, the finalized state "rewinds" to the latest game of the new type
     // to solve this, we use the latest finalized game of *any* supported gameType
     // 20240820: correctly handles the aug 16 respectedGameType change
-    // TODO: this should be simplified in the future once there is a better policy
+    // this should be simplified in the future once there is a better policy
     // 20240822: once again uses a helper contract to reduce rpc burden
     return this.GameFinder.findGameIndex(
       this.OptimismPortal.target,

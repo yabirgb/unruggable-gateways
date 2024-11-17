@@ -49,6 +49,9 @@ export const CHAINS = {
   ZERO_SEPOLIA: 4457845n,
   INK_SEPOLIA: 763373n,
   UNICHAIN_SEPOLIA: 1301n,
+  MORPH: 2818n,
+  MORPH_HOLESKY: 2810n,
+  SONEIUM_MINATO: 1946n,
 } as const satisfies Record<string, Chain>;
 
 export function chainName(chain: Chain): string {

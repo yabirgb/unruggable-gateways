@@ -4,7 +4,10 @@ import { CHAINS } from '../src/chains.js';
 import { Wallet } from 'ethers/wallet';
 
 const foundry = await FoundryDeployer.load({
-  wallet: new Wallet(process.env.PRIVATE_KEY!, createProvider(CHAINS.TAIKO)),
+  wallet: new Wallet(
+    process.env.PRIVATE_KEY!,
+    createProvider(CHAINS.SONEIUM_MINATO)
+  ),
 });
 
 const data = await foundry.prepare({

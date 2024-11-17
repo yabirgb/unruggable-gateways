@@ -84,19 +84,26 @@ describe('limits', async () => {
     expect(exec(prover, failReq)).rejects.toThrow(/^too many bytes:/);
   });
 
-  test('max assemble bytes', async () => {
+  test('max alloc bytes: single', async () => {
     const prover = await EthProver.latest(foundry.provider);
-    const N = 5;
-    prover.maxAssembleBytes = 32 << N;
+    prover.maxAllocBytes = 64;
     const req = new GatewayRequest();
-    req.push(1); // 32 bytes
-    function double() {
-      req.dup().concat();
-    }
-    for (let i = 0; i < N; i++) double();
+    req.push(1).push(2).concat();
     await exec(prover, req);
-    double(); // one more
-    expect(exec(prover, req)).rejects.toThrow(/^too many bytes:/);
+    prover.maxAllocBytes--;
+    expect(exec(prover, req)).rejects.toThrow('too much allocation');
+  });
+
+  test('max alloc bytes: total', async () => {
+    const prover = await EthProver.latest(foundry.provider);
+    const N = 100;
+    prover.maxAllocBytes = N * N;
+    const req = new GatewayRequest();
+    req.push(0);
+    for (let i = 0; i < N; i++) req.slice(0, N);
+    await exec(prover, req);
+    prover.maxAllocBytes--;
+    expect(exec(prover, req)).rejects.toThrow('too much allocation');
   });
 
   test('max proofs', async () => {

@@ -43,15 +43,19 @@ contract SlotDataReader is GatewayFetchTarget, Ownable {
         return string(m[0]);
     }
 
-    function readLatest() external view returns (uint256) {
+    function readSlot(uint256 slot) public view returns (uint256) {
         GatewayRequest memory r = GatewayFetcher
             .newRequest(1)
             .setTarget(_target)
-            .setSlot(0)
+            .setSlot(slot)
             .read()
             .setOutput(0);
         fetch(_verifier, r, this.uint256Callback.selector);
     }
+    function readLatest() external view returns (uint256) {
+        return readSlot(0);
+    }
+
     function readLatestViaPointer() external view returns (uint256) {
         GatewayRequest memory r = GatewayFetcher
             .newRequest(1)
