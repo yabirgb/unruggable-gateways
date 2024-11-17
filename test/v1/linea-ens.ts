@@ -1,6 +1,7 @@
 import { Foundry } from '@adraffy/blocksmith';
 import { serve } from '@resolverworks/ezccip/serve';
-import { ethers } from 'ethers';
+import { Contract } from 'ethers/contract';
+import { solidityPackedKeccak256 } from 'ethers/hash';
 import { createProviderPair, providerURL } from '../providers.js';
 import { LineaGatewayV1 } from '../../src/linea/LineaGatewayV1.js';
 import { LineaRollup } from '../../src/linea/LineaRollup.js';
@@ -18,17 +19,16 @@ const foundry = await Foundry.launch({
   fork: providerURL(config.chain1),
   infoLog: false,
 });
-const VERIFIER = '0x2aD1A39a3b616FB11ac5DB290061A0A5C09771f3';
-const SLOT = BigInt(ethers.solidityPackedKeccak256(['uint256'], [0]));
-await foundry.provider.send('anvil_setStorageAt', [
-  VERIFIER,
-  toPaddedHex(SLOT),
-  encodeShortString(ccip.endpoint),
-]);
-const verifier = new ethers.Contract(
-  VERIFIER,
+const SLOT = BigInt(solidityPackedKeccak256(['uint256'], [0]));
+const verifier = new Contract(
+  '0x2aD1A39a3b616FB11ac5DB290061A0A5C09771f3',
   ['function gatewayURLs() external view returns (string[])'],
   foundry.provider
+);
+await foundry.setStorageValue(
+  await verifier.getAddress(),
+  toPaddedHex(SLOT),
+  encodeShortString(ccip.endpoint)
 );
 console.log('Hijacked:', await verifier.gatewayURLs());
 
@@ -49,5 +49,5 @@ async function resolve(name: string) {
   console.log({ address, avatar });
 }
 
-ccip.shutdown;
+await ccip.shutdown();
 await foundry.shutdown();

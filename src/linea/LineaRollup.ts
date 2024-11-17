@@ -10,12 +10,11 @@ import type {
   ProviderPair,
   ProofSequence,
 } from '../types.js';
-import { ZeroHash } from 'ethers/constants';
 import { Contract } from 'ethers/contract';
 import { LineaProver } from './LineaProver.js';
 import { ROLLUP_ABI } from './types.js';
 import { CHAINS } from '../chains.js';
-import { ABI_CODER, toUnpaddedHex } from '../utils.js';
+import { ABI_CODER } from '../utils.js';
 
 // https://docs.linea.build/developers/quickstart/ethereum-differences
 // https://github.com/Consensys/linea-contracts
@@ -30,6 +29,7 @@ export type LineaConfig = {
 
 export type LineaCommit = RollupCommit<LineaProver> & {
   readonly stateRoot: HexString32;
+  readonly prevStateRoot: HexString32;
 };
 
 export class LineaRollup extends AbstractRollup<LineaCommit> {
@@ -60,44 +60,51 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
   }
 
   override async fetchLatestCommitIndex(): Promise<bigint> {
-    return this.L1MessageService.currentL2BlockNumber({
+    // return this.L1MessageService.currentL2BlockNumber({
+    //   blockTag: this.latestBlockTag,
+    // });
+    // 20241112: BLOCK_MISSING_IN_CHAIN
+    // https://github.com/Consensys/shomei/issues/98
+    // https://github.com/Consensys/shomei/issues/104
+    const index: bigint = await this.L1MessageService.currentL2BlockNumber({
       blockTag: this.latestBlockTag,
     });
+    let commit = await this._fetchCommit(index);
+    for (;;) {
+      if (await commit.prover.isShomeiReady()) return commit.index;
+      commit = await this.fetchParentCommit(commit);
+    }
   }
   protected override async _fetchParentCommitIndex(
     commit: LineaCommit
   ): Promise<bigint> {
-    // find the starting state root
     const [event] = await this.L1MessageService.queryFilter(
       this.L1MessageService.filters.DataFinalized(
-        commit.index,
         null,
-        commit.stateRoot
+        null,
+        commit.prevStateRoot
       )
     );
-    if (!event) throw new Error('no DataFinalized event');
-    // find the block that finalized this root
-    const prevStateRoot = event.topics[2];
-    const [prevEvent] = await this.L1MessageService.queryFilter(
-      this.L1MessageService.filters.DataFinalized(null, null, prevStateRoot)
-    );
-    if (!prevEvent) throw new Error('no prior DataFinalized event');
-    return BigInt(prevEvent.topics[1]); // l2BlockNumber
+    if (!event) throw new Error('no prior DataFinalized event');
+    return BigInt(event.topics[1]); // l2BlockNumber
   }
   protected override async _fetchCommit(index: bigint): Promise<LineaCommit> {
-    const stateRoot: HexString32 =
-      await this.L1MessageService.stateRootHashes(index);
-    if (stateRoot === ZeroHash) throw new Error('not finalized');
-    const prover = new LineaProver(this.provider2, toUnpaddedHex(index));
+    const [event] = await this.L1MessageService.queryFilter(
+      this.L1MessageService.filters.DataFinalized(index)
+    );
+    if (!event) throw new Error('no DataFinalized event');
+    const prevStateRoot: HexString32 = event.topics[2]; // start
+    const stateRoot: HexString32 = event.topics[3]; // end
+    const prover = new LineaProver(this.provider2, index);
     prover.stateRoot = stateRoot;
-    return { index, stateRoot, prover };
+    return { index, stateRoot, prevStateRoot, prover };
   }
   override encodeWitness(
     commit: LineaCommit,
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['tuple(uint256, bytes[], bytes)'],
+      ['(uint256, bytes[], bytes)'],
       [[commit.index, proofSeq.proofs, proofSeq.order]]
     );
   }

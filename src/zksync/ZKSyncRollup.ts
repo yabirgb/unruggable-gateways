@@ -18,6 +18,7 @@ import {
 import { ABI_CODER } from '../utils.js';
 
 // https://docs.zksync.io/zk-stack/concepts/finality
+// https://docs.zksync.io/build/developer-reference/batches-and-l2-blocks
 // https://github.com/matter-labs/era-contracts/tree/main/
 // https://github.com/getclave/zksync-storage-proofs
 // https://uptime.com/statuspage/era
@@ -38,11 +39,22 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     chain2: CHAINS.ZKSYNC,
     DiamondProxy: '0x32400084c286cf3e17e7b677ea9583e60a000324',
   };
-
   static readonly sepoliaConfig: RollupDeployment<ZKSyncConfig> = {
     chain1: CHAINS.SEPOLIA,
     chain2: CHAINS.ZKSYNC_SEPOLIA,
-    DiamondProxy: '0x9a6de0f62Aa270A8bCB1e2610078650D539B1Ef9',
+    DiamondProxy: '0x9A6DE0f62Aa270A8bCB1e2610078650D539B1Ef9',
+  };
+
+  // https://docs.zero.network/main-features/system-contracts#zer%CE%B8-network
+  static readonly zeroMainnetConfig: RollupDeployment<ZKSyncConfig> = {
+    chain1: CHAINS.MAINNET,
+    chain2: CHAINS.ZERO,
+    DiamondProxy: '0xdbD849acC6bA61F461CB8A41BBaeE2D673CA02d9',
+  };
+  static readonly zeroSepoliaConfig: RollupDeployment<ZKSyncConfig> = {
+    chain1: CHAINS.SEPOLIA,
+    chain2: CHAINS.ZERO_SEPOLIA,
+    DiamondProxy: '0x9A62B01fFa3bD358d03508ef60bB522ABA5d1bEb',
   };
 
   readonly DiamondProxy: Contract;
@@ -124,7 +136,7 @@ export class ZKSyncRollup extends AbstractRollup<ZKSyncCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['tuple(bytes, bytes[], bytes)'],
+      ['(bytes, bytes[], bytes)'],
       [[commit.abiEncodedBatch, proofSeq.proofs, proofSeq.order]]
     );
   }

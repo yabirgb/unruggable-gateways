@@ -22,6 +22,7 @@ import {
   fetchBlockNumber,
   toUnpaddedHex,
   toPaddedHex,
+  LATEST_BLOCK_TAG,
 } from './utils.js';
 import { CachedMap, LRU } from './cached.js';
 import { GATEWAY_OP as OP } from './ops.js';
@@ -524,6 +525,18 @@ export abstract class AbstractProver {
       throw new Error(`too many proofs: ${size} > ${this.maxUniqueProofs}`);
     }
   }
+  checkStorageProofs(isContract: boolean, slots: bigint[], proofs: any[]) {
+    if (isContract) {
+      // 20241112: devcon bug with linea-sepolia rpc
+      // apply rpc check to all provers
+      const n = proofs.reduce((a, x) => a + (x ? 1 : 0), 0);
+      if (n !== slots.length) {
+        throw new Error(`expected ${slots.length} storage proofs: got ${n}`);
+      }
+    } else {
+      proofs.length = 0; // nuke the proofs
+    }
+  }
   proofMap() {
     const map = new Map<string, bigint[]>();
     for (const key of this.proofLRU.keys()) {
@@ -970,8 +983,11 @@ export abstract class BlockProver extends AbstractProver {
   protected static _createLatest<P extends BlockProver>(
     this: new (...a: ConstructorParameters<typeof BlockProver>) => P
   ) {
-    return async (provider: Provider, relative: BigNumberish = 0) => {
-      return new this(provider, await fetchBlockNumber(provider, relative));
+    return async (
+      provider: Provider,
+      relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+    ) => {
+      return new this(provider, await fetchBlockNumber(provider, relBlockTag));
     };
   }
   readonly block: HexString;

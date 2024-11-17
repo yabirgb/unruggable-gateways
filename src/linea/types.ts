@@ -36,7 +36,11 @@ export const ROLLUP_ABI = new Interface([
     bytes32 finalBlobShnarf
   ) external`,
   // IZkEvmV2.sol
-  `event BlocksVerificationDone(uint256 indexed lastBlockFinalized, bytes32 startingRootHash, bytes32 finalRootHash)`,
+  `event BlocksVerificationDone(
+    uint256 indexed lastBlockFinalized,
+    bytes32 startingRootHash,
+    bytes32 finalRootHash
+  )`,
 ]);
 
 export type LineaProofObject = {

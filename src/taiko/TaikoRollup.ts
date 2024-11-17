@@ -44,6 +44,13 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     commitBatchSpan: 1,
   };
 
+  static readonly heklaConfig: RollupDeployment<TaikoConfig> = {
+    chain1: CHAINS.HOLESKY,
+    chain2: CHAINS.TAIKO_HEKLA,
+    TaikoL1: '0x79C9109b764609df928d16fC4a91e9081F7e87DB',
+    commitBatchSpan: 1,
+  };
+
   static async create(providers: ProviderPair, config: TaikoConfig) {
     const TaikoL1 = new Contract(
       config.TaikoL1,

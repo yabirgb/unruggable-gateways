@@ -32,17 +32,19 @@ This repository provides an end-to-end solution for proving data from rollup cha
 
 ## Chain Support
 * Rollups &amp; Verifers
-	* [OP](./src/op/OPRollup.ts) &mdash; Base, Blast, Celo, Cyber, Fraxtal, Mantle, Mode, opBNB, Redstone, Shape, Zora
-	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts) &mdash; Optimism
-	* [Nitro](./src/nitro/NitroRollup.ts) &mdash; Arbitrum One
+	* [OP](./src/op/OPRollup.ts)
+	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts)
+	* [Nitro](./src/nitro/NitroRollup.ts)
 	* [Linea](./src/linea/LineaRollup.ts)
 	* [Polygon PoS](./src/polygon/PolygonPoSRollup.ts)
 	* [Polygon ZK](./src/polygon/ZKEVMRollup.ts) &mdash; *WIP*
 	* [Scroll](./src/scroll/ScrollRollup.ts)
 	* [Taiko](./src/taiko/TaikoRollup.ts)
 	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
-	* [Reverse OP](./src/op/ReverseOPRollup.ts) &mdash; L2 &rarr; L1 for any Superchain
-	* [Self](./src/eth/EthSelfRollup.ts) &mdash; any Chain to itself
+	* [Reverse OP](./src/op/ReverseOPRollup.ts) &mdash; L2 &rarr; L1
+	* [Self](./src/eth/EthSelfRollup.ts) &mdash; any &rarr; itself
+	* [Trusted](./src/TrustedRollup.ts) &mdash; any &rarr; any
+	* [DoubleNitro](./src/nitro/DoubleNitroRollup.ts) &mdash; L1 &rarr; L2 &rarr; L3
 * Provers
 	* [Eth](./src/eth//EthProver.ts) &mdash; `eth_getProof`
 	* [Linea](./src/linea/LineaProver.ts) &mdash; `linea_getProof`
@@ -66,7 +68,14 @@ If you are interested in building a solution for another chain, please take a lo
 ## Running a Gateway
 
 * `bun run serve <chain> [port]`
-	* Chains: `arb1` `base-testnet` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `lineaV1` `linea` `mantle` `mode` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `taiko` `zksync` `zora`
+	* Chains: `arb1-sepolia` `arb1` `base-sepolia` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `ink-sepolia` `linea-sepolia` `lineaV1` `linea` `mantle` `mode` `op-sepolia` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll-sepolia` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `taiko-hekla` `taiko` `unfinalized-ape` `unfinalized-arb1-sepolia` `unfinalized-arb1` `unfinalized-base-sepolia` `unfinalized-base` `unfinalized-linea-sepolia` `unfinalized-linea` `unfinalized-op-sepolia` `unfinalized-op` `zero-sepolia` `zero` `zksync-sepolia` `zksync` `zora`
+		* eg. `bun run serve op`
+	* Use `trusted:<Chain>` for a [`TrustedRollup`](./src/TrustedRollup.ts)
+		* eg. `bun run serve trusted:op`
+		* Include `0x{64}` to set signing key
+	* Include `--latest` for `"latest"` instead of `"finalized"` block tag
+	* Include `--debug` to print `OP_DEBUG` statements
+	* Include `--dump` to print config, latest commit, and prover information and then exit.
 	* Default port: `8000`
 
 ## Testing

@@ -11,7 +11,10 @@ export const NULL_CODE_HASH = keccakStr('');
 
 export const EVM_BLOCKHASH_DEPTH = 256;
 
+// TODO: make this a function of Chain
 export const MAINNET_BLOCK_SEC = 12;
+
+export const LATEST_BLOCK_TAG = 'latest';
 
 // hex-prefixed w/o zero-padding
 export function toUnpaddedHex(x: BigNumberish | boolean): HexString {
@@ -34,29 +37,62 @@ export function withResolvers<T = void>() {
   return { promise, resolve, reject };
 }
 
+export function isBlockTag(x: BigNumberish): x is string {
+  return typeof x === 'string' && !x.startsWith('0x');
+}
+
 export async function fetchBlock(
   provider: Provider,
-  block: BigNumberish = 'latest'
-) {
-  const json: RPCEthGetBlock | null = await provider.send(
-    'eth_getBlockByNumber',
-    [typeof block === 'string' ? block : toUnpaddedHex(block), false]
-  );
-  if (!json) throw new Error(`no block: ${block}`);
+  relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+): Promise<RPCEthGetBlock> {
+  if (!isBlockTag(relBlockTag)) {
+    let i = BigInt(relBlockTag);
+    if (i < 0) i += await fetchBlockNumber(provider);
+    relBlockTag = toUnpaddedHex(i);
+  }
+  const json = await provider.send('eth_getBlockByNumber', [
+    relBlockTag,
+    false,
+  ]);
+  if (!json) throw new Error(`no block: ${relBlockTag}`);
   return json;
 }
 
+// avoid an rpc if possible
+// use negative (-100) for offset from "latest" (#-100)
 export async function fetchBlockNumber(
   provider: Provider,
-  relBlockTag: BigNumberish = 0
+  relBlockTag: BigNumberish = LATEST_BLOCK_TAG
 ): Promise<bigint> {
-  if (relBlockTag == 0) {
+  if (relBlockTag === LATEST_BLOCK_TAG) {
     return BigInt(await provider.send('eth_blockNumber', []));
-  } else if (typeof relBlockTag === 'string') {
+  } else if (isBlockTag(relBlockTag)) {
     const info = await fetchBlock(provider, relBlockTag);
     return BigInt(info.number);
   } else {
-    const i = await fetchBlockNumber(provider, 0);
-    return i + BigInt(relBlockTag);
+    let i = BigInt(relBlockTag);
+    if (i < 0) i += await fetchBlockNumber(provider);
+    return i;
   }
+}
+
+// avoid an rpc if possible
+// convert negative (-100) => absolute (#-100)
+export async function fetchBlockTag(
+  provider: Provider,
+  relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+): Promise<string | bigint> {
+  return isBlockTag(relBlockTag)
+    ? relBlockTag
+    : fetchBlockNumber(provider, relBlockTag);
+}
+
+export function isRPCError(err: any, code: number) {
+  return (
+    err instanceof Error &&
+    'error' in err &&
+    err.error instanceof Object &&
+    'code' in err.error &&
+    err.error.code === code
+  );
 }

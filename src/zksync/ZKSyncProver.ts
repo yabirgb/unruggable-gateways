@@ -19,8 +19,13 @@ import {
   makeStorageKey,
   type Need,
 } from '../vm.js';
-import { ZeroAddress } from 'ethers/constants';
-import { toPaddedHex, withResolvers } from '../utils.js';
+import { ZeroAddress, ZeroHash } from 'ethers/constants';
+import {
+  LATEST_BLOCK_TAG,
+  isBlockTag,
+  toPaddedHex,
+  withResolvers,
+} from '../utils.js';
 import { unwrap } from '../wrap.js';
 
 // https://docs.zksync.io/build/api-reference/zks-rpc#zks_getproof
@@ -33,17 +38,29 @@ export class ZKSyncProver extends AbstractProver {
   static readonly encodeProof = encodeProof;
   static async latestBatchIndex(
     provider: Provider,
-    relative: BigNumberish = 0
-  ) {
+    relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+  ): Promise<number> {
     // https://docs.zksync.io/build/api-reference/zks-rpc#zks_l1batchnumber
     // NOTE: BlockTags are not supported
     // we could simulate "finalized" using some fixed offset
-    if (typeof relative === 'string') relative = 0;
+    // currently: any block tag => "latest"
+    if (isBlockTag(relBlockTag)) {
+      relBlockTag = 0;
+    } else {
+      relBlockTag = Number(relBlockTag);
+      if (relBlockTag >= 0) return relBlockTag;
+    }
     const batchIndex = Number(await provider.send('zks_L1BatchNumber', []));
-    return batchIndex + Number(relative); //(typeof relative === 'string' ? 0 : Number(relative));
+    return batchIndex + relBlockTag;
   }
-  static async latest(provider: Provider, relative: BigNumberish = 0) {
-    return new this(provider, await this.latestBatchIndex(provider, relative));
+  static async latest(
+    provider: Provider,
+    relBlockTag: BigNumberish = LATEST_BLOCK_TAG
+  ) {
+    return new this(
+      provider,
+      await this.latestBatchIndex(provider, relBlockTag)
+    );
   }
   constructor(
     provider: Provider,
@@ -76,7 +93,7 @@ export class ZKSyncProver extends AbstractProver {
   override async getStorage(
     target: HexAddress,
     slot: bigint,
-    fast?: boolean
+    fast: boolean = this.fast
   ): Promise<HexString> {
     target = target.toLowerCase();
     const storageKey = makeStorageKey(target, slot);
@@ -85,13 +102,13 @@ export class ZKSyncProver extends AbstractProver {
     if (storageProof) {
       return storageProof.value;
     }
-    if (fast || this.fast) {
+    if (fast) {
       return this.cache.get(storageKey, () => {
         return this.provider.getStorage(target, slot);
       });
     }
     const vs = await this.getStorageProofs(target, [slot]);
-    return vs[0].value;
+    return vs.length ? toPaddedHex(vs[0].value) : ZeroHash;
   }
   override async prove(needs: Need[]): Promise<ProofSequence> {
     const promises: Promise<void>[] = [];
@@ -157,7 +174,10 @@ export class ZKSyncProver extends AbstractProver {
       order: Uint8Array.from(order, (x) => x.id),
     };
   }
-  async getStorageProofs(target: HexString, slots: bigint[]) {
+  async getStorageProofs(
+    target: HexString,
+    slots: bigint[]
+  ): Promise<ZKSyncStorageProof[]> {
     target = target.toLowerCase();
     const missing: number[] = [];
     const { promise, resolve, reject } = withResolvers();
@@ -190,7 +210,16 @@ export class ZKSyncProver extends AbstractProver {
         throw err;
       }
     }
-    return Promise.all(storageProofs) as Promise<ZKSyncStorageProof[]>;
+    // 20241112: assume that the rpc is correct
+    // any missing storage proof implies the account is not a contract
+    // otherwise, we need another proof to perform this check
+    const v = await Promise.all(storageProofs);
+    this.checkStorageProofs(
+      v.every((x) => x),
+      slots,
+      v
+    );
+    return v as ZKSyncStorageProof[];
   }
   async fetchStorageProofs(
     target: HexString,

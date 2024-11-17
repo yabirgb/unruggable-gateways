@@ -12,7 +12,7 @@ import type {
 } from '../types.js';
 import { L1_BLOCK_ABI } from './types.js';
 import { CHAINS } from '../chains.js';
-import { ABI_CODER, EVM_BLOCKHASH_DEPTH } from '../utils.js';
+import { ABI_CODER, EVM_BLOCKHASH_DEPTH, MAINNET_BLOCK_SEC } from '../utils.js';
 import { EthProver } from '../eth/EthProver.js';
 import { encodeRlpBlock } from '../rlp.js';
 import { dataSlice } from 'ethers/utils';
@@ -137,7 +137,7 @@ export class ReverseOPRollup extends AbstractRollup<ReverseOPCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['tuple(bytes, bytes, bytes, bytes, bytes[], bytes)'],
+      ['(bytes, bytes, bytes, bytes, bytes[], bytes)'],
       [
         [
           commit.rlpEncodedL1Block,
@@ -154,6 +154,6 @@ export class ReverseOPRollup extends AbstractRollup<ReverseOPCommit> {
   override windowFromSec(sec: number): number {
     // finalization is not on chain
     // L1 block time is 12 sec
-    return Math.ceil(sec / 12);
+    return Math.ceil(sec / MAINNET_BLOCK_SEC);
   }
 }

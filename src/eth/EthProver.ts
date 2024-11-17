@@ -27,7 +27,7 @@ export class EthProver extends BlockProver {
   override async getStorage(
     target: HexAddress,
     slot: bigint,
-    fast?: boolean
+    fast: boolean = this.fast
   ): Promise<HexString> {
     target = target.toLowerCase();
     // check to see if we know this target isn't a contract without invoking provider
@@ -44,13 +44,15 @@ export class EthProver extends BlockProver {
     if (storageProof) {
       return toPaddedHex(storageProof.value);
     }
-    if (fast || this.fast) {
+    if (fast) {
       return this.cache.get(storageKey, () =>
         this.provider.getStorage(target, slot, this.block)
       );
     }
     const proofs = await this.getProofs(target, [slot]);
-    return proofs.storageProof[0].value;
+    return isContract(proofs)
+      ? toPaddedHex(proofs.storageProof[0].value)
+      : ZeroHash;
   }
   protected override async _proveNeed(
     need: TargetNeed,
@@ -129,6 +131,7 @@ export class EthProver extends BlockProver {
       accountProof,
       Promise.all(storageProofs),
     ]);
+    this.checkStorageProofs(isContract(a), slots, v);
     return { storageProof: v as EthStorageProof[], ...a };
   }
   async fetchProofs(

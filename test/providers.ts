@@ -167,7 +167,7 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         chain: CHAINS.LINEA_SEPOLIA,
         rpc: 'https://rpc.sepolia.linea.build',
         infura: 'linea-sepolia',
-        //alchemy: 'linea-sepolia', // 20240901: linea_getProof doesn't work
+        //alchemy: 'linea-sepolia', // 20241111: no linea_getProof
       },
       {
         // https://docs.frax.com/fraxtal/network/network-information#fraxtal-mainnet
@@ -263,6 +263,25 @@ export const RPC_INFO = new Map<Chain, RPCInfo>(
         rpc: 'https://rpc.apechain.com/http',
         // wss://rpc.apechain.com/ws
         // https://apechain.calderachain.xyz/http
+      },
+      // https://docs.zero.network/build-on-zero/network-information#zer%CE%B8-network
+      {
+        chain: CHAINS.ZERO,
+        rpc: 'https://rpc.zerion.io/v1/zero',
+      },
+      {
+        chain: CHAINS.ZERO_SEPOLIA,
+        rpc: 'https://rpc.zerion.io/v1/zero-sepolia',
+      },
+      // https://docs.inkonchain.com/quick-start/get-connected
+      {
+        chain: CHAINS.INK_SEPOLIA,
+        rpc: 'https://rpc-qnd-sepolia.inkonchain.com', // wss://rpc-qnd-sepolia.inkonchain.com
+      },
+      // https://docs.unichain.org/docs/technical-information/network-information#unichain-sepolia-testnet
+      {
+        chain: CHAINS.UNICHAIN_SEPOLIA,
+        rpc: 'https://sepolia.unichain.org',
       },
     ] satisfies RPCInfo[]
   ).map((x) => [x.chain, x])
