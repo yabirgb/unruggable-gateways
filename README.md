@@ -68,15 +68,16 @@ If you are interested in building a solution for another chain, please take a lo
 ## Running a Gateway
 
 * `bun run serve <chain> [port]`
-	* Chains: `arb1-sepolia` `arb1` `base-sepolia` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `ink-sepolia` `linea-sepolia` `lineaV1` `linea` `mantle` `mode` `op-sepolia` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll-sepolia` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `taiko-hekla` `taiko` `unfinalized-ape` `unfinalized-arb1-sepolia` `unfinalized-arb1` `unfinalized-base-sepolia` `unfinalized-base` `unfinalized-linea-sepolia` `unfinalized-linea` `unfinalized-op-sepolia` `unfinalized-op` `zero-sepolia` `zero` `zksync-sepolia` `zksync` `zora`
-		* eg. `bun run serve op`
+	* eg. `bun run serve op 9000`
+	* Chains: `ape` `arb1-sepolia` `arb1` `base-sepolia` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `ink-sepolia` `linea-sepolia` `lineaV1` `linea` `mantle` `mode` `op-sepolia` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll-sepolia` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `soneium-minato` `taiko-hekla` `taiko` `unichain-sepolia` `zero-sepolia` `zero` `zksync-sepolia` `zksync` `zora`
+	* Default port: `8000`
 	* Use `trusted:<Chain>` for a [`TrustedRollup`](./src/TrustedRollup.ts)
 		* eg. `bun run serve trusted:op`
 		* Include `0x{64}` to set signing key
+	* Include `--unfinalized` to use unfinalized commits (will throw if not available)
 	* Include `--latest` for `"latest"` instead of `"finalized"` block tag
 	* Include `--debug` to print `OP_DEBUG` statements
-	* Include `--dump` to print config, latest commit, and prover information and then exit.
-	* Default port: `8000`
+	* Include `--dump` to print config, latest commit, prover information, and then exit.
 
 ## Testing
 
@@ -123,7 +124,7 @@ forge install OpenZeppelin/openzeppelin-contracts@v5.0.2
 # placed at standard remapping location
 # see: https://github.com/ethereum-optimism/optimism/issues/10202
 #forge install ethereum-optimism/optimism
-bun build/import-op.ts
+bun script/import-op.ts
 ```
 
 ## Contribution Guidelines

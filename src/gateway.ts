@@ -23,7 +23,7 @@ function shortHash(x: string): string {
 // edit with: gateway.callLRU.max
 const callCapacity0 = 1000;
 // ms to wait until checking for a new commit
-// edit wth: gateway.latestCache.cacheMs
+// edit with: gateway.latestCache.cacheMs
 const pollMs0 = 60000;
 
 export class Gateway<R extends Rollup> extends EZCCIP {
@@ -69,7 +69,10 @@ export class Gateway<R extends Rollup> extends EZCCIP {
           context,
           history
         ) => {
+          // V1 protocol is always latest
           const commit = await this.getLatestCommit();
+          // we cannot hash the context.calldata directly because the request
+          // doesn't contain the specific commit index
           const hash = keccakStr(`${commit.index}:${context.calldata}`);
           history.show = [commit.index, shortHash(hash)];
           return this.callLRU.cache(hash, async () => {
@@ -88,7 +91,7 @@ export class Gateway<R extends Rollup> extends EZCCIP {
     const prev = await this.latestCache.value;
     const next = await this.latestCache.get();
     const commit = await this.cachedCommit(next);
-    const max = this.commitDepth + 1;
+    const max = this.commitDepth + 1; // depth + latest
     if (prev !== next && this.commitCacheMap.cachedSize > max) {
       // purge the oldest if we have too many
       const old = [...this.commitCacheMap.cachedKeys()].sort().slice(0, -max);

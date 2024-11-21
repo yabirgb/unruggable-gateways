@@ -38,7 +38,8 @@ export class GatewayProvider extends JsonRpcProvider {
   override async _send(
     payload: JsonRpcPayload | JsonRpcPayload[]
   ): Promise<JsonRpcResult[]> {
-    if (Array.isArray(payload)) {
+    if (Array.isArray(payload) && payload.length > 1) {
+      // determine if any of the payloads cant be batched
       const ps: Promise<any>[] = [];
       const batch: JsonRpcPayload[] = [];
       const { promise, resolve, reject } = withResolvers<JsonRpcResult[]>();

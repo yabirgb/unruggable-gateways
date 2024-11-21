@@ -17,15 +17,13 @@ struct TransitionState {
     uint8 __reserved1;
 }
 
+// https://github.com/taikoxyz/taiko-mono/blob/main/packages/protocol/contracts/layer1/based/TaikoData.sol
 interface ITaiko {
     function getTransition(
         uint64 blockId,
         bytes32 parentHash
     ) external view returns (TransitionState memory);
-    function getLastSyncedBlock()
-        external
-        view
-        returns (uint64 blockId, bytes32 blockHash, bytes32 stateRoot);
+    function getLastSyncedBlock() external view returns (uint64 blockId); // rest of args ignored
 }
 
 contract TaikoVerifier is AbstractVerifier {
@@ -41,8 +39,7 @@ contract TaikoVerifier is AbstractVerifier {
     }
 
     function getLatestContext() external view returns (bytes memory) {
-        (uint64 blockId, , ) = _rollup.getLastSyncedBlock();
-        return abi.encode(blockId);
+        return abi.encode(_rollup.getLastSyncedBlock());
     }
 
     struct GatewayProof {
@@ -59,6 +56,8 @@ contract TaikoVerifier is AbstractVerifier {
     ) external view returns (bytes[] memory, uint8 exitCode) {
         uint64 blockId1 = abi.decode(context, (uint64));
         GatewayProof memory p = abi.decode(proof, (GatewayProof));
+        // NOTE: this could use proposedAt time difference
+        // since the current window estimate is a heuristic
         _checkWindow(blockId1, p.blockId);
         TransitionState memory ts = _rollup.getTransition(
             p.blockId,

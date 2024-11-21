@@ -341,7 +341,7 @@ export class GatewayProgram {
   }
 }
 
-// a request is just a command where the leading byte is the number of outputs
+// a request is just a program where the leading byte is the number of outputs
 export class GatewayRequest extends GatewayProgram {
   constructor(outputCount = 0) {
     super();
@@ -384,7 +384,7 @@ export type HashedNeed = {
 };
 export type Need = TargetNeed | bigint | HashedNeed;
 
-export function isTargetNeed(need: Need) {
+export function isTargetNeed(need: Need): need is TargetNeed {
   return typeof need === 'object' && need && 'target' in need;
 }
 
@@ -410,8 +410,12 @@ export function requireV1Needs(needs: Need[]) {
 // outputs are shared across eval()
 // needs is sequence of necessary proofs
 export class GatewayVM {
-  static create(outputCount: number, maxStackSize = Infinity) {
-    return new this(Array(outputCount).fill('0x'), maxStackSize);
+  static create(
+    outputCount: number,
+    maxStackSize = Infinity,
+    allocBudget = Infinity
+  ) {
+    return new this(Array(outputCount).fill('0x'), maxStackSize, allocBudget);
   }
   target = ZeroAddress;
   slot = 0n;
@@ -420,9 +424,14 @@ export class GatewayVM {
   constructor(
     readonly outputs: HexFuture[],
     readonly maxStack: number,
+    public allocBudget: number,
     readonly needs: Need[] = [],
     readonly targets = new Map<HexString, TargetNeed>()
   ) {}
+  checkAlloc(size: number) {
+    this.allocBudget -= size;
+    if (this.allocBudget < 0) throw new Error('too much allocation');
+  }
   checkOutputIndex(i: number) {
     if (i >= this.outputs.length) {
       throw new Error(`invalid output index: ${i}/${this.outputs.length}`);
@@ -444,12 +453,11 @@ export class GatewayVM {
   resolveStack() {
     return Promise.all(this.stack.map(unwrap));
   }
-  push(value: HexFuture) {
+  push(x: HexFuture) {
     if (this.stack.length >= this.maxStack) throw new Error('stack overflow');
-    this.stack.push(value);
+    this.stack.push(x);
   }
   pushUint256(x: BigNumberish | boolean) {
-    // Parameters<typeof toPaddedHex>[0]) {
     this.push(toPaddedHex(x));
   }
   pop() {
@@ -486,7 +494,6 @@ export function makeStorageKey(target: HexAddress, slot: bigint) {
   return `${target}${slot.toString(16)}`;
 }
 
-// TODO: totalAssembledBytes
 export abstract class AbstractProver {
   // general proof cache
   readonly proofLRU = new LRU<string, any>(10000);
@@ -510,12 +517,13 @@ export abstract class AbstractProver {
   maxSuppliedBytes = 13125 << 5; // max = unlimited, ~420KB @ 30m gas
   // maximum bytes from single read(), readBytes()
   maxProvableBytes = 64 << 5; // max = 32 * proof count
-  // maximum bytes from concat(), slice()
-  maxAssembleBytes = 1 << 20; // max = server memory
+  // maximum bytes allocated by concat() and slice()
+  maxAllocBytes = 1 << 20; // max = server memory
   // maximum recursion depth
   maxEvalDepth = 5; // max = unlimited
   // use getCode() / getStorage() if no proof is cached yet
   fast = true;
+  // console.log OP_DEBUG statements
   printDebug = true;
 
   constructor(readonly provider: Provider) {}
@@ -583,7 +591,11 @@ export abstract class AbstractProver {
     return this.evalReader(ProgramReader.fromProgram(req));
   }
   async evalReader(reader: ProgramReader) {
-    const vm = GatewayVM.create(reader.readByte(), this.maxStackSize);
+    const vm = GatewayVM.create(
+      reader.readByte(),
+      this.maxStackSize,
+      this.maxAllocBytes
+    );
     await this.eval(reader, vm, 0);
     return vm;
   }
@@ -619,7 +631,7 @@ export abstract class AbstractProver {
           }
           vm.needs.push(need);
           vm.target = target;
-          vm.slot = 0n;
+          vm.slot = 0n; // slot is reset when target is changed
           continue;
         }
         case OP.FOLLOW: {
@@ -643,11 +655,7 @@ export abstract class AbstractProver {
           continue;
         }
         case OP.PUSH_BYTES: {
-          vm.push(
-            reader.readBytes(
-              checkSize(reader.readUint(), this.maxAssembleBytes)
-            )
-          );
+          vm.push(reader.readBytes(Number(reader.readUint())));
           continue;
         }
         case OP.GET_SLOT: {
@@ -701,15 +709,11 @@ export abstract class AbstractProver {
           const slots = bigintRange(slot, count);
           vm.needs.push(...slots);
           vm.push(
-            slots.length
-              ? new Wrapped(size, async () =>
-                  concat(
-                    await Promise.all(
-                      slots.map((x) => this.getStorage(target, x))
-                    )
-                  )
-                )
-              : '0x'
+            new Wrapped(size, async () =>
+              concat(
+                await Promise.all(slots.map((x) => this.getStorage(target, x)))
+              )
+            )
           );
           continue;
         }
@@ -722,7 +726,7 @@ export abstract class AbstractProver {
         }
         case OP.READ_HASHED_BYTES: {
           const { target, slot } = vm;
-          const hash = vm.pop(); // we can technically ignore this value
+          const hash = vm.pop();
           const value = this.fetchUnprovenStorageBytes(target, slot);
           vm.needs.push({ hash, value });
           vm.push(value);
@@ -771,6 +775,7 @@ export abstract class AbstractProver {
           const vm2 = new GatewayVM(
             vm.outputs,
             vm.maxStack,
+            vm.allocBudget,
             vm.needs,
             vm.targets
           );
@@ -795,6 +800,7 @@ export abstract class AbstractProver {
               break;
             }
           }
+          vm.allocBudget = vm2.allocBudget;
           continue;
         }
         case OP.ASSERT: {
@@ -811,14 +817,15 @@ export abstract class AbstractProver {
         }
         case OP.CONCAT: {
           const v = concat(await Promise.all(vm.popSlice(2).map(unwrap)));
-          checkSize((v.length - 2) >> 1, this.maxAssembleBytes);
+          vm.checkAlloc((v.length - 2) >> 1);
           vm.push(v);
           continue;
         }
         case OP.SLICE: {
           const [v, x, n] = await Promise.all(vm.popSlice(3).map(unwrap));
           const pos = numberFromHex(x);
-          const size = checkSize(numberFromHex(n), this.maxAssembleBytes);
+          const size = numberFromHex(n);
+          vm.checkAlloc(size);
           const len = (v.length - 2) >> 1;
           const end = pos + size;
           if (len >= end) {

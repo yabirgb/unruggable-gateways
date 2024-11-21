@@ -7,6 +7,16 @@ import { createProvider, createProviderPair } from '../providers.js';
 //console.log(createProvider(1n)._getConnection())
 
 if (1) {
+	const config = TaikoRollup.mainnetConfig;
+	const rollup = await TaikoRollup.create(createProviderPair(config), config);
+	console.log(await rollup.fetchLatestCommitIndex());
+	rollup.latestBlockTag = await fetchBlockNumber(rollup.provider1) - 200n;
+	console.log(await rollup.fetchLatestCommitIndex());
+	console.log(rollup.defaultWindow);
+	throw 1;
+}
+
+if (1) {
 	const provider = createProvider(CHAINS.MAINNET);
 	const key = new SigningKey(randomBytes(32));
 	const rollup1 = new TrustedRollup(provider, EthProver, key);

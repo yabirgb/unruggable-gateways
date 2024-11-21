@@ -92,8 +92,9 @@ export abstract class AbstractRollup<C extends RollupCommit<AbstractProver>> {
     return v;
   }
   get defaultWindow() {
-    // TODO: this should probably be shorter, 4-6 hrs?
-    return this.windowFromSec(86400);
+    // was 1 day (86400)
+    // 20241116: changed 6 hours
+    return this.windowFromSec(6 * 3600);
   }
 }
 

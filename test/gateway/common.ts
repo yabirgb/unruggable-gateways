@@ -54,6 +54,19 @@ type TestOptions = {
   skipZero?: boolean;
 };
 
+export async function quickTest(
+  verifier: DeployedContract,
+  target: HexAddress,
+  slot: bigint
+) {
+  const foundry = Foundry.of(verifier);
+  const reader = await foundry.deploy({
+    file: 'SlotDataReader',
+    args: [verifier, target],
+  });
+  return reader.readSlot(slot, { enableCcipRead: true });
+}
+
 export async function setupTests(
   verifier: DeployedContract,
   opts: TestOptions,

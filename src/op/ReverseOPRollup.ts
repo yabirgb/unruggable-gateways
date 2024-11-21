@@ -42,10 +42,11 @@ const L1Block = '0x4200000000000000000000000000000000000015'; // default deploym
 // TODO: switch this to using previousBeaconRoot
 // see: test/research/eip-4788/
 
-// TODO: im using chain1 as mainnet and chain2 as op
+// im using chain1 as mainnet and chain2 as op
 // however the proving is from chain2 to chain1
 // either rename chain1/chain2 to chainCall/chainData
 // or add direction: 1=>2 or 2=>1
+// 20241116: testName() has reverse, but not a feature of the Rollup yet
 
 export class ReverseOPRollup extends AbstractRollup<ReverseOPCommit> {
   // https://docs.optimism.io/chain/addresses#op-mainnet-l2

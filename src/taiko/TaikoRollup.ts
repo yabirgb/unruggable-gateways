@@ -103,7 +103,7 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
     proofSeq: ProofSequence
   ): HexString {
     return ABI_CODER.encode(
-      ['tuple(uint256, bytes32, bytes[], bytes)'],
+      ['(uint256, bytes32, bytes[], bytes)'],
       [[commit.index, commit.parentHash, proofSeq.proofs, proofSeq.order]]
     );
   }
@@ -111,7 +111,6 @@ export class TaikoRollup extends AbstractRollup<TaikoCommit> {
   override windowFromSec(sec: number): number {
     // taiko is a based rollup
     const avgBlockSec = 16; // block every block 12-20 sec
-    const avgCommitSec = avgBlockSec * Number(this.commitStep); // time between syncs
-    return Math.ceil(sec / avgCommitSec);
+    return Math.ceil(sec / avgBlockSec); // units of blocks
   }
 }
