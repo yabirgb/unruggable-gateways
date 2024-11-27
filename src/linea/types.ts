@@ -15,6 +15,13 @@ export const ROLLUP_ABI = new Interface([
     bytes32 indexed finalRootHash,
     bool withProof
   )`,
+  `event DataFinalizedV3(
+    uint256 indexed startBlockNumber,
+    uint256 indexed endBlockNumber,
+    bytes32 indexed shnarf,
+    bytes32 parentStateRootHash,
+    bytes32 finalStateRootHash
+  )`,
   `event DataSubmittedV2(
     bytes32 indexed shnarf,
     uint256 indexed startBlock,
