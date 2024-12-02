@@ -152,6 +152,7 @@ export class EthProver extends BlockProver {
       if (i >= slots.length) break;
     }
     const vs = await Promise.all(ps);
+    if (!vs[0]) throw new Error(`unprovable block: ${this.block}`);
     for (let i = 1; i < vs.length; i++) {
       vs[0].storageProof.push(...vs[i].storageProof);
     }
