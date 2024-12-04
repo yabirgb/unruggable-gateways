@@ -52,7 +52,7 @@ library GatewayFetcher {
         bytes memory v
     ) internal pure returns (GatewayRequest memory) {
         bytes memory buf = r.ops;
-        if (r.ops.length + v.length >= MAX_OPS) revert RequestOverflow();
+        if (r.ops.length + v.length > MAX_OPS) revert RequestOverflow();
         assembly {
             let dst := add(add(buf, 32), mload(buf)) // ptr to write
             let src := add(v, 32) // ptr to start read
