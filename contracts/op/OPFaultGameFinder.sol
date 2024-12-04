@@ -103,6 +103,7 @@ contract OPFaultGameFinder {
         uint256 gameTypeBitMask,
         uint256 minAgeSec
     ) internal view returns (bool) {
+        if (gameType > 255) return false;
         if (gameTypeBitMask & (1 << gameType) == 0) return false;
         if (minAgeSec == 0) {
             return gameProxy.status() == DEFENDER_WINS;
