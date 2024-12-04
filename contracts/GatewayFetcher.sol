@@ -108,6 +108,7 @@ library GatewayFetcher {
         n = 32 - n; // width w/o pad
         r.addByte(GatewayOP.PUSH_0 + n);
         bytes memory v = r.ops;
+        if (v.length + n > MAX_OPS) revert RequestOverflow();
         assembly {
             let len := mload(v)
             mstore(add(add(v, 32), len), x) // append(x)
