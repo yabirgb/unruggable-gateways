@@ -50,19 +50,12 @@ contract ScrollVerifierHooks is IVerifierHooks {
         ); // flags = 0x05080000
         if (leafHash == 0) return NOT_A_CONTRACT;
         bytes32 temp;
-        assembly {
-            // nonce||codesize||0
-            temp := mload(add(leaf, 69))
-        }
         bytes32 amount;
-        assembly {
-            amount := mload(add(leaf, 101))
-        }
-        assembly {
-            storageRoot := mload(add(leaf, 133))
-        }
         bytes32 codeHash;
         assembly {
+            temp := mload(add(leaf, 69)) // nonce||codesize||0
+            amount := mload(add(leaf, 101))
+            storageRoot := mload(add(leaf, 133))
             codeHash := mload(add(leaf, 165))
         }
         bytes32 h = poseidonHash2(storageRoot, poseidonHash1(codeHash), 1280);
