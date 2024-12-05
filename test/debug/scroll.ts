@@ -10,11 +10,11 @@ import { ZeroAddress } from 'ethers/constants';
 // 100005  https://sepolia.scrollscan.com/address/0x4C600c1ee9c81Be765387B7659347fc036D3dE6C#code
 // 102005  https://sepolia.scrollscan.com/address/0x06d349C4DdF4b6003bF3Eae0A67e6B9838E16667#code
 // <100>   https://sepolia.scrollscan.com/address/0x90d2f24a9c81778713ebda7c417ec0dd30207094#code
-const target = '0x6f390C35b8b96dfDF42281Cec36f1226eEd87c6B';
+const target = '0x90d2f24a9c81778713ebda7c417ec0dd30207094';
 
 const provider = createProvider(CHAINS.SCROLL_SEPOLIA);
 const prover = await EthProver.latest(provider);
-const slots = Array.from({ length: 4 }, (_, i) => BigInt(i));
+const slots = Array.from({ length: 100 }, (_, i) => BigInt(i));
 const proof = await prover.getProofs(target, slots);
 console.log(proof);
 
@@ -49,7 +49,7 @@ try {
           key,
           EthProver.encodeProof(proof.storageProof[j].proof)
         )
-        .catch(() => '');
+        .catch(() => null);
       if (proved) {
         if (BigInt(proved) !== value) throw new Error(`wrong ${i}x${j}`);
       } else if (i == j) {

@@ -42,12 +42,12 @@ contract ScrollVerifierHooks is IVerifierHooks {
         address account,
         bytes memory encodedProof
     ) external view returns (bytes32 storageRoot) {
-        (bytes32 keyHash, bytes32 leafHash, bytes memory leaf) = walkTree(
-            bytes20(account),
-            encodedProof,
-            stateRoot,
-            230
-        ); // flags = 0x05080000
+        (
+            bytes32 keyHash,
+            bytes32 leafHash,
+            bytes memory leaf,
+            bool exists
+        ) = walkTree(bytes20(account), encodedProof, stateRoot, 230); // flags = 0x05080000
         if (leafHash == 0) return NOT_A_CONTRACT;
         bytes32 temp;
         bytes32 amount;
@@ -66,7 +66,7 @@ contract ScrollVerifierHooks is IVerifierHooks {
         h = poseidonHash2(h, temp, 1280);
         h = poseidonHash2(keyHash, h, 4);
         if (leafHash != h) revert InvalidProof(); // InvalidAccountLeafNodeHash
-        if (codeHash == NULL_CODE_HASH) storageRoot = NOT_A_CONTRACT;
+        if (codeHash == NULL_CODE_HASH || !exists) storageRoot = NOT_A_CONTRACT;
     }
 
     function verifyStorageValue(
@@ -75,18 +75,19 @@ contract ScrollVerifierHooks is IVerifierHooks {
         uint256 slot,
         bytes memory encodedProof
     ) external view returns (bytes32 value) {
-        (bytes32 keyHash, bytes32 leafHash, bytes memory leaf) = walkTree(
-            bytes32(slot),
-            encodedProof,
-            storageRoot,
-            102
-        ); // flags = 0x01010000
+        (
+            bytes32 keyHash,
+            bytes32 leafHash,
+            bytes memory leaf,
+            bool exists
+        ) = walkTree(bytes32(slot), encodedProof, storageRoot, 102); // flags = 0x01010000
         if (leafHash != 0) {
             assembly {
                 value := mload(add(leaf, 69))
             }
             bytes32 h = poseidonHash2(keyHash, poseidonHash1(value), 4);
             if (leafHash != h) revert InvalidProof(); // InvalidStorageLeafNodeHash
+            if (!exists) value = 0;
         }
     }
 
@@ -95,7 +96,11 @@ contract ScrollVerifierHooks is IVerifierHooks {
         bytes memory encodedProof,
         bytes32 rootHash,
         uint256 leafSize
-    ) internal view returns (bytes32 keyHash, bytes32 h, bytes memory v) {
+    )
+        internal
+        view
+        returns (bytes32 keyHash, bytes32 h, bytes memory v, bool exists)
+    {
         bytes[] memory proof = abi.decode(encodedProof, (bytes[]));
         keyHash = poseidonHash1(key);
         h = rootHash;
@@ -120,6 +125,7 @@ contract ScrollVerifierHooks is IVerifierHooks {
                         temp := mload(add(v, leafSize))
                     }
                     if (temp != key) revert InvalidProof(); // InvalidKeyPreimage
+                    exists = true;
                 } else {
                     // If the trie does not contain a value for key, the returned proof contains all
                     // nodes of the longest existing prefix of the key (at least the root node), ending
@@ -128,7 +134,8 @@ contract ScrollVerifierHooks is IVerifierHooks {
                         bytes32 p = bytes32(1 << (i - 1)); // prefix mask
                         if ((temp & p) != (keyHash & p)) revert InvalidProof();
                     }
-                    h = 0; // exists = false
+                    // this is a proof for a different value that traverses to the same place
+                    keyHash = temp;
                 }
                 break;
             } else if (
