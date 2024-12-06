@@ -252,39 +252,39 @@ for (const setup of setups) {
   await foundry?.shutdown();
 }
 
-// 2024-10-08T03:42:15.814Z
+// 2024-12-05T22:44:43.396Z
 // {
 //   name: "OP",
-//   rollup: 76976n,
-//   account: 327670n,
-//   storage1: 262907n,
-//   storage0: 198808n,
+//   rollup: 78428n,
+//   account: 336287n,
+//   storage1: 269206n,
+//   storage0: 222387n,
 // }
 // {
 //   name: "LINEA",
-//   rollup: 47323n,
-//   account: 1436666n,
-//   storage1: 1365175n,
-//   storage0: 2663145n,
+//   rollup: 48843n,
+//   account: 1438072n,
+//   storage1: 1366423n,
+//   storage0: 2665546n,
 // }
 // {
 //   name: "ZKSYNC",
-//   rollup: 57436n,
-//   account: 13046184n,
-//   storage1: 13048874n,
-//   storage0: 13054343n,
+//   rollup: 58872n,
+//   account: 13046242n,
+//   storage1: 13048742n,
+//   storage0: 13054036n,
 // }
 // {
 //   name: "SCROLL",
-//   rollup: 47234n,
-//   account: 1232504n,
-//   storage1: 820563n,
-//   storage0: "execution reverted (unknown custom error)",
+//   rollup: 48754n,
+//   account: 1231437n,
+//   storage1: 819610n,
+//   storage0: 793344n,
 // }
 // {
 //   name: "TAIKO",
-//   rollup: 62362n,
-//   account: 283697n,
-//   storage1: 229141n,
-//   storage0: 183286n,
+//   rollup: 64182n,
+//   account: 292304n,
+//   storage1: 285443n,
+//   storage0: 257192n,
 // }
