@@ -10,7 +10,7 @@ import type {
   ProviderPair,
   ProofSequence,
 } from '../types.js';
-import { Contract } from 'ethers/contract';
+import { Contract, EventLog } from 'ethers/contract';
 import { LineaProver } from './LineaProver.js';
 import { ROLLUP_ABI } from './types.js';
 import { CHAINS } from '../chains.js';
@@ -25,11 +25,13 @@ import { ABI_CODER } from '../utils.js';
 export type LineaConfig = {
   L1MessageService: HexAddress;
   SparseMerkleProof: HexAddress;
+  firstCommitV3?: bigint;
 };
 
 export type LineaCommit = RollupCommit<LineaProver> & {
   readonly stateRoot: HexString32;
   readonly prevStateRoot: HexString32;
+  readonly startIndex: bigint | undefined;
 };
 
 export class LineaRollup extends AbstractRollup<LineaCommit> {
@@ -47,8 +49,12 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
     L1MessageService: '0xB218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5',
     // https://github.com/Consensys/linea-ens/blob/main/packages/linea-ens-resolver/deployments/sepolia/SparseMerkleProof.json
     SparseMerkleProof: '0x718D20736A637CDB15b6B586D8f1BF081080837f',
+    // deploy: https://sepolia.etherscan.io/tx/0x5a59e374a18369aa624fbc5afa77864aec1a1e19f38769c18d55318937f79356
+    // commit: https://sepolia.etherscan.io/tx/0xa2a4a0cf7205e7dc6eac8cdef5a7fd1cb750dac25539e6886e76f76278c27893
+    firstCommitV3: 6391917n,
   };
 
+  readonly firstCommitV3: bigint | undefined;
   readonly L1MessageService: Contract;
   constructor(providers: ProviderPair, config: LineaConfig) {
     super(providers);
@@ -57,6 +63,7 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
       ROLLUP_ABI,
       this.provider1
     );
+    this.firstCommitV3 = config.firstCommitV3;
   }
 
   override async fetchLatestCommitIndex(): Promise<bigint> {
@@ -69,7 +76,7 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
     const index: bigint = await this.L1MessageService.currentL2BlockNumber({
       blockTag: this.latestBlockTag,
     });
-    let commit = await this._fetchCommit(index);
+    let commit = await this.fetchCommit(index);
     for (;;) {
       if (await commit.prover.isShomeiReady()) return commit.index;
       commit = await this.fetchParentCommit(commit);
@@ -78,6 +85,7 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
   protected override async _fetchParentCommitIndex(
     commit: LineaCommit
   ): Promise<bigint> {
+    if (commit.startIndex) return commit.startIndex - 1n;
     const [event] = await this.L1MessageService.queryFilter(
       this.L1MessageService.filters.DataFinalized(
         null,
@@ -85,19 +93,38 @@ export class LineaRollup extends AbstractRollup<LineaCommit> {
         commit.prevStateRoot
       )
     );
-    if (!event) throw new Error('no prior DataFinalized event');
-    return BigInt(event.topics[1]); // l2BlockNumber
+    if (!(event instanceof EventLog)) {
+      throw new Error('no prior DataFinalized event');
+    }
+    return BigInt(event.args.lastBlockFinalized);
   }
   protected override async _fetchCommit(index: bigint): Promise<LineaCommit> {
-    const [event] = await this.L1MessageService.queryFilter(
-      this.L1MessageService.filters.DataFinalized(index)
-    );
-    if (!event) throw new Error('no DataFinalized event');
-    const prevStateRoot: HexString32 = event.topics[2]; // start
-    const stateRoot: HexString32 = event.topics[3]; // end
+    let prevStateRoot: HexString32;
+    let stateRoot: HexString32;
+    let startIndex: bigint | undefined;
+    if (this.firstCommitV3 && index >= this.firstCommitV3) {
+      const [event] = await this.L1MessageService.queryFilter(
+        this.L1MessageService.filters.DataFinalizedV3(null, index)
+      );
+      if (!(event instanceof EventLog)) {
+        throw new Error('no DataFinalizedV3 event');
+      }
+      startIndex = event.args.startBlockNumber;
+      prevStateRoot = event.args.parentStateRootHash;
+      stateRoot = event.args.finalStateRootHash;
+    } else {
+      const [event] = await this.L1MessageService.queryFilter(
+        this.L1MessageService.filters.DataFinalized(index)
+      );
+      if (!(event instanceof EventLog)) {
+        throw new Error('no DataFinalized event');
+      }
+      prevStateRoot = event.args.startingRootHash;
+      stateRoot = event.args.finalRootHash;
+    }
     const prover = new LineaProver(this.provider2, index);
     prover.stateRoot = stateRoot;
-    return { index, stateRoot, prevStateRoot, prover };
+    return { index, startIndex, stateRoot, prevStateRoot, prover };
   }
   override encodeWitness(
     commit: LineaCommit,
