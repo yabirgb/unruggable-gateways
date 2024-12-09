@@ -1,98 +1,148 @@
-# EVM CCIP-Read Gateway
-This repository implements a generic CCIP-Read gateway framework for fetching state proofs of data on other EVM chains. This allows L1 smart contracts to fetch and verify state from L2s. The library is built to be as modular and interchangeable as possible. This means:
+<p align="center">
+	<img src="https://raw.githubusercontent.com/unruggable-labs/unruggable-gateways/main/unruggable-logo-black.png" width="300" alt="Unruggable Gateways">
+</p>
 
- - Anyone can operate their own gateway, but...
- - Only one gateway needs to be operated for each chain, regardless of the applications requesting data from it.
- - Gateways do not need to be trusted; their responses are fully verified on L1.
- - Contracts can fetch L2 state using a simple builder interface and callbacks.
- - Contracts can change targets (eg, a different L2) just by swapping out the address of a verifier contract for another.
+# Unruggable Gateways 
 
-While this functionality is written primarily with read calls in mind, it also functions for transactions; using a compliant
-library like Ethers, a transaction that includes relevant L2 proofs can be generated and signed.
+This repository provides an end-to-end solution for proving data from rollup chains and verifying it against state posted on the parent chain.
 
+![Unruggable Gateways CI](https://github.com/unruggable-labs/unruggable-gateways/actions/workflows/unruggable-gateways.yml/badge.svg)
 
+## Quickstart
 
-## Usage
+`npm i @unruggable/gateways` [&check;](https://www.npmjs.com/package/@unruggable/unruggable-gateways)
 
- 1. Have your contract extend `EVMFetcher`.
- 2. In a view/pure context, use `EVMFetcher` to fetch the value of slots from another contract (potentially on another chain). Calling `EVMFetcher.fetch()` terminates execution and generates a callback to the same contract on a function you specify.
- 3. In the callback function, use the information from the relevant slots as you see fit.
+* We have extensive [documentation](https://gateway-docs.unruggable.com), with a slightly less quick [Quickstart](https://gateway-docs.unruggable.com/quickstart/trusted-verifier). 
+* The [examples](https://gateway-docs.unruggable.com/examples) page may be of particular interest. 
+* We also have an [examples repo](https://github.com/unruggable-labs/gateway-examples) that utilises our npm package to demonstrate both simple and complex use cases in a few clicks.
 
-## Example
+## Architecture
 
-The example below fetches another contract's storage value `testUint`.
+- **Request** &mdash; a program that fetches data from one or more contracts
+	* constructable in [Solidity](./contracts/GatewayFetcher.sol) and [TypeScript](./src/vm.ts) using (almost) the same syntax
+- **Commit** &mdash; a commitment (eg. `StateRoot`) of one chain on another
+- **VM** &mdash; a machine that executes a **Request** for a **Commit**
+	* TypeScript &mdash; records sequence of necessary proofs
+	* Solidity &mdash; verifies sequence of supplied proofs (in the same order)
+- **Rollup** (TypeScript) &mdash; traverses **Commit** history, generates a **Commit** proof and supplies a **Prover**
+- **Prover** (TypeScript) &mdash; generates rollup-specific Account and Storage proofs
+- **Gateway** (TypeScript) &mdash; receives a **Request**, finds the appropriate **Commit**, executes the **VM**, and responds with a sequence of proofs via [CCIP-Read](https://eips.ethereum.org/EIPS/eip-3668)
+- **Verifier** (Solidity) &mdash; verifies a **Commit** proof and executes the **VM** with **Hooks**
+- **Verifier Hooks** (Solidity) &mdash; verifies rollup-specific Account and Storage proofs
 
+## Chain Support
+* Rollups &amp; Verifers
+	* [OP](./src/op/OPRollup.ts)
+	* [OP w/Fault Proofs](./src/op/OPFaultRollup.ts)
+	* [Nitro](./src/nitro/NitroRollup.ts)
+	* [Linea](./src/linea/LineaRollup.ts)
+	* [Polygon PoS](./src/polygon/PolygonPoSRollup.ts)
+	* [Polygon ZK](./src/polygon/ZKEVMRollup.ts) &mdash; *WIP*
+	* [Scroll](./src/scroll/ScrollRollup.ts)
+	* [Taiko](./src/taiko/TaikoRollup.ts)
+	* [ZKSync](./src/zksync/ZKSyncRollup.ts)
+	* [Reverse OP](./src/op/ReverseOPRollup.ts) &mdash; L2 &rarr; L1
+	* [Self](./src/eth/EthSelfRollup.ts) &mdash; any &rarr; itself
+	* [Trusted](./src/TrustedRollup.ts) &mdash; any &rarr; any
+	* [DoubleNitro](./src/nitro/DoubleNitroRollup.ts) &mdash; L1 &rarr; L2 &rarr; L3
+* Provers
+	* [Eth](./src/eth//EthProver.ts) &mdash; `eth_getProof`
+	* [Linea](./src/linea/LineaProver.ts) &mdash; `linea_getProof`
+	* [ZKSync](./src/zksync/ZKSyncProver.ts) &mdash; `zks_getProof`
+	* [ZKEVM](./src/polygon/ZKEVMProver.ts) &mdash; `zkevm_getProof`
+* Verifier Hooks
+	* [Eth](./contracts/eth/EthVerifierHooks.sol) &mdash; [Patricia Merkle Tree](./contracts/eth/MerkleTrie.sol)
+	* [Linea](./contracts/linea/LineaVerifierHooks.sol) &mdash; [Sparse Merkle Tree](./contracts/linea/SparseMerkleProof.sol) + [Mimc](./contracts/linea/Mimc.sol)
+	* [Scroll](./contracts/scroll/ScrollVerifierHooks.sol) &mdash; Binary Merkle Tree + Poseidon
+	* [ZKSync](./contracts/zksync/ZKSyncVerifierHooks.sol) &mdash; [Sparse Merkle Tree](./contracts/zksync/ZKSyncSMT.sol) + [Blake2S](./contracts/zksync/Blake2S.sol)
+
+If you are interested in building a solution for another chain, please take a look at our our [Contribution Guidelines](#contribution-guidelines) and/or [get in touch](https://unruggable.com/contact).
+
+## Setup
+
+1. [`foundryup`](https://book.getfoundry.sh/getting-started/installation)
+1. `forge install`
+1. `bun i`
+1. create [`.env`](./.env.example)
+
+## Running a Gateway
+
+* `bun run serve <chain> [port]`
+	* eg. `bun run serve op 9000`
+	* Chains: `ape` `arb1-sepolia` `arb1` `base-sepolia` `base` `blast` `celo-alfajores` `cyber` `fraxtal` `ink-sepolia` `linea-sepolia` `lineaV1` `linea` `mantle` `mode` `op-sepolia` `op` `opbnb` `polygon` `redstone` `reverse-op` `scroll-sepolia` `scroll` `self-eth` `self-holesky` `self-sepolia` `shape` `soneium-minato` `taiko-hekla` `taiko` `unichain-sepolia` `zero-sepolia` `zero` `zksync-sepolia` `zksync` `zora`
+	* Default port: `8000`
+	* Use `trusted:<Chain>` for a [`TrustedRollup`](./src/TrustedRollup.ts)
+		* eg. `bun run serve trusted:op`
+		* Include `0x{64}` to set signing key
+	* Include `--unfinalized` to use unfinalized commits (will throw if not available)
+	* Include `--latest` for `"latest"` instead of `"finalized"` block tag
+	* Include `--debug` to print `OP_DEBUG` statements
+	* Include `--dump` to print config, latest commit, prover information, and then exit.
+
+## Testing
+
+There is an extensive test suite available for testing individual components of the solution in an isolated manner. 
+
+Using [Foundry](https://getfoundry.sh/) and [blocksmith.js](https://github.com/adraffy/blocksmith.js/), we fork the chain in question (such that can interact with contracts deployed on a real network) and then deploy and test against an isolated unit (for example the chain specific verifier).
+
+Commands available include:
+
+* `bun run test`
+	* `bun run test-components`
+		* [Supported Operations](./test/components/ops.test.ts)
+		* [Protocol Limits](./test/components/limits.test.ts)
+		* [Batched `eth_getProof`](./test/components/proofs.test.ts)
+	* `bun run test-gateways`
+		* [Contract](./test/gateway/SlotDataContract.sol) &rarr; [Reader](./test/gateway/SlotDataReader.sol) &rarr; [Tests](./test/gateway/tests.ts)
+		* ⚠️ Scroll fails [`readZero()`](./test/gateway/tests.ts#L26) test
+		* ⚠️ Polygon has poor `eth_getProof` support
+
+## Examples
+
+A number of examples are provided as part of this repository. For more extensive step-wise example code, please see our [documentation](https://gateway-docs.unruggable.com/examples).
+
+* [linea-ens](./test/v1/linea-ens.ts)
+	* Replacement backend demo for https://names.linea.build/
+	* `bun serve lineaV1`
+
+## Notes
+
+#### Suggested VSCode Extensions
+
+* [JuanBlanco.solidity](https://marketplace.visualstudio.com/items?itemName=JuanBlanco.solidity)
+* [esbenp.prettier-vscode](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+* [dbaeumer.vscode-eslint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
+
+#### Forge Setup
+```sh
+# installed by forge in step (2)
+# provided for reference
+forge install foundry-rs/forge-std
+forge install OpenZeppelin/openzeppelin-contracts@v5.0.2
+
+# installed by script instead of the following command
+# placed at standard remapping location
+# see: https://github.com/ethereum-optimism/optimism/issues/10202
+#forge install ethereum-optimism/optimism
+bun script/import-op.ts
 ```
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
 
-import { EVMFetcher } from '@ensdomains/evm-verifier/contracts/EVMFetcher.sol';
-import { EVMFetchTarget } from '@ensdomains/evm-verifier/contracts/EVMFetchTarget.sol';
-import { IEVMVerifier } from '@ensdomains/evm-verifier/contracts/IEVMVerifier.sol';
+## Contribution Guidelines
 
-contract TestL2 {
-    uint256 testUint; // Slot 0
-    
-    constructor() {
-        testUint = 42;
-    }
-}
+We welcome contributions to this codebase. 
 
-contract TestL1 is EVMFetchTarget {
-    using EVMFetcher for EVMFetcher.EVMFetchRequest;
+The premise behind the development of this software is to minimise duplication of effort and provide tooling that allows developers to interface with a simple, standardised API to read data from other chains.
 
-    IEVMVerifier verifier;
-    address target;
+Please take a look at our [CONTRIBUTING.md](https://github.com/unruggable-labs/unruggable-gateways/blob/main/CONTRIBUTING.md) file for a more in depth overview of our contribution process.
 
-    constructor(IEVMVerifier _verifier, address _target) {
-        verifier = _verifier;
-        target = _target;
-    }
+## Release Process
 
-    function getTestUint() public view returns(uint256) {
-        EVMFetcher.newFetchRequest(verifier, target)
-            .getStatic(0)
-            .fetch(this.getSingleStorageSlotCallback.selector, "");
-    }
+### Branching strategy
 
-    function getSingleStorageSlotCallback(bytes[] memory values, bytes memory) public pure returns(uint256) {
-        return uint256(bytes32(values[0]));
-    }
-}
-```
+* [main](https://github.com/unruggable-labs/unruggable-gateways/tree/main) is our stable release branch that reflects the latest release.
+* [develop](https://github.com/unruggable-labs/unruggable-gateways/tree/develop) is our ongoing development branch. Feature branches are to merged down into this.
+* Feature Branches: Separate branches will be utilised for new feature development or bug fixes.
 
-## Packages
+## License
 
-This is a monorepo divided up into several packages:
-
-### [evm-gateway](/evm-gateway/)
-A framework for constructing generic CCIP-Read gateways targeting different EVM-compatible chains. This repository
-implements all the functionality required to fetch and verify multiple storage slots from an EVM-compatible chain,
-omitting only the L2-specific logic of determining a block to target, and verifying the root of the generated proof.
-
-### [l1-gateway](/l1-gateway/)
-An instantiation of `evm-gateway` that targets Ethereum L1 - that is, it implements a CCIP-Read gateway that generates
-proofs of contract state on L1.
-
-This may at first seem useless, but as the simplest possible practical EVM gateway implementation, it acts as an excellent
-target for testing the entire framework end-to-end.
-
-It may also prove useful for contracts that wish to trustlessly establish the content of storage variables of other contracts,
-or historic values for storage variables of any contract.
-
-### [evm-verifier](/evm-verifier/)
-A Solidity library that verifies state proofs generated by an `evm-gateway` instance. This library implements all the
-functionality required make CCIP-Read calls to an EVM gateway and verify the responses, except for verifying the root of the
-proof. This library is intended to be used by libraries for specific EVM-compatible chains that implement the missing 
-functionality.
-
-### [l1-verifier](/l1-verifier/)
-A complete Solidity library that facilitates sending CCIP-Read requests for L1 state, and verifying the responses.
-
-This repository also contains the end-to-end tests for the entire stack.
-
-### [op-gateway](/op-gateway/)
-An instantiation of `evm-gateway` that targets Optimism. Combined with `op-verifier`, makes it possible for L1 contracts to fetch contract state data from Optimism.
-
-### [op-verifier](/op-verifier/)
-A complete Solidity library that facilitates sending CCIP-Read requests for Optimism state, and verifying the responses.
+All files within this repository are licensed under the [MIT License](https://github.com/ethereum-optimism/optimism/blob/master/LICENSE) unless stated otherwise.
